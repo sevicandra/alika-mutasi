@@ -1,0 +1,7 @@
+/dist
+/models
+/node_modules
+/private.key
+/public.pem
+/.env
+.vscode

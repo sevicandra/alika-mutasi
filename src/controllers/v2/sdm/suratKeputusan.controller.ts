@@ -1,0 +1,1277 @@
+import { SuratKeputusan, PegawaiMutasi, Timeline } from "@/models";
+import { errorResponse, successResponse } from "@/helpers/respose.helper";
+import { AuthenticatedRequest } from "@/types/auth";
+import { Response } from "express";
+import {
+  ValidationError,
+  DatabaseError,
+  ConnectionError,
+  UniqueConstraintError,
+} from "sequelize";
+import { Op } from "sequelize";
+import { AxiosError } from "axios";
+import { MinioService } from "@/services/minio.service";
+import { UUID } from "@/utils/uuid.util";
+import sequelize from "@/config/db.config";
+import { KeluargaJobService } from "@/services/keluarga.service";
+import { hitungBiayaJobService } from "@/services/hitungBiaya.service";
+import { terminJobService } from "@/services/createTermin.service";
+
+const minioService = new MinioService();
+
+export const getAllSuratKeputusan = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || undefined;
+    const offset = parseInt(req.query.offset as string) || undefined;
+    const jenjang = (req.query.jenjang as string) || undefined;
+    const status = (req.query.status as string) || undefined;
+    const search = (req.query.search as string) || undefined;
+    const where: any = {};
+    if (search)
+      where[Op.or] = [
+        {
+          nomor: { [Op.like]: `%${search}%` },
+        },
+        {
+          uraian: { [Op.like]: `%${search}%` },
+        },
+      ];
+    if (jenjang) where.jenjang = jenjang.toUpperCase();
+    if (status) where.status = status.toLocaleUpperCase();
+    const order: any[] = [];
+    const sortField = (req.query.sortField as string) || "id";
+    const sortOrder = (req.query.sortOrder as string) || "DESC";
+    order.push([sortField, sortOrder.toUpperCase()]);
+    const data = await SuratKeputusan.findAll({
+      where,
+      limit,
+      offset,
+      order,
+    });
+    const count = await SuratKeputusan.count({ where });
+    return successResponse(
+      res,
+      "Berhasil mengambil data surat keputusan",
+      data,
+      {
+        limit,
+        offset,
+        count,
+        totalPages: limit ? Math.ceil(count / limit) : 1,
+      }
+    );
+  } catch (error: unknown) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
+
+export const countAllSuratKeputusan = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const jenjang = (req.query.jenjang as string) || undefined;
+    const status = (req.query.status as string) || undefined;
+    const search = (req.query.search as string) || undefined;
+
+    const where: any = {};
+    if (search)
+      where[Op.or] = [
+        {
+          nomor: { [Op.like]: `%${search}%` },
+        },
+        {
+          uraian: { [Op.like]: `%${search}%` },
+        },
+      ];
+    if (jenjang) where.jenjang = jenjang;
+    if (status) where.status = status;
+
+    const count = await SuratKeputusan.count({ where });
+    return successResponse(
+      res,
+      "Berhasil mengambil data surat keputusan",
+      count
+    );
+  } catch (error: unknown) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
+
+export const getSuratKeputusanById = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { SkId } = req.params;
+    const data = await SuratKeputusan.findByPk(SkId, {
+      include: [
+        {
+          association: "Timeline",
+        },
+      ],
+      attributes: {
+        include: [
+          [
+            sequelize.literal(
+              "(SELECT COUNT(*) FROM pegawai_mutasi WHERE pegawai_mutasi.sk_id = SuratKeputusan.id)"
+            ),
+            "jumlah_pegawai",
+          ],
+          [
+            sequelize.literal(
+              "(SELECT COALESCE(SUM(monitoring_tagihan.total_tagihan), 0) FROM pegawai_mutasi JOIN monitoring_tagihan ON monitoring_tagihan.pegawai_id = pegawai_mutasi.id WHERE pegawai_mutasi.sk_id = SuratKeputusan.id)"
+            ),
+            "total_tagihan",
+          ],
+          [
+            sequelize.literal(
+              "(SELECT COALESCE(SUM(monitoring_tagihan.total_termin), 0) FROM pegawai_mutasi JOIN monitoring_tagihan ON monitoring_tagihan.pegawai_id = pegawai_mutasi.id WHERE pegawai_mutasi.sk_id = SuratKeputusan.id)"
+            ),
+            "total_termin",
+          ],
+          [
+            sequelize.literal(
+              "(SELECT COALESCE(SUM(monitoring_tagihan.sisa_tagihan), 0) FROM pegawai_mutasi JOIN monitoring_tagihan ON monitoring_tagihan.pegawai_id = pegawai_mutasi.id WHERE pegawai_mutasi.sk_id = SuratKeputusan.id)"
+            ),
+            "sisa_tagihan",
+          ],
+        ],
+      },
+    });
+
+    if (!data) {
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+    return successResponse(
+      res,
+      "Berhasil mengambil data surat keputusan",
+      data
+    );
+  } catch (error: unknown) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
+
+export const createSuratKeputusan = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { nomor, uraian, tanggal, tmt, jenjang } = req.body;
+    const file = req.file;
+    const ValidationError: {
+      field: string;
+      message: string;
+    }[] = [];
+
+    if (!nomor)
+      ValidationError.push({
+        field: "nomor",
+        message: "Nomor tidak boleh kosong",
+      });
+    if (!uraian)
+      ValidationError.push({
+        field: "uraian",
+        message: "Uraian tidak boleh kosong",
+      });
+    if (!tanggal)
+      ValidationError.push({
+        field: "tanggal",
+        message: "Tanggal tidak boleh kosong",
+      });
+    if (!tmt)
+      ValidationError.push({ field: "tmt", message: "TMT tidak boleh kosong" });
+    if (!jenjang)
+      ValidationError.push({
+        field: "jenjang",
+        message: "Jenjang tidak boleh kosong",
+      });
+    if (!file)
+      ValidationError.push({
+        field: "file",
+        message: "File tidak boleh kosong",
+      });
+
+    if (ValidationError.length > 0) {
+      return errorResponse(
+        res,
+        "Parameter tidak lengkap",
+        ValidationError,
+        422
+      );
+    }
+
+    const fileName = UUID.v4();
+
+    await minioService.uploadFile(
+      file?.buffer,
+      `suratKeputusan/${fileName}.pdf`
+    );
+
+    const data = await SuratKeputusan.create({
+      nomor,
+      uraian,
+      tanggal,
+      tmt,
+      jenjang,
+      file: `suratKeputusan/${fileName}.pdf`,
+    });
+
+    return successResponse(res, "Berhasil membuat data surat keputusan", data);
+  } catch (error: unknown) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
+
+export const updateSuratKeputusan = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { SkId } = req.params;
+    const { nomor, uraian, tanggal, tmt, jenjang, status } = req.body;
+    const file = req.file;
+    const data = await SuratKeputusan.findByPk(SkId, {
+      include: [
+        {
+          association: "Pegawai",
+        },
+      ],
+    });
+    if (!data) {
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+
+    if (data.status !== "DRAFT") {
+      return errorResponse(
+        res,
+        "Surat Keputusan tidak dalam status DRAFT",
+        null,
+        400
+      );
+    }
+
+    if (data.Pegawai.some((pegawai) => pegawai.process_keluarga !== "IDLE")) {
+      return errorResponse(res, "Pegawai sudah dalam proses", null, 400);
+    }
+
+    if (file) {
+      await minioService.uploadFile(file.buffer, `${data.file}`);
+    }
+    if (nomor) data.nomor = nomor;
+    if (uraian) data.uraian = uraian;
+    if (tanggal) data.tanggal = tanggal;
+    if (tmt) data.tmt = tmt;
+    if (jenjang) data.jenjang = jenjang;
+    if (status) data.status = status;
+    await data.save();
+
+    return successResponse(
+      res,
+      "Berhasil memperbarui data surat keputusan",
+      data
+    );
+  } catch (error: unknown) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
+
+export const deleteSuratKeputusan = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { SkId } = req.params;
+    const data = await SuratKeputusan.findByPk(SkId);
+    if (!data) {
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+
+    if (data.status !== "DRAFT") {
+      return errorResponse(
+        res,
+        "Surat Keputusan tidak dalam status DRAFT",
+        null,
+        400
+      );
+    }
+
+    await data.destroy();
+    return successResponse(res, "Berhasil menghapus data surat keputusan", {
+      id: SkId,
+    });
+  } catch (error: unknown) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
+
+export const getSuratKeputusanFile = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { SkId } = req.params;
+    const data = await SuratKeputusan.findByPk(SkId);
+    if (!data) {
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+
+    const stream = await minioService.downloadFile(
+      `${data.file}`
+    );
+    if (stream) {
+      const chunks: Buffer[] = [];
+      stream.on("data", (chunk) => chunks.push(chunk));
+      stream.on("end", () => {
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", "inline; filename=");
+        return res.status(200).send(Buffer.concat(chunks));
+      });
+      stream.on("error", (err: Error) => {
+        return errorResponse(res, "Terjadi kesalahan", err, 500);
+      });
+    }
+  } catch (error: unknown) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
+
+export const getPegawaiSuratKeputusan = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { SkId } = req.params;
+    const data = await SuratKeputusan.findByPk(SkId, {
+      include: [
+        {
+          association: "Pegawai",
+        },
+      ],
+    });
+    if (!data) {
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+    return successResponse(res, "data berhasil didapatkan", data, 200);
+  } catch (error: unknown) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
+
+export const processKeluarga = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { SkId } = req.params;
+    const data = await SuratKeputusan.findByPk(SkId, {
+      include: [
+        {
+          association: "Pegawai",
+          attributes: ["id"],
+          where: {
+            process_keluarga: "IDLE",
+            status: "DRAFT",
+          },
+        },
+      ],
+    });
+    if (!data) {
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+    if (data.status !== "DRAFT") {
+      return errorResponse(
+        res,
+        "Surat Keputusan tidak dalam status DRAFT",
+        null,
+        400
+      );
+    }
+    const ids = data.Pegawai.map((pegawai) => pegawai.id);
+    if (ids.length === 0) {
+      return errorResponse(res, "Tidak ada pegawai yang terkait", null, 404);
+    }
+    await KeluargaJobService.addBatchJob(ids);
+    return successResponse(res, "Berhasil memproses data keluarga", {
+      id: SkId,
+    });
+  } catch (error: unknown) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
+
+export const processBiaya = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { SkId } = req.params;
+    const data = await SuratKeputusan.findByPk(SkId, {
+      include: [
+        {
+          association: "Pegawai",
+          attributes: ["id"],
+          where: {
+            process_keluarga: "DONE",
+            process_biaya: "IDLE",
+            status: "DRAFT",
+          },
+        },
+      ],
+    });
+    if (!data) {
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+    if (data.status !== "DRAFT") {
+      return errorResponse(
+        res,
+        "Surat Keputusan tidak dalam status DRAFT",
+        null,
+        400
+      );
+    }
+
+    const ids = data.Pegawai.map((pegawai) => pegawai.id);
+    if (ids.length === 0) {
+      return errorResponse(res, "Tidak ada pegawai yang terkait", null, 404);
+    }
+    await hitungBiayaJobService.addBatchJob(ids);
+    return successResponse(res, "Berhasil memproses data biaya", {
+      id: SkId,
+    });
+  } catch (error: unknown) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
+
+export const processTermin = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { SkId } = req.params;
+    const { percentage, maximum, tahun_uang_muka, tahun_lunas } = req.body;
+    const type = req.body.type as "UANG_MUKA" | "LUNAS";
+    const ValidationError: {
+      field: string;
+      message: string;
+    }[] = [];
+
+    if (type !== "UANG_MUKA" && type !== "LUNAS") {
+      return errorResponse(res, "Type harus UANG_MUKA atau LUNAS", null, 400);
+    }
+
+    if (type === "UANG_MUKA") {
+      if (!percentage)
+        ValidationError.push({
+          field: "percentage",
+          message: "Persentase tidak boleh kosong",
+        });
+
+      if (percentage < 0 || percentage > 100)
+        ValidationError.push({
+          field: "percentage",
+          message: "Persentase harus antara 0 sampai 100",
+        });
+
+      if (!tahun_uang_muka)
+        ValidationError.push({
+          field: "tahun_uang_muka",
+          message: "Tahun uang muka tidak boleh kosong",
+        });
+    }
+    if (!tahun_lunas)
+      ValidationError.push({
+        field: "tahun_lunas",
+        message: "Tahun lunas tidak boleh kosong",
+      });
+
+    if (ValidationError.length > 0) {
+      return errorResponse(res, "Validation gagal", ValidationError, 422);
+    }
+
+    const data = await SuratKeputusan.findByPk(SkId, {
+      include: [
+        {
+          association: "Pegawai",
+          attributes: ["id"],
+          where: {
+            process_keluarga: "DONE",
+            process_biaya: "DONE",
+            process_termin: "IDLE",
+            status: "DRAFT",
+          },
+        },
+      ],
+    });
+
+    if (!data) {
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+    if (data.status !== "DRAFT") {
+      return errorResponse(
+        res,
+        "Surat Keputusan tidak dalam status DRAFT",
+        null,
+        400
+      );
+    }
+
+    if (type === "UANG_MUKA") {
+      const pegawai = data.Pegawai.map((pegawai) => {
+        return {
+          id: pegawai.id,
+          percentage: percentage,
+          maximum: maximum,
+          tahun_uang_muka: tahun_uang_muka,
+          tahun_lunas: tahun_lunas,
+          type: type,
+        };
+      });
+      await terminJobService.addBatchJobs(pegawai);
+    } else {
+      const pegawai = data.Pegawai.map((pegawai) => {
+        return {
+          id: pegawai.id,
+          tahun_uang_muka: tahun_lunas,
+          tahun_lunas: tahun_lunas,
+          type: type,
+        };
+      });
+      await terminJobService.addBatchJobs(pegawai);
+    }
+
+    return successResponse(res, "Berhasil memproses data termin", {
+      id: SkId,
+    });
+  } catch (error: unknown) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
+
+export const publishSuratKeputusan = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  const t = await sequelize.transaction();
+  try {
+    const { SkId } = req.params;
+
+    const data = await SuratKeputusan.findByPk(SkId, {
+      include: [
+        {
+          association: "Pegawai",
+          attributes: [
+            "id",
+            "process_keluarga",
+            "process_biaya",
+            "process_termin",
+          ],
+          include: [
+            {
+              association: "MonitoringTagihan",
+            },
+          ],
+        },
+        {
+          association: "Timeline",
+        },
+      ],
+    });
+
+    if (!data) {
+      await t.rollback();
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+
+    if (data.status !== "DRAFT") {
+      await t.rollback();
+      return errorResponse(
+        res,
+        "Surat Keputusan tidak dalam status DRAFT",
+        null,
+        400
+      );
+    }
+
+    if (
+      data.Pegawai.some(
+        (pegawai) =>
+          pegawai.process_keluarga !== "DONE" ||
+          pegawai.process_biaya !== "DONE" ||
+          pegawai.process_termin !== "DONE"
+      )
+    ) {
+      await t.rollback();
+      return errorResponse(
+        res,
+        "Proses keluarga, biaya, dan termin belum selesai",
+        null,
+        400
+      );
+    }
+
+    if (
+      data.Pegawai.some((pegawai) => pegawai.MonitoringTagihan.sisa_tagihan > 0)
+    ) {
+      await t.rollback();
+      return errorResponse(
+        res,
+        "masih ada sisa tagihan yang belum dibuat rencana pembayaran",
+        null,
+        400
+      );
+    }
+
+    if (
+      !data.Timeline.find((timeline) => timeline.ref_kode === "01") ||
+      !data.Timeline.find((timeline) => timeline.ref_kode === "02") ||
+      !data.Timeline.find((timeline) => timeline.ref_kode === "03")
+    ) {
+      await t.rollback();
+      return errorResponse(
+        res,
+        "Surat Keputusan belum memiliki timeline lengkap",
+        null,
+        400
+      );
+    }
+
+    data.status = "PUBLISH";
+    await data.save({ transaction: t });
+
+    await PegawaiMutasi.update(
+      { status: "PENDING_APROVAL" },
+      { where: { sk_id: SkId }, transaction: t }
+    );
+
+    await t.commit();
+    return successResponse(res, "Surat Keputusan berhasil di publish", {
+      id: SkId,
+    });
+  } catch (error: unknown) {
+    await t.rollback();
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
+
+export const setTimeline = async (req: AuthenticatedRequest, res: Response) => {
+  const t = await sequelize.transaction();
+  try {
+    const { SkId } = req.params;
+    const { timeline_sanggah, timeline_verifikasi, timeline_spm } = req.body;
+    const ValidationError: {
+      field: string;
+      message: string;
+    }[] = [];
+
+    if (!timeline_sanggah)
+      ValidationError.push({
+        field: "timeline_sanggah",
+        message: "Timeline Sangah tidak boleh kosong",
+      });
+    if (!timeline_verifikasi)
+      ValidationError.push({
+        field: "timeline_verifikasi",
+        message: "Timeline Verifikasi tidak boleh kosong",
+      });
+    if (new Date(timeline_verifikasi) < new Date(timeline_sanggah)) {
+      ValidationError.push({
+        field: "timeline_verifikasi",
+        message: "Timeline Verifikasi tidak boleh sebelum Timeline Sangah",
+      });
+    }
+
+    if (!timeline_spm)
+      ValidationError.push({
+        field: "timeline_spm",
+        message: "Timeline SPM tidak boleh kosong",
+      });
+
+    if (new Date(timeline_spm) < new Date(timeline_verifikasi)) {
+      ValidationError.push({
+        field: "timeline_spm",
+        message: "Timeline SPM tidak boleh sebelum Timeline Verifikasi",
+      });
+    }
+
+    if (ValidationError.length > 0) {
+      await t.rollback();
+      return errorResponse(res, "Validation gagal", ValidationError, 422);
+    }
+
+    await Timeline.upsert(
+      {
+        sk_id: SkId,
+        ref_kode: "01",
+        tanggal: timeline_sanggah,
+      },
+      {
+        transaction: t,
+      }
+    );
+    await Timeline.upsert(
+      {
+        sk_id: SkId,
+        ref_kode: "02",
+        tanggal: timeline_verifikasi,
+      },
+      {
+        transaction: t,
+      }
+    );
+    await Timeline.upsert(
+      {
+        sk_id: SkId,
+        ref_kode: "03",
+        tanggal: timeline_spm,
+      },
+      {
+        transaction: t,
+      }
+    );
+
+    await t.commit();
+    return successResponse(res, "Timeline berhasil diupdate");
+  } catch (error: unknown) {
+    await t.rollback();
+    if (
+      error instanceof ValidationError ||
+      error instanceof UniqueConstraintError
+    ) {
+      const parsedErrors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return errorResponse(res, "Validation gagal", parsedErrors, 422);
+    } else if (
+      error instanceof DatabaseError ||
+      error instanceof ConnectionError
+    ) {
+      const parsedErrors = error.message;
+      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
+    } else if (error instanceof ConnectionError) {
+      const parsedErrors = { message: "Gagal terhubung ke database" };
+      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
+    } else if (error instanceof AxiosError) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "isAxiosError" in error &&
+        (error as AxiosError).isAxiosError
+      ) {
+        const axiosError = error as AxiosError;
+        const statusCode = axiosError.response?.status || 500;
+        const message =
+          (axiosError.response?.data as { message?: string })?.message ||
+          axiosError.message ||
+          "Kesalahan pada permintaan eksternal";
+        const details = axiosError.response?.data || null;
+        return errorResponse(res, message, details, statusCode);
+      }
+      return errorResponse(res, "Terjadi kesalahan", null, 500);
+    } else if (error instanceof Error) {
+      const parsedErrors = { message: error.message };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    } else {
+      const parsedErrors = { message: "Kesalahan tidak diketahui" };
+      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
+    }
+  }
+};
