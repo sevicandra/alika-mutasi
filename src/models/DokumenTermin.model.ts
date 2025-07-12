@@ -1,24 +1,24 @@
 import sequelize from "@/config/db.config";
-import {
-  Model,
-  Optional,
-  DataTypes,
-  Op,
-  Association,
-  BelongsTo,
-} from "sequelize";
+import { Model, Optional, DataTypes, BelongsTo, HasMany, HasOne } from "sequelize";
 import Termin from "./Termin.model";
-import RefTermin from "./RefTermin.model";
+import TteDokumen from "./TteDokumen.model";
+import { EsignService } from "@/services/esign.service";
 
 type DokumenTerminAttributes = {
   id: string;
   termin_id: string;
   document_type: string;
-  ref_termin: string;
-  file: string;
+  file: string|null;
+  required: boolean;
+  uploadable: boolean;
+  process: "IDLE" | "PROCESSING";
+  processed_by: string;
 };
 
-type DokumenTerminCreationAttributes = Optional<DokumenTerminAttributes, "id">;
+type DokumenTerminCreationAttributes = Optional<
+  DokumenTerminAttributes,
+  "id" | "process" | "processed_by" | "file"
+>;
 
 class DokumenTermin
   extends Model<DokumenTerminAttributes, DokumenTerminCreationAttributes>
@@ -27,15 +27,20 @@ class DokumenTermin
   public id!: string;
   public termin_id!: string;
   public document_type!: string;
-  public ref_termin!: string;
-  public file!: string;
+  public file!: string|null;
+  public required!: boolean;
+  public uploadable!: boolean;
+  public process!: "IDLE" | "PROCESSING";
+  public processed_by!: string;
 
   public Termin!: Termin;
-  public RefTermin!: RefTermin;
+  public Tte!: TteDokumen[];
+  public TtePegawai!: TteDokumen;
 
   static associations: {
     Termin: BelongsTo<DokumenTermin, Termin>;
-    RefTermin: BelongsTo<DokumenTermin, RefTermin>;
+    Tte: HasMany<TteDokumen, Termin>;
+    TtePegawai: HasOne<TteDokumen, Termin>;
   };
 }
 
@@ -60,19 +65,26 @@ DokumenTermin.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    ref_termin: {
-      type: DataTypes.STRING(2),
-      references: {
-        model: RefTermin,
-        key: "kode",
-      },
-      onDelete: "RESTRICT",
-      onUpdate: "CASCADE",
-      allowNull: true,
-    },
     file: {
       type: DataTypes.STRING,
+      allowNull: true,
+    },
+    required: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
+    uploadable: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    process: {
+      type: DataTypes.ENUM("IDLE", "PROCESSING"),
       allowNull: false,
+      defaultValue: "IDLE",
+    },
+    processed_by: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
   },
   {

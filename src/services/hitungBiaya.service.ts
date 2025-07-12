@@ -490,6 +490,7 @@ export class BiayaMutasiService {
         const biaya: Record<string, number> = {};
         const transitCount: Record<string, number> = {};
         const biayaBobot: Record<string, number> = {};
+        const pesawatCount: Record<string, number> = {};
 
         const jalur: Record<
           string,
@@ -498,6 +499,7 @@ export class BiayaMutasiService {
             moda: "BUS" | "PESAWAT" | null;
             biaya: number;
             transit: number;
+            pesawat: number;
           } | null
         > = {};
         const queue: {
@@ -506,28 +508,37 @@ export class BiayaMutasiService {
           moda: "BUS" | "PESAWAT" | null;
           biayaBobot: number;
           transit: number;
+          pesawat: number;
         }[] = [];
         Object.keys(graph).forEach((kota) => {
           biaya[kota] = Infinity;
           biayaBobot[kota] = Infinity;
           jalur[kota] = null;
           transitCount[kota] = Infinity;
+          pesawatCount[kota] = Infinity;
         });
         biaya[kota_asal.kota] = 0;
         transitCount[kota_asal.kota] = 0;
         biayaBobot[kota_asal.kota] = 0;
+        pesawatCount[kota_asal.kota] = 0;        
         queue.push({
           kota: kota_asal.kota,
           biaya: 0,
           moda: null,
           biayaBobot: 0,
           transit: 0,
+          pesawat: 0,
         });
         while (queue.length > 0) {
           queue.sort(
-            (a, b) => a.transit - b.transit || a.biayaBobot - b.biayaBobot
+            (a, b) => a.transit - b.transit || a.pesawat - b.pesawat || a.biayaBobot - b.biayaBobot
           );
-          const { kota, moda: modaSebelumnya, transit } = queue.shift()!;
+          const {
+            kota,
+            moda: modaSebelumnya,
+            transit,
+            pesawat,
+          } = queue.shift()!;
           if (kota === kota_tujuan.kota) continue;
 
           for (const {
@@ -536,24 +547,31 @@ export class BiayaMutasiService {
             moda: jenis,
             biayaBobot: hargaBobot,
           } of graph[kota]) {
+
             const biayaBaru = biaya[kota] + harga;
             const biayaBobotBaru = biayaBobot[kota] + hargaBobot;
             const transitBaru =
               transit + (modaSebelumnya !== null && jenis === "BUS" ? 1 : 0);
+            const pesawatBaru = pesawat + (modaSebelumnya !== null && jenis === "PESAWAT" ? 1 : 0);
 
             if (
               transitBaru < transitCount[tujuanKota] ||
               (transitBaru === transitCount[tujuanKota] &&
+                pesawatBaru < pesawatCount[tujuanKota]) ||
+              (transitBaru === transitCount[tujuanKota] &&
+                pesawatBaru === pesawatCount[tujuanKota] &&
                 biayaBobotBaru < biayaBobot[tujuanKota])
             ) {
               biaya[tujuanKota] = biayaBaru;
               biayaBobot[tujuanKota] = biayaBobotBaru;
               transitCount[tujuanKota] = transitBaru;
+              pesawatCount[tujuanKota] = pesawatBaru;
               jalur[tujuanKota] = {
                 kota,
                 moda: jenis,
                 biaya: harga,
                 transit: transitBaru,
+                pesawat: pesawatBaru,
               };
               queue.push({
                 kota: tujuanKota,
@@ -561,6 +579,7 @@ export class BiayaMutasiService {
                 biaya: biayaBaru,
                 biayaBobot: biayaBobotBaru,
                 transit: transitBaru,
+                pesawat: pesawatBaru,
               });
             }
           }
@@ -593,9 +612,7 @@ export class BiayaMutasiService {
 }
 
 export class hitungBiayaJobService {
-  static async addJob(
-    pegawai_id: string,
-  ): Promise<void> {
+  static async addJob(pegawai_id: string): Promise<void> {
     return new Promise(async (resolve, reject) => {
       const t = await sequelize.transaction();
       try {
@@ -652,6 +669,7 @@ export class hitungBiayaJobService {
             kelas_pesawat: pegawai.kelas_pesawat,
             golongan: pegawai.golongan.split("")[0] as "1" | "2" | "3" | "4",
             jumlah_hari: pegawai.jumlah_hari,
+            nip: pegawai.nip,
           },
           {
             jobId: pegawai_id,
@@ -730,6 +748,7 @@ export class hitungBiayaJobService {
               kelas_pesawat: pegawai.kelas_pesawat,
               golongan: pegawai.golongan.split("")[0] as "1" | "2" | "3" | "4",
               jumlah_hari: pegawai.jumlah_hari,
+              nip: pegawai.nip,
             },
             {
               jobId: pegawai_id,

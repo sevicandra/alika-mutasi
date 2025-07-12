@@ -25,6 +25,10 @@ import DataSanggah from "./DataSanggah.model";
 import sequelize from "@/config/db.config";
 import TicketCounter from "./TicketCounter.model";
 import DokumenTermin from "./DokumenTermin.model";
+import TteDokumen from "./TteDokumen.model";
+import RefPejabat from "./RefPejabat.model";
+import SpdCounter from "./SpdCounter.model";
+import PembayaranLog from "./PembayaranLog.model";
 import { Op } from "sequelize";
 
 Art.belongsTo(PegawaiMutasi, {
@@ -140,6 +144,11 @@ PegawaiMutasi.hasOne(MonitoringTagihan, {
   foreignKey: "pegawai_id",
   sourceKey: "id",
   as: "MonitoringTagihan",
+});
+PegawaiMutasi.hasMany(PembayaranLog, {
+  foreignKey: "pegawai_id",
+  sourceKey: "id",
+  as: "Log",
 });
 
 PerubahanKeluarga.belongsTo(PegawaiMutasi, {
@@ -312,11 +321,33 @@ DokumenTermin.belongsTo(Termin, {
   onUpdate: "CASCADE",
 });
 
-DokumenTermin.belongsTo(RefTermin, {
-  foreignKey: "ref_termin",
-  as: "RefTermin",
-  onDelete: "RESTRICT",
+DokumenTermin.hasMany(TteDokumen, {
+  foreignKey: "dokumen_id",
+  as: "Tte",
+  onDelete: "CASCADE",
   onUpdate: "CASCADE",
+});
+
+DokumenTermin.hasOne(TteDokumen, {
+  foreignKey: "dokumen_id",
+  as: "TtePegawai",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+  scope: {
+    jabatan: "PEGAWAI",
+  },
+});
+
+TteDokumen.belongsTo(DokumenTermin, {
+  foreignKey: "dokumen_id",
+  as: "Dokumen",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
+PembayaranLog.belongsTo(PegawaiMutasi, {
+  foreignKey: "pegawai_id",
+  as: "Pegawai",
 });
 
 export {
@@ -347,4 +378,8 @@ export {
   DataSanggah,
   TicketCounter,
   DokumenTermin,
+  TteDokumen,
+  RefPejabat,
+  SpdCounter,
+  PembayaranLog,
 };

@@ -14,11 +14,12 @@ type KeluargaAttributes = {
   pekerjaan?: string;
   is_invant: boolean;
   status: string;
+  file: string | null;
 };
 
 type KeluargaCreationAttributes = Optional<
   KeluargaAttributes,
-  "id" | "status" | "hris_id"
+  "id" | "status" | "hris_id" | "file"
 >;
 
 class Keluarga
@@ -35,6 +36,7 @@ class Keluarga
   public pekerjaan?: string;
   public is_invant!: boolean;
   public status!: string;
+  public file!: string | null;
 
   public Pegawai!: PegawaiMutasi;
   public Ref!: RefHubunganKeluarga;
@@ -103,6 +105,10 @@ Keluarga.init(
       type: DataTypes.ENUM("TERTANGGUNG", "TIDAK_TERTANGGUNG"),
       allowNull: false,
       defaultValue: "TIDAK_TERTANGGUNG",
+    },
+    file: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
   },
   {

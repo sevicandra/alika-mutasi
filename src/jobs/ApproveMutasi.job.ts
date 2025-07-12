@@ -1,31 +1,39 @@
 import { Job } from "bull";
 import { BiayaJob } from "@/types/Job";
 import sequelize from "@/config/db.config";
-import { PegawaiMutasi, MonitoringTagihan, Termin } from "@/models";
+import {
+  PegawaiMutasi,
+  MonitoringTagihan,
+  Termin,
+  DokumenTermin,
+  TteDokumen,
+} from "@/models";
 import { BiayaMutasiService } from "@/services/hitungBiaya.service";
 import { RincianBiaya } from "@/models";
+import { GenerateFileService } from "@/services/generateFile.service";
 import dotenv from "dotenv";
+import { MinioService } from "@/services/minio.service";
+import { AlikaService } from "@/services/alika.service";
+import { Op } from "sequelize";
+import { Logger } from "@/services/log.service";
 dotenv.config();
-
+const minioService = new MinioService();
 export const processApproveMutasi = async (
   job: Job<BiayaJob>
 ): Promise<void> => {
   return new Promise(async (resolve, reject) => {
+    const uploadedFiles: string[] = [];
     const t = await sequelize.transaction();
     const {
+      nip,
+      agenda,
       pegawai_id,
-      faktor_darat = 1,
-      faktor_laut = 1,
-      faktor_udara = 5,
       asal,
       tujuan,
       jumlah_tanggungan_dewasa = 0,
       jumlah_tanggungan_invant = 0,
       tanggungan_art = false,
       golongan,
-      kelas_pesawat = "EKONOMI",
-      jumlah_hari = 3,
-      provinsi_tujuan,
     } = job.data;
 
     let statusBarang:
@@ -35,9 +43,36 @@ export const processApproveMutasi = async (
 
     try {
       RincianBiaya.destroy({
-        where: { pegawai_id: pegawai_id },
+        where: {
+          pegawai_id: pegawai_id,
+          jenis: {
+            [Op.or]: [
+              "BIAYA_ANGKUT_ORANG_ART",
+              "BIAYA_ANGKUT_BARANG_ART",
+              "UANG_HARIAN_ART",
+            ],
+          },
+        },
         transaction: t,
       });
+      const ruteOrang = await RincianBiaya.findAll({
+        where: { pegawai_id: pegawai_id, jenis: "BIAYA_ANGKUT_ORANG" },
+      });
+      const ruteBarang = await RincianBiaya.findAll({
+        where: { pegawai_id: pegawai_id, jenis: "BIAYA_ANGKUT_BARANG" },
+      });
+      const uangHarian = await RincianBiaya.findAll({
+        where: { pegawai_id: pegawai_id, jenis: "UANG_HARIAN" },
+      });
+      if (
+        ruteOrang.length === 0 ||
+        ruteBarang.length === 0 ||
+        uangHarian.length === 0 ||
+        !agenda
+      ) {
+        throw new Error("Rute tidak ditemukan");
+      }
+
       if (asal === tujuan) {
         await PegawaiMutasi.update(
           { process_biaya: "DONE" },
@@ -66,175 +101,75 @@ export const processApproveMutasi = async (
         golongan: "1",
         status: "TIDAK_BERKELUARGA",
       });
-      const uang_harian = await BiayaMutasiService.getUangHarian({
-        kode_provinsi: provinsi_tujuan,
-      });
-      const tarif_packing_darat = await BiayaMutasiService.getTarif({
-        jenis: "PACKING_DARAT",
-      });
-      const tarif_packing_laut = await BiayaMutasiService.getTarif({
-        jenis: "PACKING_LAUT",
-      });
-      const tarif_uang_harian = await BiayaMutasiService.getTarif({
-        jenis: "UANG_HARIAN",
-      });
-      if (
-        !volume_barang_keluarga ||
-        !volume_barang_art ||
-        !uang_harian ||
-        !tarif_packing_darat ||
-        !tarif_packing_laut
-      ) {
+      if (!volume_barang_keluarga || !volume_barang_art) {
         throw new Error("Barang tidak ditemukan");
       }
-      const rute_orang = await BiayaMutasiService.RuteOrang({
-        asal: asal,
-        tujuan: tujuan,
-        faktor_darat: faktor_darat,
-        faktor_udara: faktor_udara,
-        kelas_pesawat: kelas_pesawat,
-      });
-      if (rute_orang.rute.length === 0) {
-        throw new Error("Rute Orang tidak ditemukan");
+
+      for (const r of ruteOrang) {
+        r.volume =
+          1 + jumlah_tanggungan_dewasa + jumlah_tanggungan_invant * 0.1;
+        await r.save({ transaction: t });
       }
-      const rute_barang = await BiayaMutasiService.RuteBarang({
-        asal: asal,
-        tujuan: tujuan,
-        faktor_laut: faktor_laut,
-        faktor_darat: faktor_darat,
-      });
-      if (rute_barang.rute.length === 0) {
-        throw new Error("Rute Barang tidak ditemukan");
+      for (const r of ruteBarang) {
+        r.volume = volume_barang_keluarga;
+        await r.save({ transaction: t });
       }
-      const rute: {
+      for (const r of uangHarian) {
+        r.volume = 1 + jumlah_tanggungan_dewasa + jumlah_tanggungan_invant;
+        await r.save({ transaction: t });
+      }
+      const rute_art: {
         pegawai_id: string;
         volume: number;
         harga_satuan: number;
-        jenis: string;
+        jenis:
+          | "BIAYA_ANGKUT_ORANG"
+          | "BIAYA_ANGKUT_BARANG"
+          | "UANG_HARIAN"
+          | "BIAYA_ANGKUT_ORANG_ART"
+          | "BIAYA_ANGKUT_BARANG_ART"
+          | "UANG_HARIAN_ART";
         sub_jenis: string;
         keterangan: string;
         urutan?: number;
       }[] = [];
-      for (let index = 1; index < rute_orang.rute.length; index++) {
-        const current = rute_orang.rute[index];
-        const prev = rute_orang.rute[index - 1];
-        rute.push({
-          pegawai_id: pegawai_id,
-          volume: 1 + jumlah_tanggungan_dewasa + jumlah_tanggungan_invant * 0.1,
-          harga_satuan: current.biaya || 0,
-          jenis: "BIAYA_ANGKUT_ORANG",
-          sub_jenis: current.moda || "BUS",
-          keterangan: `${prev.kota} - ${current.kota}`,
-          urutan: index,
-        });
-        if (tanggungan_art) {
-          rute.push({
+
+      if (tanggungan_art) {
+        for (const r of ruteOrang) {
+          rute_art.push({
             pegawai_id: pegawai_id,
             volume: 1,
-            harga_satuan: current.biaya || 0,
+            harga_satuan: r.harga_satuan,
             jenis: "BIAYA_ANGKUT_ORANG_ART",
-            sub_jenis: current.moda || "BUS",
-            keterangan: `${prev.kota} - ${current.kota}`,
-            urutan: index,
+            sub_jenis: r.sub_jenis,
+            keterangan: r.keterangan,
+            urutan: r.urutan,
           });
         }
-      }
-
-      let packingDarat = false;
-      let packingLaut = false;
-      for (let index = 1; index < rute_barang.rute.length; index++) {
-        const current = rute_barang.rute[index];
-        const prev = rute_barang.rute[index - 1];
-        if (current.biaya === 0) {
-          continue;
-        }
-        if (current.moda === "TRUK") {
-          if (!packingDarat && !packingLaut) {
-            rute.push({
-              pegawai_id: pegawai_id,
-              volume: volume_barang_keluarga,
-              harga_satuan: tarif_packing_darat,
-              jenis: "BIAYA_ANGKUT_BARANG",
-              sub_jenis: "PACKING DARAT",
-              keterangan: `PACKING DARAT`,
-            });
-
-            if (tanggungan_art) {
-              rute.push({
-                pegawai_id: pegawai_id,
-                volume: volume_barang_art,
-                harga_satuan: tarif_packing_darat,
-                jenis: "BIAYA_ANGKUT_BARANG_ART",
-                sub_jenis: "PACKING DARAT",
-                keterangan: `PACKING DARAT`,
-              });
-            }
-          }
-          packingDarat = true;
-        } else {
-          if (!packingLaut) {
-            rute.push({
-              pegawai_id: pegawai_id,
-              volume: volume_barang_keluarga,
-              harga_satuan: tarif_packing_laut,
-              jenis: "BIAYA_ANGKUT_BARANG",
-              sub_jenis: "PACKING LAUT",
-              keterangan: `PACKING LAUT`,
-            });
-
-            if (tanggungan_art) {
-              rute.push({
-                pegawai_id: pegawai_id,
-                volume: volume_barang_art,
-                harga_satuan: tarif_packing_laut,
-                jenis: "BIAYA_ANGKUT_BARANG_ART",
-                sub_jenis: "PACKING LAUT",
-                keterangan: `PACKING LAUT`,
-              });
-            }
-          }
-          packingLaut = true;
-        }
-        rute.push({
-          pegawai_id: pegawai_id,
-          volume: volume_barang_keluarga,
-          harga_satuan: current.biaya || 0,
-          jenis: "BIAYA_ANGKUT_BARANG",
-          sub_jenis: current.moda || "TRUK",
-          keterangan: `${prev.kota} - ${current.kota}`,
-          urutan: index,
-        });
-        if (tanggungan_art) {
-          rute.push({
+        for (const r of ruteBarang) {
+          rute_art.push({
             pegawai_id: pegawai_id,
             volume: volume_barang_art,
-            harga_satuan: current.biaya || 0,
+            harga_satuan: r.harga_satuan,
             jenis: "BIAYA_ANGKUT_BARANG_ART",
-            sub_jenis: current.moda || "TRUK",
-            keterangan: `${prev.kota} - ${current.kota}`,
-            urutan: index,
+            sub_jenis: r.sub_jenis,
+            keterangan: r.keterangan,
+            urutan: r.urutan,
+          });
+        }
+        for (const r of uangHarian) {
+          rute_art.push({
+            pegawai_id: pegawai_id,
+            volume: 1,
+            harga_satuan: r.harga_satuan,
+            jenis: "UANG_HARIAN_ART",
+            sub_jenis: r.sub_jenis,
+            keterangan: r.keterangan,
+            urutan: r.urutan,
           });
         }
       }
-      rute.push({
-        pegawai_id: pegawai_id,
-        volume: 1 + jumlah_tanggungan_dewasa + jumlah_tanggungan_invant,
-        harga_satuan: uang_harian.tarif * tarif_uang_harian * jumlah_hari || 0,
-        jenis: "UANG_HARIAN",
-        sub_jenis: `UANG HARIAN ${jumlah_hari} HARI`,
-        keterangan: `UANG HARIAN ${uang_harian.provinsi}`,
-      });
-      if (tanggungan_art) {
-        rute.push({
-          pegawai_id: pegawai_id,
-          volume: 1,
-          harga_satuan: uang_harian.tarif * tarif_uang_harian || 0,
-          jenis: "UANG_HARIAN_ART",
-          sub_jenis: `UANG HARIAN ${jumlah_hari} HARI`,
-          keterangan: `UANG HARIAN ${uang_harian.provinsi}`,
-        });
-      }
-      await RincianBiaya.bulkCreate(rute, { transaction: t });
+      await RincianBiaya.bulkCreate(rute_art, { transaction: t });
       const tagihan = await MonitoringTagihan.findOne({
         where: { pegawai_id: pegawai_id },
         transaction: t,
@@ -261,9 +196,107 @@ export const processApproveMutasi = async (
         { status: "APPROVED" },
         { where: { id: pegawai_id }, transaction: t }
       );
+      const pegawai = await PegawaiMutasi.findOne({
+        where: { id: pegawai_id },
+        include: [
+          {
+            association: "Termin",
+            order: [["urutan", "DESC"]],
+            include: [
+              {
+                association: "Ref",
+              },
+            ],
+          },
+          {
+            association: "RincianBiaya",
+          },
+          {
+            association: "KantorAsal",
+            include: [{ association: "Kota" }],
+          },
+          {
+            association: "KantorTujuan",
+            include: [{ association: "Kota" }],
+          },
+          {
+            association: "SuratKeputusan",
+          },
+          {
+            association: "Golongan",
+          },
+          {
+            association: "Keluarga",
+            include: [
+              {
+                association: "Ref",
+              },
+            ],
+          },
+        ],
+        transaction: t,
+      });
+      if (!pegawai) {
+        throw new Error("Pegawai not found");
+      }
+      const files = await GenerateFileService.generateFile(pegawai, agenda);
+      for (const file of files) {
+        if (file.file) uploadedFiles.push(file.file);
+      }
+      for (const file of files) {
+        const dokumen = await DokumenTermin.create(
+          {
+            termin_id: file.termin_id,
+            document_type: file.jenis,
+            file: file.file,
+            required: file.required,
+            uploadable: file.uploadable,
+          },
+          { transaction: t }
+        );
+        for (const tte of file.penandatangan) {
+          await TteDokumen.create(
+            {
+              nama: tte.nama,
+              dokumen_id: dokumen.id,
+              nip: tte.nip,
+              jabatan: tte.jabatan,
+              koordinat_qr: {
+                page: tte.koordinat.page,
+                x: tte.koordinat.x,
+                y: tte.koordinat.y,
+              },
+            },
+            { transaction: t }
+          );
+        }
+      }
+      await AlikaService.sendPushNotification({
+        nip: nip,
+        message: `mutasi berhasil dihitung, silahkan lanjutkan ke proses pembayaran`,
+      });
+      await Logger.GeneralAction({
+        pegawai_id: pegawai_id,
+        actor_nip: null,
+        actor_role: "System",
+        action: "Hitung Biaya Mutasi",
+        description:
+          "mutasi berhasil dihitung dan dokumen pendukung berhasil dibuat",
+        transaction: t,
+      });
       await t.commit();
       resolve();
     } catch (error) {
+      for (const filePath of uploadedFiles) {
+        try {
+          await minioService.deleteFile(filePath);
+        } catch (deleteError) {
+          console.warn(
+            `Gagal menghapus file rollback: ${filePath}`,
+            deleteError
+          );
+        }
+      }
       await t.rollback();
       console.error("Job gagal, percobaan ke:", job.attemptsMade + 1);
 
@@ -272,6 +305,18 @@ export const processApproveMutasi = async (
           { status: "PENDING_APROVAL" },
           { where: { id: pegawai_id } }
         );
+        await AlikaService.sendPushNotification({
+          nip: nip,
+          message: `gagal melakukan perhitungan biaya mutasi, mohon hubungi admin`,
+        });
+        await Logger.GeneralAction({
+          pegawai_id: pegawai_id,
+          actor_nip: null,
+          actor_role: "System",
+          action: "Hitung Biaya Mutasi",
+          description: `mutasi berhasil dihitung dan dokumen pendukung gagal dibuat, error: ${error}`,
+          transaction: t,
+        });
         console.log("Job gagal maksimal, status diubah ke failed.");
       }
       reject(error);

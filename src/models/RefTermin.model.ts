@@ -5,7 +5,12 @@ type RefTerminAttributes = {
   id: number;
   kode: string;
   nama: string;
-  required_doc: JSON;
+  required_doc: {
+    jenis: string;
+    required: boolean;
+    upload: boolean;
+    penandatatangan: string[];
+  }[];
   urutan: number;
 };
 
@@ -18,7 +23,12 @@ class RefTermin
   public id!: number;
   public kode!: string;
   public nama!: string;
-  public required_doc!: JSON;
+  public required_doc!: {
+    jenis: string;
+    required: boolean;
+    upload: boolean;
+    penandatatangan: string[];
+  }[];
   public urutan!: number;
 }
 
@@ -45,7 +55,7 @@ RefTermin.init(
     urutan: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      unique: true
+      unique: true,
     },
   },
   {
@@ -57,4 +67,3 @@ RefTermin.init(
 );
 
 export default RefTermin;
-

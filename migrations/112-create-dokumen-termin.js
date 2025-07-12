@@ -22,18 +22,33 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
-      ref_termin: {
-        type: Sequelize.STRING(2),
-        references: {
-          model: "ref_termin",
-          key: "kode",
-        },
-        onUpdate: "CASCADE",
-        onDelete: "RESTRICT",
+      required: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
       },
       file: {
         type: Sequelize.STRING,
+        allowNull: true,
+      },
+      required: {
+        type: Sequelize.BOOLEAN,
         allowNull: false,
+        defaultValue: true,
+      },
+      uploadable: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      process: {
+        type: Sequelize.ENUM("IDLE", "PROCESSING"),
+        allowNull: false,
+        defaultValue: "IDLE",
+      },
+      processed_by: {
+        type: Sequelize.STRING,
+        allowNull: true,
       },
     });
   },

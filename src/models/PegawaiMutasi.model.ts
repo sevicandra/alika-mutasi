@@ -15,6 +15,7 @@ import RincianBiaya from "./RincianBiaya.model";
 import RefGolongan from "./RefGolongan.model";
 import MonitoringTagihan from "./MonitoringTagihan.model";
 import Sanggah from "./Sanggah.model";
+import Termin from "./Termin.model";
 
 type PegawaiMutasiAttributes = {
   id: string;
@@ -106,6 +107,7 @@ class PegawaiMutasi
   public MonitoringTagihan!: MonitoringTagihan;
   public CurrentSanggah!: Sanggah | null;
   public Sanggah!: Sanggah[] | [];
+  public Termin!: Termin[] | [];
 
   public static associations: {
     KantorAsal: BelongsTo<PegawaiMutasi, RefKantor>;
@@ -122,6 +124,7 @@ class PegawaiMutasi
     MonitoringTagihan: HasOne<PegawaiMutasi, MonitoringTagihan>;
     CurrentSanggah: HasOne<PegawaiMutasi, Sanggah>;
     Sanggah: HasMany<PegawaiMutasi, Sanggah>;
+    Termin: HasMany<PegawaiMutasi, Termin>;
   };
 
   async addKeluarga({
@@ -276,7 +279,7 @@ PegawaiMutasi.init(
     faktor_laut: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      defaultValue: 1,
+      defaultValue: 5,
     },
     faktor_udara: {
       type: DataTypes.INTEGER,

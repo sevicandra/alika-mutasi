@@ -10,7 +10,16 @@ type TerminAttributes = {
   pegawai_id: string;
   tahun: string;
   nominal: number;
-  status: "DRAFT" | "PENDING" | "WAITING_APPROVAL" | "APPROVED" | "REJECTED"; // "APPROVED_KEU" | "REJECTED_KEU"
+  status:
+    | "DRAFT"
+    | "PENDING"
+    | "WAITING_APPROVAL"
+    | "WAITING_APPROVAL_SDM"
+    | "APPROVED_SDM"
+    | "WAITING_APPROVAL_KEU"
+    | "APPROVED_KEU"
+    | "PAID"
+    | "REJECTED";
   admin_notes: string;
   submitted_at: Date | null;
   reviewed_at: Date | null;
@@ -39,7 +48,11 @@ class Termin
     | "DRAFT"
     | "PENDING"
     | "WAITING_APPROVAL"
-    | "APPROVED"
+    | "WAITING_APPROVAL_SDM"
+    | "APPROVED_SDM"
+    | "WAITING_APPROVAL_KEU"
+    | "APPROVED_KEU"
+    | "PAID"
     | "REJECTED";
   public admin_notes!: string;
   public submitted_at!: Date | null;
@@ -48,7 +61,7 @@ class Termin
 
   public Pegawai!: PegawaiMutasi;
   public Ref!: RefTermin;
-  public DokumenTermin?: DokumenTermin[] | [];
+  public DokumenTermin!: DokumenTermin[] | [];
 
   public static associations: {
     Pegawai: BelongsTo<Termin, PegawaiMutasi>;
@@ -101,8 +114,11 @@ Termin.init(
       type: DataTypes.ENUM(
         "DRAFT",
         "PENDING",
-        "WAITING_APPROVAL",
-        "APPROVED",
+        "WAITING_APPROVAL_SDM",
+        "APPROVED_SDM",
+        "WAITING_APPROVAL_KEU",
+        "APPROVED_KEU",
+        "PAID",
         "REJECTED"
       ),
       allowNull: false,

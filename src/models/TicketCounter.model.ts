@@ -38,8 +38,8 @@ TicketCounter.init(
     },
   },
   {
-    tableName: "ticket_counter",
-    modelName: "TicketCounter",
+    tableName: "tiket_counter",
+    modelName: "TiketCounter",
     sequelize,
   }
 );

@@ -28,7 +28,7 @@ export const getAllKeluarga = async (
       include: [
         {
           association: "Ref",
-          attributes: ["nama"],
+          attributes: ["nama", "jenis"],
         },
         {
           association: "Pegawai",

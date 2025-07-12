@@ -3,6 +3,11 @@ export interface PegawaiJob {
 }
 
 export interface BiayaJob {
+  nip:string,
+  agenda?: {
+    nomor: string;
+    tanggal: string;
+  };
   pegawai_id: string;
   faktor_darat?: number;
   faktor_laut?: number;
@@ -24,4 +29,10 @@ export interface TerminJob {
   tahun_lunas: string;
   pegawai_id: string;
   nominal: number;
+}
+
+export interface PembayaranJob{
+  dokumen_id:string;
+  nik:string;
+  passphrase:string;
 }

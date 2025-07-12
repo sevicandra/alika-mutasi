@@ -1,7 +1,7 @@
 import { SuratKeputusan, PegawaiMutasi, Timeline } from "@/models";
 import { errorResponse, successResponse } from "@/helpers/respose.helper";
 import { AuthenticatedRequest } from "@/types/auth";
-import { Response } from "express";
+import e, { Response } from "express";
 import {
   ValidationError,
   DatabaseError,
@@ -16,6 +16,7 @@ import sequelize from "@/config/db.config";
 import { KeluargaJobService } from "@/services/keluarga.service";
 import { hitungBiayaJobService } from "@/services/hitungBiaya.service";
 import { terminJobService } from "@/services/createTermin.service";
+import { Logger } from "@/services/log.service";
 
 const minioService = new MinioService();
 
@@ -566,15 +567,16 @@ export const getSuratKeputusanFile = async (
       return errorResponse(res, "data tidak ditemukan", null, 404);
     }
 
-    const stream = await minioService.downloadFile(
-      `${data.file}`
-    );
+    const stream = await minioService.downloadFile(`${data.file}`);
     if (stream) {
       const chunks: Buffer[] = [];
       stream.on("data", (chunk) => chunks.push(chunk));
       stream.on("end", () => {
         res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", "inline; filename=");
+        res.setHeader(
+          "Content-Disposition",
+          `inline; filename=${data.nomor.replace(/\//g, "_")}.pdf`
+        );
         return res.status(200).send(Buffer.concat(chunks));
       });
       stream.on("error", (err: Error) => {
@@ -1011,7 +1013,7 @@ export const publishSuratKeputusan = async (
   const t = await sequelize.transaction();
   try {
     const { SkId } = req.params;
-
+    const { nip } = req.user;
     const data = await SuratKeputusan.findByPk(SkId, {
       include: [
         {
@@ -1099,12 +1101,21 @@ export const publishSuratKeputusan = async (
       { status: "PENDING_APROVAL" },
       { where: { sk_id: SkId }, transaction: t }
     );
-
+    await Logger.BatchGeneralAction({
+      pegawai_ids: data.Pegawai.map((p) => p.id),
+      actor_nip: nip,
+      actor_role: "SDM",
+      action: "Publish Surat Keputusan",
+      description: null,
+      transaction: t,
+    });
     await t.commit();
     return successResponse(res, "Surat Keputusan berhasil di publish", {
       id: SkId,
     });
   } catch (error: unknown) {
+    console.log(error);
+
     await t.rollback();
     if (
       error instanceof ValidationError ||

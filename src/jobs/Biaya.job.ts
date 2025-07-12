@@ -108,7 +108,13 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
         pegawai_id: string;
         volume: number;
         harga_satuan: number;
-        jenis: string;
+        jenis:
+          | "BIAYA_ANGKUT_ORANG"
+          | "BIAYA_ANGKUT_BARANG"
+          | "UANG_HARIAN"
+          | "BIAYA_ANGKUT_ORANG_ART"
+          | "BIAYA_ANGKUT_BARANG_ART"
+          | "UANG_HARIAN_ART";
         sub_jenis: string;
         keterangan: string;
         urutan?: number;

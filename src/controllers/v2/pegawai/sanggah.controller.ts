@@ -17,6 +17,8 @@ import {
 } from "sequelize";
 import { AxiosError } from "axios";
 import { MinioService } from "@/services/minio.service";
+import { Logger } from "@/services/log.service";
+import { PengajuanSanggah } from "@/types/pembayaranLog";
 
 const minioService = new MinioService();
 
@@ -181,6 +183,7 @@ export const createSanggah = async (
         {
           association: "CurrentSanggah",
         },
+        { association: "Keluarga" },
       ],
       transaction: t,
     });
@@ -209,6 +212,7 @@ export const createSanggah = async (
     await counter.save({ transaction: t });
 
     const families = [];
+    const logPayload: PengajuanSanggah[] = [];
 
     const sanggah = await Sanggah.create(
       {
@@ -256,6 +260,14 @@ export const createSanggah = async (
         new_value: datas ? JSON.parse(datas) : undefined,
         reason: item.catatan,
       });
+      logPayload.push({
+        action: action.toUpperCase(),
+        nama: mutasi.Keluarga.find((k) => k.id === id)?.nama || "",
+        data: datas ? JSON.parse(datas) : undefined,
+        catatan: item.catatan,
+        file: file ? filePath : undefined,
+        id: id ? id : undefined,
+      });
     }
     await DataSanggah.bulkCreate(families, {
       transaction: t,
@@ -266,6 +278,14 @@ export const createSanggah = async (
     }
     mutasi.status = "DISPUTED";
     await mutasi.save({ transaction: t });
+    await Logger.SanggahanDiajukan({
+      pegawai_id: mutasi.id,
+      actor_nip: nip,
+      action: "Pengajuan Sanggah Data Keluarga",
+      description: null,
+      payload: logPayload,
+      transaction: t,
+    });
     await t.commit();
     return successResponse(res, "data berhasil dibuat");
   } catch (error: unknown) {

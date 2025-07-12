@@ -83,7 +83,7 @@ export const processKeluarga = async (job: Job<PegawaiJob>): Promise<void> => {
 
       const data = [...dataPasangan, ...dataAnak];
 
-      const result = await Keluarga.bulkCreate(data, { transaction: t });
+      await Keluarga.bulkCreate(data, { transaction: t });
       // await PerubahanKeluarga.create(
       //   {
       //     pegawai_id: id,

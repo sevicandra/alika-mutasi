@@ -66,29 +66,60 @@ export class KemenkeuService {
   }
   static async getKeluarga({ nip }: { nip: string }): Promise<Keluarga[]> {
     try {
-        const cachedKeluarga = await redis.getCache(
-          `${appConfig.name}:KemenkeuService:Keluarga:${nip}`
-        );
-        if (cachedKeluarga) {
-          return JSON.parse(cachedKeluarga) as Keluarga[];
-        }
-        const response = await axios.get(
-          `${ServiceKemenkeuConfig.BASE_URI}/hris/keluarga/Riwayat/GetKeluargaByNip/${nip}`,
-          {
-            headers: {
-              Authorization: `Bearer ${await this.getAccessToken()}`,
-            },
-          }
-        );
-        await redis.setCache(
-          `${appConfig.name}:KemenkeuService:Keluarga:${nip}`,
-          JSON.stringify(response.data.Data),
-          3600
-        );
-        return response.data.Data as Keluarga[];
-      } catch (error) {
-        console.error("Error requesting Profil:", error);
-        throw new Error("Failed to get Profil");
+      const cachedKeluarga = await redis.getCache(
+        `${appConfig.name}:KemenkeuService:Keluarga:${nip}`
+      );
+      if (cachedKeluarga) {
+        return JSON.parse(cachedKeluarga) as Keluarga[];
       }
+      const response = await axios.get(
+        `${ServiceKemenkeuConfig.BASE_URI}/hris/keluarga/Riwayat/GetKeluargaByNip/${nip}`,
+        {
+          headers: {
+            Authorization: `Bearer ${await this.getAccessToken()}`,
+          },
+        }
+      );
+      await redis.setCache(
+        `${appConfig.name}:KemenkeuService:Keluarga:${nip}`,
+        JSON.stringify(response.data.Data),
+        3600
+      );
+      return response.data.Data as Keluarga[];
+    } catch (error) {
+      console.error("Error requesting Profil:", error);
+      throw new Error("Failed to get Profil");
+    }
+  }
+  static async getDaftarPegawai({
+    kdsatker,
+  }: {
+    kdsatker: string;
+  }): Promise<Profil[]> {
+    try {
+      const cachedKeluarga = await redis.getCache(
+        `${appConfig.name}:KemenkeuService:DaftarPegawai:${kdsatker}`
+      );
+      if (cachedKeluarga) {
+        return JSON.parse(cachedKeluarga) as Profil[];
+      }
+      const response = await axios.get(
+        `${ServiceKemenkeuConfig.BASE_URI}/hris/profil/pegawai/getByKodeSatker?kdSatker=${kdsatker}`,
+        {
+          headers: {
+            Authorization: `Bearer ${await this.getAccessToken()}`,
+          },
+        }
+      );
+      await redis.setCache(
+        `${appConfig.name}:KemenkeuService:DaftarPegawai:${kdsatker}`,
+        JSON.stringify(response.data.Data),
+        3600
+      );
+      return response.data.Data as Profil[];
+    } catch (error) {
+      console.error("Error requesting Daftar Pegawai:", error);
+      throw new Error("Failed to get Daftar Pegawai");
+    }
   }
 }

@@ -11,6 +11,9 @@ import {
 } from "sequelize";
 import { AxiosError } from "axios";
 import { Invant } from "@/helpers/age.helper";
+import { MinioService } from "@/services/minio.service";
+
+const minioService = new MinioService();
 
 export const getAllKeluarga = async (
   req: AuthenticatedRequest,
@@ -224,7 +227,7 @@ export const createKeluarga = async (
     if (!pegawai) {
       return errorResponse(res, "Pegawai tidak ditemukan", null, 404);
     }
-    
+
     if (
       pegawai.process_biaya !== "IDLE" ||
       pegawai.SuratKeputusan.status !== "DRAFT"
@@ -474,4 +477,38 @@ export const deleteKeluarga = async (
       return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
     }
   }
+};
+
+export const getFileKeluarga = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  const { KeluargaId, PegawaiId, SkId } = req.params;
+  try {
+    const data = await Keluarga.findOne({
+      where: {
+        id: KeluargaId,
+        pegawai_id: PegawaiId,
+      },
+    });
+    if (!data || !data.file) {
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+    const stream = await minioService.downloadFile(`${data.file}`);
+    if (stream) {
+      const chunks: Buffer[] = [];
+      stream.on("data", (chunk) => chunks.push(chunk));
+      stream.on("end", () => {
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+          "Content-Disposition",
+          `inline; filename=${data.nama}.pdf`
+        );
+        return res.status(200).send(Buffer.concat(chunks));
+      });
+      stream.on("error", (err: Error) => {
+        return errorResponse(res, "Terjadi kesalahan", err, 500);
+      });
+    }
+  } catch (error) {}
 };

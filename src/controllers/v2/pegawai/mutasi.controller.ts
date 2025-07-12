@@ -1,4 +1,4 @@
-import { PegawaiMutasi, sequelize } from "@/models";
+import { PegawaiMutasi, sequelize, SpdCounter } from "@/models";
 import { errorResponse, successResponse } from "@/helpers/respose.helper";
 import { AuthenticatedRequest } from "@/types/auth";
 import { Response } from "express";
@@ -11,6 +11,7 @@ import {
 import { Op } from "sequelize";
 import { AxiosError } from "axios";
 import { approveMutasiQueue } from "@/queues/ApproveMutasi.queue";
+import { Logger } from "@/services/log.service";
 
 export const getAllMutasi = async (
   req: AuthenticatedRequest,
@@ -300,6 +301,17 @@ export const approve = async (req: AuthenticatedRequest, res: Response) => {
     const { nip } = req.user;
     const { mutasiId } = req.params;
 
+    const [counter] = await SpdCounter.findOrCreate({
+      where: { year: `${new Date().getFullYear()}` },
+      defaults: {
+        ext: "KN.122",
+      },
+      transaction: t,
+    });
+
+    counter.last_number += 1;
+    await counter.save({ transaction: t });
+
     const data = await PegawaiMutasi.findOne({
       where: {
         id: mutasiId,
@@ -344,6 +356,17 @@ export const approve = async (req: AuthenticatedRequest, res: Response) => {
     await approveMutasiQueue.add(
       "approve_mutasi",
       {
+        nip: nip,
+        agenda: {
+          nomor: `${String(counter.last_number).padStart(4, "0")}/${
+            counter.ext
+          }/${new Date().getFullYear()}`,
+          tanggal: new Date().toLocaleDateString("id-ID", {
+            year: "numeric",
+            month: "long",
+            day: "2-digit",
+          }),
+        },
         pegawai_id: mutasiId,
         jumlah_tanggungan_dewasa: data.TanggunganDewasa.length,
         jumlah_tanggungan_invant: data.TanggunganInvant.length,
@@ -366,6 +389,14 @@ export const approve = async (req: AuthenticatedRequest, res: Response) => {
         removeOnFail: false,
       }
     );
+    await Logger.GeneralAction({
+      pegawai_id: mutasiId,
+      actor_nip: nip,
+      actor_role: "PEGAWAI",
+      action: "Setujui Data Tanggungan Mutasi",
+      description: null,
+      transaction: t,
+    });
     await t.commit();
     return successResponse(
       res,

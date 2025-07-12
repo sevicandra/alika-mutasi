@@ -13,6 +13,8 @@ import {
 } from "sequelize";
 import { AxiosError } from "axios";
 import { Invant } from "@/helpers/age.helper";
+import { Logger } from "@/services/log.service";
+import { ReviewSanggah } from "@/types/pembayaranLog";
 
 export const getAllSanggah = async (
   req: AuthenticatedRequest,
@@ -189,6 +191,7 @@ export const reviewSanggah = async (
   } = req.body;
   try {
     const { SanggahId } = req.params;
+    const { nip } = req.user;
     const data = await Sanggah.findOne({
       where: { id: SanggahId, status: "PENDING" },
       include: [
@@ -226,94 +229,122 @@ export const reviewSanggah = async (
         400
       );
     }
+    const logPayload: ReviewSanggah[] = [];
 
-    data.DataSanggah.forEach(async (d: any) => {
+    for (const d of data.DataSanggah) {
       const reviewData = review.find((r) => r.id === d.id);
       if (reviewData) {
         d.is_approved = reviewData.is_approved;
         d.admin_notes = reviewData.admin_notes;
         await d.save({ transaction: t });
         await d.reload({ transaction: t });
-      }
-    });
-    data.DataSanggah.filter((d) => d.is_approved === true).forEach(async (d) => {
-      if (d.action === "ADD") {
-        type NewValueType = {
-          nama: { new: string };
-          nik: { new: string };
-          hubungan: { new: string };
-          tanggal_lahir: { new: string };
-          pekerjaan: { new: string };
-          status: { new: string };
-        };
-        const newValue = d.new_value as unknown as NewValueType;
-
-        const is_invant = Invant(
-          new Date(newValue.tanggal_lahir.new),
-          data.Pegawai.SuratKeputusan.tanggal
-        );
-
-        await Keluarga.create(
-          {
-            pegawai_id: data.Pegawai.id,
-            nama: newValue.nama.new,
-            nik: newValue.nik.new,
-            hubungan: newValue.hubungan.new,
-            tanggal_lahir: new Date(newValue.tanggal_lahir.new),
-            pekerjaan: newValue.pekerjaan.new,
-            is_invant: is_invant,
-            status: newValue.status.new,
-          },
-          { transaction: t }
-        );
-      }
-
-      if (d.action === "EDIT") {
-        type NewValueType = {
-          nama?: { new: string; old: string };
-          nik?: { new: string; old: string };
-          hubungan?: { new: string; old: string };
-          tanggal_lahir?: { new: string; old: string };
-          pekerjaan?: { new: string; old: string };
-          status?: { new: string; old: string };
-        };
-        const newValue = d.new_value as unknown as NewValueType;
-        await Keluarga.update(
-          {
-            ...(newValue.nama && { nama: newValue.nama.new }),
-            ...(newValue.nik && { nik: newValue.nik.new }),
-            ...(newValue.hubungan && { hubungan: newValue.hubungan.new }),
-            ...(newValue.tanggal_lahir && {
-              tanggal_lahir: new Date(newValue.tanggal_lahir.new),
-            }),
-            ...(newValue.pekerjaan && { pekerjaan: newValue.pekerjaan.new }),
-            ...(newValue.status && { status: newValue.status.new }),
-            ...(newValue.tanggal_lahir && {
-              is_invant: Invant(
-                new Date(newValue.tanggal_lahir.new),
-                data.Pegawai.SuratKeputusan.tanggal
-              ),
-            }),
-          },
-          { where: { id: d.keluarga_id }, transaction: t }
-        );
-      }
-
-      if (d.action === "REMOVE") {
-        await Keluarga.destroy({
-          where: { id: d.keluarga_id },
-          transaction: t,
+        logPayload.push({
+          id: d.keluarga_id,
+          nama: d.Ref?.nama ? d.Ref.nama : "",
+          action: d.action,
+          data: d.new_value
+            ? JSON.parse(JSON.stringify(d.new_value))
+            : undefined,
+          catatan: d.reason,
+          file: d.file,
+          confrimation: reviewData.is_approved,
         });
       }
-    });
+    }
+
+    data.DataSanggah.filter((d) => d.is_approved === true).forEach(
+      async (d) => {
+        if (d.action === "ADD") {
+          type NewValueType = {
+            nama: { new: string };
+            nik: { new: string };
+            hubungan: { new: string };
+            tanggal_lahir: { new: string };
+            pekerjaan: { new: string };
+            status: { new: string };
+          };
+          const newValue = d.new_value as unknown as NewValueType;
+
+          const is_invant = Invant(
+            new Date(newValue.tanggal_lahir.new),
+            data.Pegawai.SuratKeputusan.tanggal
+          );
+
+          await Keluarga.create(
+            {
+              pegawai_id: data.Pegawai.id,
+              nama: newValue.nama.new,
+              nik: newValue.nik.new,
+              hubungan: newValue.hubungan.new,
+              tanggal_lahir: new Date(newValue.tanggal_lahir.new),
+              pekerjaan: newValue.pekerjaan.new,
+              is_invant: is_invant,
+              status: newValue.status.new,
+              file: d.file,
+            },
+            { transaction: t }
+          );
+        }
+
+        if (d.action === "EDIT") {
+          type NewValueType = {
+            nama?: { new: string; old: string };
+            nik?: { new: string; old: string };
+            hubungan?: { new: string; old: string };
+            tanggal_lahir?: { new: string; old: string };
+            pekerjaan?: { new: string; old: string };
+            status?: { new: string; old: string };
+          };
+          const newValue = d.new_value as unknown as NewValueType;
+          await Keluarga.update(
+            {
+              ...(newValue.nama && { nama: newValue.nama.new }),
+              ...(newValue.nik && { nik: newValue.nik.new }),
+              ...(newValue.hubungan && { hubungan: newValue.hubungan.new }),
+              ...(newValue.tanggal_lahir && {
+                tanggal_lahir: new Date(newValue.tanggal_lahir.new),
+              }),
+              ...(newValue.pekerjaan && { pekerjaan: newValue.pekerjaan.new }),
+              ...(newValue.status && { status: newValue.status.new }),
+              ...(newValue.tanggal_lahir && {
+                is_invant: Invant(
+                  new Date(newValue.tanggal_lahir.new),
+                  data.Pegawai.SuratKeputusan.tanggal
+                ),
+              }),
+              ...(d.file && { file: d.file }),
+            },
+            { where: { id: d.keluarga_id }, transaction: t }
+          );
+        }
+
+        if (d.action === "REMOVE") {
+          await Keluarga.destroy({
+            where: { id: d.keluarga_id },
+            transaction: t,
+          });
+        }
+      }
+    );
     data.status = "REVIEWED";
     data.reviewed_at = new Date();
     data.Pegawai.status = "PENDING_APROVAL";
     await data.save({ transaction: t });
     await data.Pegawai.save({ transaction: t });
+
+    await Logger.SanggahanReview({
+      pegawai_id: data.Pegawai.id,
+      actor_nip: nip,
+      action: "Review Sanggah Data Keluarga",
+      description: null,
+      payload: logPayload,
+      transaction: t,
+    });
     await t.commit();
     return successResponse(res, "Review sanggah berhasil", null, 200);
   } catch (error: unknown) {
+    console.log(error);
+    
     await t.rollback();
     if (
       error instanceof ValidationError ||

@@ -7,7 +7,13 @@ type RincianBiayaAttributes = {
   pegawai_id: string;
   volume: number;
   harga_satuan: number;
-  jenis: string;
+  jenis:
+    | "BIAYA_ANGKUT_ORANG"
+    | "BIAYA_ANGKUT_BARANG"
+    | "UANG_HARIAN"
+    | "BIAYA_ANGKUT_ORANG_ART"
+    | "BIAYA_ANGKUT_BARANG_ART"
+    | "UANG_HARIAN_ART";
   sub_jenis: string;
   keterangan: string;
   urutan?: number;
@@ -26,7 +32,13 @@ class RincianBiaya
   public pegawai_id!: string;
   public volume!: number;
   public harga_satuan!: number;
-  public jenis!: string;
+  public jenis!:
+    | "BIAYA_ANGKUT_ORANG"
+    | "BIAYA_ANGKUT_BARANG"
+    | "UANG_HARIAN"
+    | "BIAYA_ANGKUT_ORANG_ART"
+    | "BIAYA_ANGKUT_BARANG_ART"
+    | "UANG_HARIAN_ART";
   public sub_jenis!: string;
   public keterangan!: string;
   public urutan?: number;

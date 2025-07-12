@@ -44,13 +44,13 @@ module.exports = {
           type: Sequelize.ENUM(
             "DRAFT",
             "PENDING",
+            "WAITING_APPROVAL",
             "WAITING_APPROVAL_SDM",
             "APPROVED_SDM",
-            "REJECTED_SDM",
             "WAITING_APPROVAL_KEU",
             "APPROVED_KEU",
-            "REJECTED_KEU",
-            "PAID"
+            "PAID",
+            "REJECTED"
           ),
           allowNull: false,
           defaultValue: "DRAFT",
@@ -74,11 +74,11 @@ module.exports = {
         },
       },
       {
-        uniqueKeys:{
+        uniqueKeys: {
           jenis_termin: {
-            fields: ['pegawai_id', 'ref_termin']
-          }
-        }
+            fields: ["pegawai_id", "ref_termin"],
+          },
+        },
       }
     );
   },

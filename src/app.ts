@@ -6,9 +6,11 @@ import dotenv from "dotenv";
 import router from "./routes";
 import logger from "morgan";
 import { appConfig } from "@/config/app.config";
-import  redisClient  from "@/config/redis.config";
+import redisClient from "@/config/redis.config";
 import "./register-alias";
 import methodOverride from "method-override";
+import { PdfService } from "@/services/pdf.service";
+import { successResponse } from "@/helpers/respose.helper";
 dotenv.config();
 const port = appConfig.port;
 const publicPath = path.join(__dirname, "../public");
@@ -23,7 +25,17 @@ app.use(cookieParser());
 app.use(express.static(publicPath));
 app.use(methodOverride("_method"));
 
-app.use("/", router)
+app.use("/", router);
+app.get("/pdf", async (req, res) => {
+  const pdf = await PdfService.RincianBiaya();
+  const pdfBuffer = Buffer.from(pdf, "base64");
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `inline; filename="Rincian Biaya Perjalanan Dinas.pdf"`
+  );
+  return res.status(200).send(pdfBuffer);
+});
 
 app.listen(port, () => {
   console.log(`${appConfig.name} Server is up on port ${port}`);
