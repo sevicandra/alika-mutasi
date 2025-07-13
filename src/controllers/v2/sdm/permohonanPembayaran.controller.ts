@@ -1,4 +1,4 @@
-import { Termin, sequelize, Keluarga } from "@/models";
+import { Termin, sequelize } from "@/models";
 import { errorResponse, successResponse } from "@/helpers/respose.helper";
 import { AuthenticatedRequest } from "@/types/auth";
 import { Response } from "express";

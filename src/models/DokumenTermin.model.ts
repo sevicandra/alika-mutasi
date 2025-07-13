@@ -2,7 +2,6 @@ import sequelize from "@/config/db.config";
 import { Model, Optional, DataTypes, BelongsTo, HasMany, HasOne } from "sequelize";
 import Termin from "./Termin.model";
 import TteDokumen from "./TteDokumen.model";
-import { EsignService } from "@/services/esign.service";
 
 type DokumenTerminAttributes = {
   id: string;

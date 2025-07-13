@@ -1,6 +1,5 @@
 import { Sequelize } from "sequelize";
 import dotenv from "dotenv";
-import { appConfig } from "./app.config";
 import fs from "fs";
 dotenv.config();
 

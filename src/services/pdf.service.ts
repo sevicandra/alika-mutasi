@@ -188,7 +188,7 @@ export class PdfService {
                       ],
                       ...biaya_angkut_orang
                         .sort((a, b) => (a.urutan || 0) - (b.urutan || 0))
-                        .map((b, i) => {
+                        .map((b) => {
                           return [
                             {
                               text: "",
@@ -258,7 +258,7 @@ export class PdfService {
                       ],
                       ...biaya_angkut_barang
                         .sort((a, b) => (a.urutan || 0) - (b.urutan || 0))
-                        .map((b, i) => {
+                        .map((b) => {
                           return [
                             {
                               text: "",
@@ -325,7 +325,7 @@ export class PdfService {
                       ],
                       ...uang_harian
                         .sort((a, b) => (a.urutan || 0) - (b.urutan || 0))
-                        .map((b, i) => {
+                        .map((b) => {
                           return [
                             {
                               text: "",
@@ -395,7 +395,7 @@ export class PdfService {
                       ],
                       ...biaya_angkut_orang_art
                         .sort((a, b) => (a.urutan || 0) - (b.urutan || 0))
-                        .map((b, i) => {
+                        .map((b) => {
                           return [
                             {
                               text: "",
@@ -465,7 +465,7 @@ export class PdfService {
                       ],
                       ...biaya_angkut_barang_art
                         .sort((a, b) => (a.urutan || 0) - (b.urutan || 0))
-                        .map((b, i) => {
+                        .map((b) => {
                           return [
                             {
                               text: "",
@@ -532,7 +532,7 @@ export class PdfService {
                       ],
                       ...uang_harian_art
                         .sort((a, b) => (a.urutan || 0) - (b.urutan || 0))
-                        .map((b, i) => {
+                        .map((b) => {
                           return [
                             {
                               text: "",

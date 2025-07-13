@@ -1,7 +1,7 @@
 import { TteDokumen, sequelize } from "@/models";
 import { errorResponse, successResponse } from "@/helpers/respose.helper";
 import { AuthenticatedRequest } from "@/types/auth";
-import e, { Response } from "express";
+import { Response } from "express";
 import {
   ValidationError,
   DatabaseError,
@@ -12,7 +12,6 @@ import {
 import { AxiosError } from "axios";
 import { MinioService } from "@/services/minio.service";
 import { EsignService } from "@/services/esign.service";
-import QRCode from "qrcode";
 import { appConfig } from "@/config/app.config";
 import { generateQRCodeWithText } from "@/utils/qrcode.utils";
 import { Logger } from "@/services/log.service";

@@ -142,8 +142,6 @@ export const countAllPegawaiMutasi = async (
 ) => {
   try {
     const { SkId } = req.params;
-    const limit = parseInt(req.query.limit as string) || undefined;
-    const offset = parseInt(req.query.offset as string) || undefined;
     const kantor_asal = (req.query.kantor_asal as string) || undefined;
     const kantor_tujuan = (req.query.kantor_tujuan as string) || undefined;
     const nip = (req.query.nip as string) || undefined;
@@ -152,7 +150,6 @@ export const countAllPegawaiMutasi = async (
     const process_keluarga =
       (req.query.process_keluarga as string) || undefined;
     const process_biaya = (req.query.process_biaya as string) || undefined;
-    const associations = (req.query.associations as string) || undefined;
     const where: any = {
       sk_id: SkId,
     };

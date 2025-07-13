@@ -1,5 +1,5 @@
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, Op, Association } from "sequelize";
+import { Model, Optional, DataTypes, Association } from "sequelize";
 import Provinsi from "./RefProvinsi.model";
 
 type RefUangHarianAttributes = {

@@ -1,5 +1,5 @@
-import { DokumenTermin, sequelize } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
+import { DokumenTermin } from "@/models";
+import { errorResponse } from "@/helpers/respose.helper";
 import { AuthenticatedRequest } from "@/types/auth";
 import { Response } from "express";
 import {

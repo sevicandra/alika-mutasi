@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { getRevisiKeluarga, createSanggah, getSanggah } from "@/controllers/v2/pegawai/sanggah.controller";
+import { createSanggah, getSanggah } from "@/controllers/v2/pegawai/sanggah.controller";
 
 const storage = multer.memoryStorage();
 const upload = multer({

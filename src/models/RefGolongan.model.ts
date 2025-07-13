@@ -1,5 +1,5 @@
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, BelongsTo } from "sequelize";
+import { Model, Optional, DataTypes } from "sequelize";
 
 type RefGolonganAttributes = {
   id: number;

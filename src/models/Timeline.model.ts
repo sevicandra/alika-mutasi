@@ -1,5 +1,5 @@
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, Association, BelongsTo } from "sequelize";
+import { Model, Optional, DataTypes, Association } from "sequelize";
 
 import RefTimeline from "./RefTimeline.model";
 import SuratKeputusan from "./SuratKeputusan.model";

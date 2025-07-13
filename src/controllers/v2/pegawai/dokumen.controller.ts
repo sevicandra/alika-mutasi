@@ -130,6 +130,10 @@ export const getDokumenById = async (
         },
       ],
     });
+    if (!data) {
+      return  errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+    return successResponse(res, "data berhasil didapatkan", data);
   } catch (error: unknown) {
     if (
       error instanceof ValidationError ||

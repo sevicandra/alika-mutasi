@@ -1,5 +1,5 @@
-import { DokumenTermin, sequelize } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
+import { DokumenTermin } from "@/models";
+import { errorResponse } from "@/helpers/respose.helper";
 import { AuthenticatedRequest } from "@/types/auth";
 import { Response } from "express";
 import {
@@ -8,12 +8,8 @@ import {
   ConnectionError,
   UniqueConstraintError,
 } from "sequelize";
-import { Op } from "sequelize";
 import { AxiosError } from "axios";
 import { MinioService } from "@/services/minio.service";
-import { EsignService } from "@/services/esign.service";
-import QRCode from "qrcode";
-import { appConfig } from "@/config/app.config";
 const minioService = new MinioService();
 
 export const pembayaran = async (req: AuthenticatedRequest, res: Response) => {

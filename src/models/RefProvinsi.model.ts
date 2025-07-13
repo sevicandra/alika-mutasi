@@ -1,5 +1,5 @@
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, Op, Association } from "sequelize";
+import { Model, Optional, DataTypes, Association } from "sequelize";
 import Kota from "./RefKota.model";
 import UangHarian from "./RefUangHarian.model";
 type ProvinsiAttributes = {

@@ -141,7 +141,8 @@ export class Logger {
             actor_role,
             action,
             description,
-            action_type: "GENERAL_ACTION",
+            action_type: "GENERAL_ACTION" as "GENERAL_ACTION" | "SANGGAHAN_DIAJUKAN" | "SANGGAHAN_DIREVIEW",
+            payload: null,
           })),
           {
             transaction,

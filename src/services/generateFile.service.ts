@@ -1,10 +1,10 @@
-import { PegawaiMutasi, Termin, RefPejabat } from "@/models";
+import { PegawaiMutasi, RefPejabat } from "@/models";
 import { UUID } from "@/utils/uuid.util";
 import { RedisService } from "./redis.service";
 import { appConfig } from "@/config/app.config";
 import { PdfService } from "./pdf.service";
 import { PdfCoordinateExtractorService } from "./pdfCoordinateExtractor.service";
-import { PDFDocument, rgb } from "pdf-lib";
+import { PDFDocument } from "pdf-lib";
 import { MinioService } from "./minio.service";
 
 const minioService = new MinioService();

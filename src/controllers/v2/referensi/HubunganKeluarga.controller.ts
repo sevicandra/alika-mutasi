@@ -2,14 +2,12 @@ import { RefHubunganKeluarga } from "@/models";
 import { errorResponse, successResponse } from "@/helpers/respose.helper";
 import { AuthenticatedRequest } from "@/types/auth";
 import { Response } from "express";
-import { Op } from "sequelize";
 import {
   ValidationError,
   DatabaseError,
   ConnectionError,
   UniqueConstraintError,
 } from "sequelize";
-import { RedisService } from "@/services/redis.service";
 import { AxiosError } from "axios";
 
 

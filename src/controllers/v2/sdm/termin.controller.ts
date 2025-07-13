@@ -283,7 +283,7 @@ export const getDokumenFile = async (
   res: Response
 ) => {
   try {
-    const { TerminId, PegawaiId, SkId, DokumenId } = req.params;
+    const { TerminId,  DokumenId } = req.params;
     const data = await DokumenTermin.findOne({
       where: {
         termin_id: TerminId,

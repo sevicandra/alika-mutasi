@@ -1,5 +1,5 @@
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, BelongsTo } from "sequelize";
+import { Model, DataTypes, BelongsTo } from "sequelize";
 import PegawaiMutasi from "./PegawaiMutasi.model";
 type MonitoringTagihanAttributes = {
   pegawai_id: string;

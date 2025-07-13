@@ -1,5 +1,5 @@
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, Op, BelongsTo } from "sequelize";
+import { Model, Optional, DataTypes, Op } from "sequelize";
 
 type RefHubunganKeluargaAttributes = {
   id: number;

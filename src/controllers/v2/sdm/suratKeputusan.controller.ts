@@ -1,7 +1,7 @@
 import { SuratKeputusan, PegawaiMutasi, Timeline } from "@/models";
 import { errorResponse, successResponse } from "@/helpers/respose.helper";
 import { AuthenticatedRequest } from "@/types/auth";
-import e, { Response } from "express";
+import { Response } from "express";
 import {
   ValidationError,
   DatabaseError,
