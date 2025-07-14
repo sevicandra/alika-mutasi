@@ -24,11 +24,16 @@ export const getAllPegawai = async (
       res,
       "Berhasil mengambil data pegawai",
       data
-        .filter((item) => item.StatusPegawai === "Aktif")
+        .filter(
+          (item) =>
+            item.StatusPegawai === "Aktif"
+        )
         .map((item) => ({
           nip: item.Nip18,
           nama: item.Nama,
-        })).sort((a, b) => a.nama.localeCompare(b.nama))
+          jenisJabatan: item.JenisJabatan,
+        }))
+        .sort((a, b) => a.nama.localeCompare(b.nama))
     );
   } catch (error: unknown) {
     if (

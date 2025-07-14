@@ -131,7 +131,7 @@ export const getDokumenById = async (
       ],
     });
     if (!data) {
-      return  errorResponse(res, "data tidak ditemukan", null, 404);
+      return errorResponse(res, "data tidak ditemukan", null, 404);
     }
     return successResponse(res, "data berhasil didapatkan", data);
   } catch (error: unknown) {
@@ -767,6 +767,14 @@ export const setTtePejabatKantorAsal = async (
   const { nip, name } = req.user;
   const { mutasiId, terminId, dokumenId } = req.params;
   const { nama_pejabat, nip_pejabat } = await req.body;
+  if (nip === nip_pejabat) {
+    return errorResponse(
+      res,
+      "Dokumen hanya dapat ditandatangani oleh pejabat lain",
+      null,
+      400
+    );
+  }
   const t = await sequelize.transaction();
   try {
     const data = await TteDokumen.findOne({
@@ -786,7 +794,7 @@ export const setTtePejabatKantorAsal = async (
       include: [
         {
           association: "Dokumen",
-          where: { termin_id: terminId },
+          where: { termin_id: terminId, document_type: "SPD2" },
           include: [
             {
               association: "Termin",
@@ -884,6 +892,14 @@ export const setTtePejabatKantorTujuan = async (
   const { nip, name } = req.user;
   const { mutasiId, terminId, dokumenId } = req.params;
   const { nama_pejabat, nip_pejabat } = req.body;
+  if (nip === nip_pejabat) {
+    return errorResponse(
+      res,
+      "Dokumen hanya dapat ditandatangani oleh pejabat lain",
+      null,
+      400
+    );
+  }
   const t = await sequelize.transaction();
   try {
     const datakeberangkatan = await TteDokumen.findOne({
@@ -895,7 +911,7 @@ export const setTtePejabatKantorTujuan = async (
       include: [
         {
           association: "Dokumen",
-          where: { termin_id: terminId },
+          where: { termin_id: terminId, document_type: "SPD2" },
           include: [
             {
               association: "Termin",
@@ -916,7 +932,7 @@ export const setTtePejabatKantorTujuan = async (
       ],
       transaction: t,
     });
-    
+
     if (!datakeberangkatan) {
       t.rollback();
       return errorResponse(
@@ -1072,7 +1088,7 @@ export const resetTtePejabatKantorAsal = async (
       include: [
         {
           association: "Dokumen",
-          where: { termin_id: terminId },
+          where: { termin_id: terminId, document_type: "SPD2" },
           include: [
             {
               association: "Termin",
@@ -1180,7 +1196,7 @@ export const resetTtePejabatKantorTujuan = async (
       include: [
         {
           association: "Dokumen",
-          where: { termin_id: terminId },
+          where: { termin_id: terminId, document_type: "SPD2" },
           include: [
             {
               association: "Termin",

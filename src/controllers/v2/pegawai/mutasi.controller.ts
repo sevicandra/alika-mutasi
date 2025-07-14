@@ -352,6 +352,11 @@ export const approve = async (req: AuthenticatedRequest, res: Response) => {
       return errorResponse(res, "data tidak ditemukan", null, 404);
     }
     data.status = "CALCULATING";
+    (data.nomor_spd = `${String(counter.last_number).padStart(4, "0")}/${
+      counter.ext
+    }/${new Date().getFullYear()}`),
+      (data.tanggal_spd = new Date());
+
     await data.save({ transaction: t });
     await approveMutasiQueue.add(
       "approve_mutasi",

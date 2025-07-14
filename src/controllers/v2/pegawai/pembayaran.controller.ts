@@ -184,7 +184,9 @@ export const kirimTermin = async (req: AuthenticatedRequest, res: Response) => {
       where: {
         id: terminId,
         pegawai_id: mutasiId,
-        status: "DRAFT",
+        status: {
+          [Op.or]: ["DRAFT", "REJECTED"],
+        },
       },
       include: [
         {

@@ -130,6 +130,14 @@ module.exports = {
           allowNull: false,
           defaultValue: "EKONOMI",
         },
+        nomor_spd:{
+          type: Sequelize.STRING,
+          allowNull: true
+        },
+        tanggal_spd:{
+          type: Sequelize.DATEONLY,
+          allowNull: true
+        }
       },
       {
         uniqueKeys: {

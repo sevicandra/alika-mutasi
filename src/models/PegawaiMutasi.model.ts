@@ -40,6 +40,8 @@ type PegawaiMutasiAttributes = {
   faktor_laut: number;
   faktor_udara: number;
   kelas_pesawat: "EKONOMI" | "BISNIS";
+  nomor_spd: string | null;
+  tanggal_spd: Date | null;
 };
 
 type PegawaiMutasiCreationAttributes = Optional<
@@ -54,6 +56,8 @@ type PegawaiMutasiCreationAttributes = Optional<
   | "faktor_laut"
   | "faktor_udara"
   | "kelas_pesawat"
+  | "nomor_spd"
+  | "tanggal_spd"
 >;
 
 class PegawaiMutasi
@@ -92,6 +96,8 @@ class PegawaiMutasi
   public faktor_laut!: number;
   public faktor_udara!: number;
   public kelas_pesawat!: "EKONOMI" | "BISNIS";
+  public nomor_spd!: string | null;
+  public tanggal_spd!: Date | null;
 
   public KantorAsal!: RefKantor;
   public KantorTujuan!: RefKantor;
@@ -290,6 +296,14 @@ PegawaiMutasi.init(
       type: DataTypes.ENUM("EKONOMI", "BISNIS"),
       allowNull: false,
       defaultValue: "EKONOMI",
+    },
+    nomor_spd: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    tanggal_spd: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
     },
   },
   {
