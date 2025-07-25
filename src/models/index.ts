@@ -29,6 +29,9 @@ import TteDokumen from "./TteDokumen.model";
 import RefPejabat from "./RefPejabat.model";
 import SpdCounter from "./SpdCounter.model";
 import PembayaranLog from "./PembayaranLog.model";
+import Rekening from "./Rekening.model";
+import Payroll from "./Payroll.model";
+import PayrollCounter from "./PayrollCounter.model";
 import { Op } from "sequelize";
 
 Art.belongsTo(PegawaiMutasi, {
@@ -151,6 +154,12 @@ PegawaiMutasi.hasMany(PembayaranLog, {
   as: "Log",
 });
 
+PegawaiMutasi.hasOne(Rekening, {
+  foreignKey: "pegawai_id",
+  sourceKey: "id",
+  as: "Rekening",
+});
+
 PerubahanKeluarga.belongsTo(PegawaiMutasi, {
   foreignKey: "pegawai_id",
   as: "Pegawai",
@@ -252,6 +261,12 @@ Termin.belongsTo(RefTermin, {
   as: "Ref",
 });
 
+Termin.hasOne(Payroll, {
+  foreignKey: "termin_id",
+  sourceKey: "id",
+  as: "Payroll",
+});
+
 MonitoringTagihan.belongsTo(PegawaiMutasi, {
   foreignKey: "pegawai_id",
   targetKey: "id",
@@ -350,6 +365,12 @@ PembayaranLog.belongsTo(PegawaiMutasi, {
   as: "Pegawai",
 });
 
+Payroll.belongsTo(Termin, {
+  foreignKey: "termin_id",
+  targetKey: "id",
+  as: "Termin",
+});
+
 export {
   sequelize,
   Art,
@@ -382,4 +403,7 @@ export {
   RefPejabat,
   SpdCounter,
   PembayaranLog,
+  Rekening,
+  Payroll,
+  PayrollCounter
 };

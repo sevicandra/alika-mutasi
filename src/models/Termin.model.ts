@@ -3,6 +3,7 @@ import { Model, Optional, DataTypes, Association, BelongsTo } from "sequelize";
 import PegawaiMutasi from "./PegawaiMutasi.model";
 import RefTermin from "./RefTermin.model";
 import DokumenTermin from "./DokumenTermin.model";
+import Payroll from "./Payroll.model";
 
 type TerminAttributes = {
   id: string;
@@ -62,11 +63,13 @@ class Termin
   public Pegawai!: PegawaiMutasi;
   public Ref!: RefTermin;
   public DokumenTermin!: DokumenTermin[] | [];
+  public Payroll!: Payroll| null;
 
   public static associations: {
     Pegawai: BelongsTo<Termin, PegawaiMutasi>;
     Ref: BelongsTo<Termin, RefTermin>;
     DokumenTermin: Association<Termin, DokumenTermin>;
+    Payroll: Association<Termin, Payroll>;
   };
 }
 

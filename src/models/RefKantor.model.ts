@@ -11,7 +11,7 @@ type KantorAttributes = {
   id: number;
   kode_kota: string;
   kode_satker: string;
-  kantor: number;
+  kantor: string;
 };
 type KantorCreationAttributes = Optional<KantorAttributes, "id">;
 
@@ -22,7 +22,7 @@ class Kantor
   public id!: number;
   public kode_kota!: string;
   public kode_satker!: string;
-  public kantor!: number;
+  public kantor!: string;
 
   public Kota!: Kota;
   public static associations: {

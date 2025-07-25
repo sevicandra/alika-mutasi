@@ -16,6 +16,7 @@ import RefGolongan from "./RefGolongan.model";
 import MonitoringTagihan from "./MonitoringTagihan.model";
 import Sanggah from "./Sanggah.model";
 import Termin from "./Termin.model";
+import Rekening from "./Rekening.model";
 
 type PegawaiMutasiAttributes = {
   id: string;
@@ -114,6 +115,7 @@ class PegawaiMutasi
   public CurrentSanggah!: Sanggah | null;
   public Sanggah!: Sanggah[] | [];
   public Termin!: Termin[] | [];
+  public Rekening!: Rekening | null;
 
   public static associations: {
     KantorAsal: BelongsTo<PegawaiMutasi, RefKantor>;

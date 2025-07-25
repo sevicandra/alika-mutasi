@@ -83,15 +83,6 @@ export const processKeluarga = async (job: Job<PegawaiJob>): Promise<void> => {
       const data = [...dataPasangan, ...dataAnak];
 
       await Keluarga.bulkCreate(data, { transaction: t });
-      // await PerubahanKeluarga.create(
-      //   {
-      //     pegawai_id: id,
-      //     changed_field: JSON.parse(JSON.stringify(result)),
-      //     changed_by: "SYSTEM",
-      //     changed_at: new Date(),
-      //   },
-      //   { transaction: t }
-      // );
       Pegawai.process_keluarga = "DONE";
       await Pegawai.save({ transaction: t });
       await t.commit();

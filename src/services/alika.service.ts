@@ -63,6 +63,34 @@ export class AlikaService {
       throw new Error("Failed to send push notification");
     }
   }
+  static async sendBulkPushNotification({
+    nip,
+    message,
+    title,
+  }: {
+    nip: string[];
+    message: string;
+    title?: string;
+  }) {
+    try {
+      await axios.post(
+        `${alikaConfig.PUSH_NOTIFICATION_URL}/notification/SendBulk`,
+        {
+          nip: nip,
+          message,
+          title,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${await this.getAccessToken()}`,
+          },
+        }
+      );
+    } catch (error) {
+      console.error("Error sending push notification:", error);
+      throw new Error("Failed to send push notification");
+    }
+  }
   static async getPublicKey() {
     try {
       const currentTime = Date.now() / 1000;

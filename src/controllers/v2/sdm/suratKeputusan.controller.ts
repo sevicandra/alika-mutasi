@@ -17,6 +17,7 @@ import { KeluargaJobService } from "@/services/keluarga.service";
 import { hitungBiayaJobService } from "@/services/hitungBiaya.service";
 import { terminJobService } from "@/services/createTermin.service";
 import { Logger } from "@/services/log.service";
+import { AlikaService } from "@/services/alika.service";
 
 const minioService = new MinioService();
 
@@ -575,7 +576,7 @@ export const getSuratKeputusanFile = async (
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader(
           "Content-Disposition",
-          `inline; filename=${data.nomor.replace(/\//g, "_")}.pdf`
+          `inline; filename="${data.nomor.replace(/\//g, "_")}.pdf"`
         );
         return res.status(200).send(Buffer.concat(chunks));
       });
@@ -1020,6 +1021,7 @@ export const publishSuratKeputusan = async (
           association: "Pegawai",
           attributes: [
             "id",
+            "nip",
             "process_keluarga",
             "process_biaya",
             "process_termin",
@@ -1108,6 +1110,12 @@ export const publishSuratKeputusan = async (
       action: "Publish Surat Keputusan",
       description: null,
       transaction: t,
+    });
+    await AlikaService.sendBulkPushNotification({
+      nip: data.Pegawai.map((p) => p.nip),
+      title: "Surat Keputusan Mutasi",
+      message:
+        "Selamat kami ucapkan kepada Bapak/Ibu atas tugas baru yang diberikan, dalam rangka mempercepat proses pembayaran kami harapkan Bapak/Ibu dapat segera melakukan aproval data keluarga pada aplikasi Alika. Terima Kasih🙏",
     });
     await t.commit();
     return successResponse(res, "Surat Keputusan berhasil di publish", {
