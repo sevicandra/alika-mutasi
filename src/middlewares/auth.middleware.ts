@@ -5,7 +5,10 @@ import { AuthenticatedRequest } from "@/types/auth";
 import { errorResponse } from "@/helpers/respose.helper";
 import { AlikaService } from "@/services/alika.service";
 
-export function authenticate(requiredScopes?: string[]) {
+export function authenticate(
+  requiredScopes?: string[],
+  requiredRoles?: string[]
+) {
   return async (
     req: AuthenticatedRequest,
     res: Response,
@@ -17,17 +20,31 @@ export function authenticate(requiredScopes?: string[]) {
         return errorResponse(res, "Unauthorized", null, 401);
       }
       const token = authHeader.split(" ")[1];
-      
+
       if (!token) {
         return errorResponse(res, "Unauthorized", null, 401);
       }
-      const decoded: any = jwt.verify(
-        token,
-        await AlikaService.getPublicKey(),
-        {
-          issuer: process.env.ALIKA_AUTH_ISSUER,
-        }
-      );      
+      const decoded = jwt.verify(token, await AlikaService.getPublicKey(), {
+        issuer: process.env.ALIKA_AUTH_ISSUER,
+      }) as {
+        sub?: string;
+        clientId?: string;
+        scope: string;
+        name: string;
+        nik: string;
+        nip: string;
+        kode_satker: string;
+        satker: string;
+        gravatar: string;
+        account: {
+          service: string;
+          kode_satker: string | null;
+          roles: {
+            kode: string;
+            nama: string;
+          }[];
+        }[];
+      };
       req.user = omit(decoded, [
         "scope",
         "account",
@@ -39,8 +56,7 @@ export function authenticate(requiredScopes?: string[]) {
         "iss",
         "aud",
       ]);
-      req.roles = decoded.account || [];
-      req.globalRoles = decoded.globalRoles || [];
+      req.roles = decoded.account.find((a) => a.service === "mutasi")?.roles;
       req.user = omit(decoded, [
         "scope",
         "account",
@@ -52,10 +68,9 @@ export function authenticate(requiredScopes?: string[]) {
         "iss",
         "aud",
       ]);
-      req.roles = decoded.account || [];
-      req.globalRoles = decoded.globalRoles || [];
+
       if (requiredScopes) {
-        const tokenScopes = decoded.scope || [];
+        const tokenScopes = decoded.scope;
         const hasRequiredScopes = requiredScopes.every((scope) => {
           const [service, resource, action] = scope.split(".");
           return (
@@ -65,6 +80,14 @@ export function authenticate(requiredScopes?: string[]) {
           );
         });
         if (!hasRequiredScopes) {
+          return errorResponse(res, "Unauthorized", null, 401);
+        }
+      }
+      if (requiredRoles) {
+        const hasRequiredRoles = requiredRoles.every((role) => {
+          return req.roles?.some((r) => r.nama.toUpperCase() === role.toUpperCase());
+        });
+        if (!hasRequiredRoles) {
           return errorResponse(res, "Unauthorized", null, 401);
         }
       }

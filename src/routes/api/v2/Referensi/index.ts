@@ -9,11 +9,11 @@ import { authenticate } from "@/middlewares/auth.middleware";
 
 const router = Router();
 
-router.use("/Golongan", authenticate(), Golongan);
-router.use("/Kantor", authenticate(), Kantor);
-router.use("/HubunganKeluarga", authenticate(), HubunganKeluarga);
-router.use("/Termin", authenticate(), Termin);
-router.use("/DaftarPegawai", authenticate(), DaftarPegawai);
-router.use("/Wilayah", authenticate(), Wilayah);
+router.use("/Golongan", Golongan);
+router.use("/Kantor", Kantor);
+router.use("/HubunganKeluarga", HubunganKeluarga);
+router.use("/Termin", Termin);
+router.use("/DaftarPegawai", DaftarPegawai);
+router.use("/Wilayah", Wilayah);
 
 export default router;

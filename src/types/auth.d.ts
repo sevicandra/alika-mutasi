@@ -11,14 +11,7 @@ export interface AuthenticatedRequest extends Request {
       }
     | any;
   roles?: {
-    kode_satker: string;
-    roles: {
       kode: string;
       nama: string;
-    }[];
-  }[];
-  globalRoles?: {
-    kode: string;
-    nama: string;
   }[];
 }

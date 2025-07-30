@@ -4,7 +4,7 @@ import Tte from "./TTE";
 import { authenticate } from "@/middlewares/auth.middleware";
 const router = Router({ mergeParams: true });
 
-router.use("/Mutasi", authenticate(), Mutasi);
-router.use("/TTE", authenticate(), Tte);
+router.use("/Mutasi", Mutasi);
+router.use("/TTE", Tte);
 
 export default router;

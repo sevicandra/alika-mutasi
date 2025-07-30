@@ -6,9 +6,9 @@ import { authenticate } from "@/middlewares/auth.middleware";
 
 const router = Router({ mergeParams: true });
 
-router.use("/SuratKeputusan", authenticate(), SuratKeputusan);
-router.use("/PermohonanPembayaran", authenticate(), PermohonanPembayaran);
-router.use("/Payroll", authenticate(), Payroll);
+router.use("/SuratKeputusan", SuratKeputusan);
+router.use("/PermohonanPembayaran", PermohonanPembayaran);
+router.use("/Payroll", Payroll);
 
 
 export default router;
