@@ -18,7 +18,7 @@ module.exports = {
         allowNull: false,
       },
       kota_asal: {
-        type: Sequelize.STRING(4),
+        type: Sequelize.STRING(5),
         references: {
           model: "ref_kota",
           key: "kode",
@@ -28,7 +28,7 @@ module.exports = {
         allowNull: false,
       },
       kota_tujuan: {
-        type: Sequelize.STRING(4),
+        type: Sequelize.STRING(5),
         references: {
           model: "ref_kota",
           key: "kode",

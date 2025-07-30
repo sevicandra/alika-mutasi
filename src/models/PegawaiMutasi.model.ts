@@ -240,7 +240,10 @@ PegawaiMutasi.init(
       type: DataTypes.STRING(18),
       allowNull: false,
       validate: {
-        is: /^[0-9]{18}$/,
+        is: {
+          args: "^(19[6-9]\\d|20\\d{2})(0[1-9]|1[0-2])(0[1-9]|[1-2]\\d|3[0-1])(19[8-9]\\d|20\\d{2})(0[1-9]|1[0-2])([1-2])(\\d{3})$",
+          msg: "mohon masukkan nip yang valid",
+        },
       },
     },
     nama: {

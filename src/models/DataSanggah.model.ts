@@ -54,6 +54,15 @@ DataSanggah.init(
     sanggah_id: {
       type: DataTypes.STRING,
       allowNull: false,
+      validate: {
+        isUUID: {
+          msg: "sanggah_id harus UUID",
+          args: 4,
+        },
+        notEmpty: {
+          msg: "sanggah_id tidak boleh kosong",
+        },
+      },
       references: {
         model: RevisiKeluarga,
         key: "id",
@@ -63,6 +72,15 @@ DataSanggah.init(
     },
     action: {
       type: DataTypes.ENUM("EDIT", "REMOVE", "ADD"),
+      validate: {
+        isIn: {
+          msg: "action harus salah satu dari EDIT, REMOVE, ADD",
+          args: [["EDIT", "REMOVE", "ADD"]],
+        },
+        notEmpty: {
+          msg: "action tidak boleh kosong",
+        },
+      },
       allowNull: false,
     },
     keluarga_id: {
@@ -71,6 +89,12 @@ DataSanggah.init(
       references: {
         model: Keluarga,
         key: "id",
+      },
+      validate: {
+        isUUID: {
+          msg: "keluarga_id harus UUID",
+          args: 4,
+        },
       },
       onUpdate: "CASCADE",
       onDelete: "SET NULL",

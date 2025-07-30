@@ -39,33 +39,53 @@ RefKapal.init(
     rute: {
       type: DataTypes.STRING,
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Rute tidak boleh kosong",
+        },
+      },
+      unique: {
+        name: "rute",
+        msg: "Rute sudah ada",
+      },
     },
     kapal: {
       type: DataTypes.STRING,
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Kapal tidak boleh kosong",
+        },
+      },
     },
     kota_asal: {
-      type: DataTypes.STRING(4),
+      type: DataTypes.STRING(5),
       allowNull: false,
       references: {
         model: Kota,
         key: "kode",
       },
       validate: {
-        is: { args: /^[0-9]{4}$/, msg: "Kode kota asal harus 4 digit angka" },
+        is: { args: /^[0-9]{5}$/, msg: "Kode kota asal harus 5 digit angka" },
+        notNull: {
+          msg: "Kode kota asal tidak boleh kosong",
+        },
       },
       onDelete: "RESTRICT",
       onUpdate: "CASCADE",
     },
     kota_tujuan: {
-      type: DataTypes.STRING(4),
+      type: DataTypes.STRING(5),
       allowNull: false,
       references: {
         model: Kota,
         key: "kode",
       },
       validate: {
-        is: { args: /^[0-9]{4}$/, msg: "Kode kota asal harus 4 digit angka" },
+        is: { args: /^[0-9]{5}$/, msg: "Kode kota asal harus 5 digit angka" },
+        notNull: {
+          msg: "Kode kota asal tidak boleh kosong",
+        },
       },
       onDelete: "RESTRICT",
       onUpdate: "CASCADE",
@@ -75,6 +95,14 @@ RefKapal.init(
         unsigned: true,
       }),
       allowNull: false,
+      validate: {
+        isPositive: {
+          msg: "Tarif harus lebih dari 0",
+        },
+        notNull: {
+          msg: "Tarif tidak boleh kosong",
+        },
+      },
     },
   },
   {

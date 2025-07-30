@@ -32,17 +32,30 @@ Provinsi.init(
       primaryKey: true,
     },
     kode: {
-      type: DataTypes.STRING(4),
+      type: DataTypes.STRING(3),
       allowNull: false,
-      unique: true,
+      unique: {
+        name: "kode",
+        msg: "Kode provinsi sudah ada",
+      },
       validate: {
-        len: [4, 4],
-        is: /^[0-9]{4}$/,
+        is: {
+          args: /^[0-9]{3}$/,
+          msg: "Kode provinsi harus angka 3 digit",
+        },
+        notNull: {
+          msg: "Kode provinsi tidak boleh kosong",
+        },
       },
     },
     provinsi: {
       type: DataTypes.STRING,
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Nama provinsi tidak boleh kosong",
+        },
+      },
     },
   },
   {

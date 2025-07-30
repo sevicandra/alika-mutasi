@@ -28,10 +28,28 @@ RefGolongan.init(
     kode: {
       type: DataTypes.STRING,
       allowNull: false,
+      unique: {
+        name: "kode",
+        msg: "Kode golongan sudah ada"
+      },
+      validate: {
+        is:{
+          args: "^([1-3][A-D]|4[A-E])$",
+          msg: "Kode golongan harus berupa angka dan huruf yang valid"
+        },
+        notNull:{
+          msg: "Kode golongan tidak boleh kosong"
+        }
+      },
     },
     nama: {
       type: DataTypes.STRING,
       allowNull: false,
+      validate:{
+        notNull:{
+          msg: "Nama golongan tidak boleh kosong"
+        }
+      }
     },
   },
   {

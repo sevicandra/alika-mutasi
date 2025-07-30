@@ -64,6 +64,15 @@ Keluarga.init(
         model: PegawaiMutasi,
         key: "id",
       },
+      validate:{
+        isUUID: {
+          msg: "pegawai_id harus UUID",
+          args: 4,
+        },
+        notNull: {
+          msg: "pegawai_id tidak boleh kosong",
+        },
+      },
       onDelete: "CASCADE",
       onUpdate: "CASCADE",
     },
@@ -77,10 +86,20 @@ Keluarga.init(
     nama: {
       type: DataTypes.STRING,
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Nama tidak boleh kosong",
+        },
+      },
     },
     hubungan: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Hubungan tidak boleh kosong",
+        },
+      },
       references: {
         model: RefHubunganKeluarga,
         key: "kode",
@@ -91,6 +110,11 @@ Keluarga.init(
     tanggal_lahir: {
       type: DataTypes.DATEONLY,
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Tanggal lahir tidak boleh kosong",
+        },
+      },
     },
     pekerjaan: {
       type: DataTypes.STRING,

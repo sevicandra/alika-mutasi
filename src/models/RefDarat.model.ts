@@ -43,13 +43,21 @@ RefDarat.init(
     rute: {
       type: DataTypes.STRING,
       allowNull: false,
+      unique: {
+        name: "rute",
+        msg: "Rute sudah ada",
+      },
+      validate: {
+        notNull: {
+          msg: "Rute tidak boleh kosong",
+        },
+      },
     },
     kota_asal: {
-      type: DataTypes.STRING(4),
+      type: DataTypes.STRING(5),
       allowNull: false,
       validate: {
-        len: [4, 4],
-        is: /^[0-9]{4}$/, // Jika kode kota harus angka 4 digit
+        is: { args: /^[0-9]{5}$/, msg: "Kode kota harus angka 5 digit" },
       },
       references: {
         model: Kota,
@@ -59,11 +67,10 @@ RefDarat.init(
       onDelete: "RESTRICT",
     },
     kota_tujuan: {
-      type: DataTypes.STRING(4),
+      type: DataTypes.STRING(5),
       allowNull: false,
       validate: {
-        len: [4, 4],
-        is: /^[0-9]{4}$/, // Jika kode kota harus angka 4 digit
+        is: { args: /^[0-9]{5}$/, msg: "Kode kota harus angka 5 digit" },
       },
       references: {
         model: Kota,
@@ -75,10 +82,27 @@ RefDarat.init(
     jarak: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      validate: {
+        isPositive: {
+          msg: "Jarak harus lebih dari 0",
+        },
+        notNull: {
+          msg: "Jarak tidak boleh kosong",
+        },
+      },
     },
     pulau: {
       type: DataTypes.ENUM("JAWA", "LUAR_JAWA"),
       allowNull: false,
+      validate: {
+        isIn: {
+          args: [["JAWA", "LUAR_JAWA"]],
+          msg: "Pulau tidak valid",
+        },
+        notNull: {
+          msg: "Pulau tidak boleh kosong",
+        },
+      },
     },
   },
   {
@@ -88,6 +112,5 @@ RefDarat.init(
     timestamps: false,
   }
 );
-
 
 export default RefDarat;

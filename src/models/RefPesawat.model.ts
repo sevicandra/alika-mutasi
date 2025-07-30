@@ -48,13 +48,21 @@ RefPesawat.init(
     rute: {
       type: DataTypes.STRING,
       allowNull: false,
+      unique: {
+        name: "rute",
+        msg: "Rute sudah ada",
+      },
+      validate: {
+        notNull: {
+          msg: "Rute tidak boleh kosong",
+        },
+      },
     },
     kota_asal: {
-      type: DataTypes.STRING(4),
+      type: DataTypes.STRING(5),
       allowNull: false,
       validate: {
-        len: [4, 4],
-        is: /^[0-9]{4}$/,
+        is: { args: /^[0-9]{5}$/, msg: "Kode kota harus angka 5 digit" },
       },
       references: {
         model: Kota,
@@ -64,11 +72,13 @@ RefPesawat.init(
       onDelete: "RESTRICT",
     },
     kota_tujuan: {
-      type: DataTypes.STRING(4),
+      type: DataTypes.STRING(5),
       allowNull: false,
       validate: {
-        len: [4, 4],
-        is: /^[0-9]{4}$/,
+        is: { args: /^[0-9]{5}$/, msg: "Kode kota harus angka 5 digit" },
+        notNull: {
+          msg: "Kode kota tidak boleh kosong",
+        },
       },
       references: {
         model: Kota,
@@ -82,17 +92,42 @@ RefPesawat.init(
         unsigned: true,
       }),
       allowNull: false,
+      validate: {
+        isPositive: {
+          msg: "Tarif ekonomi harus lebih dari 0",
+        },
+        notNull: {
+          msg: "Tarif ekonomi tidak boleh kosong",
+        },
+      },
     },
     bisnis: {
       type: DataTypes.BIGINT({
         unsigned: true,
       }),
       allowNull: false,
+      validate: {
+        isPositive: {
+          msg: "Tarif bisnis harus lebih dari 0",
+        },
+        notNull: {
+          msg: "Tarif bisnis tidak boleh kosong",
+        },
+      },
     },
     jenis_tarif: {
       type: DataTypes.ENUM("SBM", "NON_SBM"),
       allowNull: false,
       defaultValue: "SBM",
+      validate: {
+        isIn: {
+          args: [["SBM", "NON_SBM"]],
+          msg: "Jenis tarif tidak valid",
+        },
+        notNull: {
+          msg: "Jenis tarif tidak boleh kosong",
+        },
+      },
     },
   },
   {

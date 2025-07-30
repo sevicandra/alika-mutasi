@@ -1,10 +1,5 @@
 import sequelize from "@/config/db.config";
-import {
-  Model,
-  Optional,
-  DataTypes,
-  BelongsTo,
-} from "sequelize";
+import { Model, Optional, DataTypes, BelongsTo } from "sequelize";
 import Kota from "./RefKota.model";
 
 type KantorAttributes = {
@@ -37,11 +32,13 @@ Kantor.init(
       primaryKey: true,
     },
     kode_kota: {
-      type: DataTypes.STRING(4),
+      type: DataTypes.STRING(5),
       allowNull: false,
       validate: {
-        len: [4, 4],
-        is: /^[0-9]{4}$/,
+        is: { args: /^[0-9]{5}$/, msg: "Kode kota harus angka 5 digit" },
+        notNull: {
+          msg: "Kode kota tidak boleh kosong",
+        },
       },
       references: {
         model: "kota",
@@ -53,15 +50,25 @@ Kantor.init(
     kode_satker: {
       type: DataTypes.STRING(6),
       allowNull: false,
-      unique: true,
+      unique: {
+        name: "kode_satker",
+        msg: "Kode satker sudah ada",
+      },
       validate: {
-        len: [6, 6],
-        is: /^[0-9]{6}$/,
+        is: { args: /^[0-9]{6}$/, msg: "Kode satker harus angka 6 digit" },
+        notNull: {
+          msg: "Kode satker tidak boleh kosong",
+        },
       },
     },
     kantor: {
       type: DataTypes.STRING(),
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Nama kantor tidak boleh kosong",
+        },
+      },
     },
   },
   {
@@ -71,6 +78,5 @@ Kantor.init(
     timestamps: false,
   }
 );
-
 
 export default Kantor;

@@ -4,6 +4,7 @@ import Kantor from "./Kantor.route";
 import HubunganKeluarga from "./HubunganKeluarga.route";
 import Termin from "./Termin.route";
 import DaftarPegawai from "./DaftarPegawai.route";
+import Wilayah from "./Wilayah.route";
 import { authenticate } from "@/middlewares/auth.middleware";
 
 const router = Router();
@@ -13,5 +14,6 @@ router.use("/Kantor", authenticate(), Kantor);
 router.use("/HubunganKeluarga", authenticate(), HubunganKeluarga);
 router.use("/Termin", authenticate(), Termin);
 router.use("/DaftarPegawai", authenticate(), DaftarPegawai);
+router.use("/Wilayah", authenticate(), Wilayah);
 
 export default router;

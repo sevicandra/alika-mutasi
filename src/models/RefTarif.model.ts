@@ -51,12 +51,35 @@ RefTarif.init(
         "UANG_HARIAN"
       ),
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "jenis tidak boleh kosong",
+        },
+        isIn: {
+          args: [
+            [
+              "TRANSPORT_DARAT_ORANG",
+              "TRANSPORT_DARAT_BARANG",
+              "PACKING_DARAT",
+              "PACKING_LAUT",
+              "PACKING_UDARA",
+              "UANG_HARIAN",
+            ],
+          ],
+          msg: "Jenis tidak valid",
+        },
+      },
     },
     tarif: {
       type: DataTypes.BIGINT({
         unsigned: true,
       }),
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "tarif tidak boleh kosong",
+        },
+      },
     },
     createdAt: {
       type: DataTypes.DATE,

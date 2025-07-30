@@ -2,14 +2,14 @@ import { Router } from "express";
 import SDM from "./SDM";
 import Referensi from "./Referensi";
 import Pegawai from "./Pegawai";
-import Keuangan from "./Keuangan"
-
+import Keuangan from "./Keuangan";
+import Admin from "./Admin";
 
 const router = Router({ mergeParams: true });
 router.use("/SDM", SDM);
 router.use("/Referensi", Referensi);
 router.use("/Pegawai", Pegawai);
 router.use("/Keuangan", Keuangan);
-
+router.use("/Admin", Admin);
 
 export default router;

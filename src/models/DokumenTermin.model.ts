@@ -79,6 +79,12 @@ DokumenTermin.init(
     process: {
       type: DataTypes.ENUM("IDLE", "PROCESSING"),
       allowNull: false,
+      validate: {
+        isIn: {
+          args: [["IDLE", "PROCESSING"]],
+          msg: "process harus salah satu dari IDLE, PROCESSING",
+        },
+      },
       defaultValue: "IDLE",
     },
     processed_by: {

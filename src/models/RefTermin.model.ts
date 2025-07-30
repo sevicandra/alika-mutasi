@@ -42,20 +42,46 @@ RefTermin.init(
     kode: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
+      unique: {
+        name: "kode",
+        msg: "Kode sudah ada",
+      },
+      validate: {
+        notNull: {
+          msg: "Kode tidak boleh kosong",
+        },
+      },
     },
     nama: {
       type: DataTypes.STRING,
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Nama tidak boleh kosong",
+        },
+      },
     },
     required_doc: {
       type: DataTypes.JSON,
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Dokumen yang diperlukan tidak boleh kosong",
+        },
+      },
     },
     urutan: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      unique: true,
+      unique: {
+        name: "urutan",
+        msg: "Urutan sudah ada",
+      },
+      validate: {
+        notNull: {
+          msg: "Urutan tidak boleh kosong",
+        },
+      },
     },
   },
   {

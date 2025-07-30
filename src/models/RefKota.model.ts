@@ -36,11 +36,13 @@ Kota.init(
       primaryKey: true,
     },
     kode_provinsi: {
-      type: DataTypes.STRING(4),
+      type: DataTypes.STRING(3),
       allowNull: false,
       validate: {
-        len: [4, 4],
-        is: /^[0-9]{4}$/,
+        is: { args: /^[0-9]{3}$/, msg: "Kode provinsi harus angka 3 digit" },
+        notNull: {
+          msg: "Kode provinsi tidak boleh kosong",
+        },
       },
       references: {
         model: Provinsi,
@@ -50,17 +52,27 @@ Kota.init(
       onDelete: "RESTRICT",
     },
     kode: {
-      type: DataTypes.STRING(4),
+      type: DataTypes.STRING(5),
       allowNull: false,
-      unique: true,
+      unique: {
+        name: "kode",
+        msg: "Kode kota sudah ada",
+      },
       validate: {
-        len: [4, 4],
-        is: /^[0-9]{4}$/,
+        is: { args: /^[0-9]{5}$/, msg: "Kode kota harus angka 5 digit" },
+        notNull: {
+          msg: "Kode kota tidak boleh kosong",
+        },
       },
     },
     kota: {
       type: DataTypes.STRING,
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Nama kota tidak boleh kosong",
+        },
+      },
     },
   },
   {

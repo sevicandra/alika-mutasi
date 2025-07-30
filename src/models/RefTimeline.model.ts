@@ -30,14 +30,37 @@ RefTimeline.init(
     kode: {
       type: DataTypes.STRING,
       allowNull: false,
+      unique: {
+        name: "kode",
+        msg: "Kode sudah ada",
+      },
+      validate: {
+        notNull: {
+          msg: "Kode tidak boleh kosong",
+        },
+      },
     },
     nama: {
       type: DataTypes.STRING,
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Nama tidak boleh kosong",
+        },
+      },
     },
     urutan: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      unique: {
+        name: "urutan",
+        msg: "Urutan sudah ada",
+      },
+      validate: {
+        notNull: {
+          msg: "Urutan tidak boleh kosong",
+        },
+      },
     },
   },
   {

@@ -46,6 +46,14 @@ RefUangHarian.init(
         unsigned: true,
       }),
       allowNull: false,
+      validate: {
+        isPositive: {
+          msg: "Tarif harus lebih dari 0",
+        },
+        notNull: {
+          msg: "Tarif tidak boleh kosong",
+        },
+      },
     },
   },
   {

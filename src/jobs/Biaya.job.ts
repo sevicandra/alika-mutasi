@@ -223,7 +223,8 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
       rute.push({
         pegawai_id: pegawai_id,
         volume: 1 + jumlah_tanggungan_dewasa + jumlah_tanggungan_invant,
-        harga_satuan: uang_harian.tarif * tarif_uang_harian * jumlah_hari || 0,
+        harga_satuan:
+          uang_harian.tarif * (tarif_uang_harian / 100) * jumlah_hari || 0,
         jenis: "UANG_HARIAN",
         sub_jenis: `UANG HARIAN ${jumlah_hari} HARI`,
         keterangan: `UANG HARIAN ${uang_harian.provinsi}`,
@@ -232,7 +233,7 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
         rute.push({
           pegawai_id: pegawai_id,
           volume: 1,
-          harga_satuan: uang_harian.tarif * tarif_uang_harian || 0,
+          harga_satuan: uang_harian.tarif * (tarif_uang_harian / 100) || 0,
           jenis: "UANG_HARIAN_ART",
           sub_jenis: `UANG HARIAN ${jumlah_hari} HARI`,
           keterangan: `UANG HARIAN ${uang_harian.provinsi}`,

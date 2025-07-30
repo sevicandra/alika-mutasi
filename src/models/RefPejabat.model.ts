@@ -30,18 +30,35 @@ RefPejabat.init(
     jenis: {
       type: DataTypes.ENUM("PPK", "BENDAHARA"),
       allowNull: false,
+      validate: {
+        isIn: {
+          args: [["PPK", "BENDAHARA"]],
+          msg: "Jenis jabatan tidak valid",
+        },
+        notNull: {
+          msg: "Jenis jabatan tidak boleh kosong",
+        },
+      }
     },
     nama: {
       type: DataTypes.STRING(100),
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Nama tidak boleh kosong",
+        },
+      },
     },
     nip: {
       type: DataTypes.STRING(18),
       allowNull: false,
       validate: {
         is: {
-          args: /^[0-9]{18}$/,
+          args: "^(19[6-9]\\d|20\\d{2})(0[1-9]|1[0-2])(0[1-9]|[1-2]\\d|3[0-1])(19[8-9]\\d|20\\d{2})(0[1-9]|1[0-2])([1-2])(\\d{3})$",
           msg: "NIP must be 18 digits long.",
+        },
+        notNull: {
+          msg: "NIP tidak boleh kosong",
         },
       },
     },

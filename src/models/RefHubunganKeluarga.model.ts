@@ -34,16 +34,38 @@ RefHubunganKeluarga.init(
     kode: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      unique: true,
+      unique: {
+        name: "kode",
+        msg: "Kode sudah ada",
+      },
+      validate: {
+        notNull: {
+          msg: "Kode tidak boleh kosong",
+        },
+      },
     },
     nama: {
       type: DataTypes.STRING(100),
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "Nama tidak boleh kosong",
+        },
+      },
     },
     jenis: {
       type: DataTypes.ENUM("PASANGAN", "ANAK", "LAINNYA"),
       allowNull: false,
       defaultValue: "LAINNYA",
+      validate: {
+        notNull: {
+          msg: "Jenis tidak boleh kosong",
+        },
+        isIn: {
+          args: [["PASANGAN", "ANAK", "LAINNYA"]],
+          msg: "Jenis tidak valid",
+        },
+      },
     },
   },
   {
@@ -57,12 +79,12 @@ RefHubunganKeluarga.init(
           [Op.or]: [{ jenis: "PASANGAN" }, { jenis: "ANAK" }],
         },
       },
-      anak : {
+      anak: {
         where: {
           [Op.or]: [{ jenis: "ANAK" }],
         },
       },
-      pasangan : {
+      pasangan: {
         where: {
           [Op.or]: [{ jenis: "PASANGAN" }],
         },

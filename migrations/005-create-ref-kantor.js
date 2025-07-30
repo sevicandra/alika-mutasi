@@ -10,7 +10,7 @@ module.exports = {
         type: Sequelize.INTEGER,
       },
       kode_kota: {
-        type: Sequelize.STRING(4),
+        type: Sequelize.STRING(5),
         references: {
           model: "ref_kota",
           key: "kode",

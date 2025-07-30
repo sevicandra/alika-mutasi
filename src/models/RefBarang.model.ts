@@ -43,6 +43,9 @@ RefBarang.init(
       allowNull: false,
       validate: {
         is: { args: /^[0-9]{1}$/, msg: "kode golongan harus angka 1 digit" },
+        notNull: {
+          msg: "kode golongan tidak boleh kosong",
+        },
       },
     },
     status: {
@@ -52,10 +55,27 @@ RefBarang.init(
         "BERKELUARGA_DENGAN_ANAK"
       ),
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "status tidak boleh kosong",
+        },
+        isIn:{
+          args: [["TIDAK_BERKELUARGA", "BERKELUARGA_TANPA_ANAK", "BERKELUARGA_DENGAN_ANAK"]],
+          msg: "status tidak valid"
+        }
+      },
     },
     volume: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      validate: {
+        notNull: {
+          msg: "volume tidak boleh kosong",
+        },
+        isPositive: {
+          msg: "volume harus lebih dari 0",
+        },
+      }
     },
     createdAt: {
       type: DataTypes.DATE,
