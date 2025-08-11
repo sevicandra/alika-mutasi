@@ -56,7 +56,7 @@ export function authenticate(
         "iss",
         "aud",
       ]);
-      req.roles = decoded.account.find((a) => a.service === "mutasi")?.roles;
+      req.roles = decoded.account.find((a) => a.service.toLowerCase() === "mutasi")?.roles;
       req.user = omit(decoded, [
         "scope",
         "account",

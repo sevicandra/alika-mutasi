@@ -5,7 +5,6 @@ import HubunganKeluarga from "./HubunganKeluarga.route";
 import Termin from "./Termin.route";
 import DaftarPegawai from "./DaftarPegawai.route";
 import Wilayah from "./Wilayah.route";
-import { authenticate } from "@/middlewares/auth.middleware";
 
 const router = Router();
 
