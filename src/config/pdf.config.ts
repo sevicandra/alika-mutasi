@@ -51,7 +51,7 @@ export default function generatePdf({
         },
         footer: [
           {
-            text: "Dokumen ini dicetak melalui ALIKA DJKN dan telah ditandatangani menggunakan sertifikat elektronik yang diterbitkan oleh Balai Sertfikat Elektronik (BSrE), BSSN. Untuk memastikan keaslian tanda tangan elektronik, silakan unggah dokumen pada laman https://tte.kominfo.go.id/verifyPDF",
+            text: "Dokumen ini dicetak melalui ALIKA DJKN dan telah ditandatangani menggunakan sertifikat elektronik yang diterbitkan oleh Balai Sertfikat Elektronik (BSrE), BSSN. Untuk memastikan keaslian tanda tangan elektronik, silakan unggah dokumen pada laman https://tte.komdigi.go.id/verifyPDF",
             fontSize: 5,
             margin: [40, 0],
           },
