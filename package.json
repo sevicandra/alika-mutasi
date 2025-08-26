@@ -47,7 +47,7 @@
     "sequelize": "^6.37.7",
     "sharp": "^0.34.2",
     "uuid": "^11.1.0",
-    "web-push": "^3.6.7"
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.8",
@@ -64,7 +64,6 @@
     "@types/qrcode": "^1.5.5",
     "@types/sequelize": "^4.28.20",
     "@types/uuid": "^10.0.0",
-    "@types/web-push": "^3.6.4",
     "@typescript-eslint/eslint-plugin": "^8.32.0",
     "@typescript-eslint/parser": "^8.32.0",
     "eslint": "^9.26.0",

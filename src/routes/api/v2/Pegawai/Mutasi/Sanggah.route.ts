@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { createSanggah, getSanggah } from "@/controllers/v2/pegawai/sanggah.controller";
+import { createSanggah } from "@/controllers/v2/pegawai/sanggah.controller";
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -10,7 +10,6 @@ const upload = multer({
 
 const router = Router({ mergeParams: true });
 
-router.get("/", getSanggah);
 router.post("/", upload.any(), createSanggah);
 
 

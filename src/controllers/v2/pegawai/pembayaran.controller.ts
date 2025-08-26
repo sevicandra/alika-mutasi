@@ -1,30 +1,33 @@
 import { Termin, sequelize } from "@/models";
 import { errorResponse, successResponse } from "@/helpers/respose.helper";
 import { AuthenticatedRequest } from "@/types/auth";
-import { Response } from "express";
-import {
-  ValidationError,
-  DatabaseError,
-  ConnectionError,
-  UniqueConstraintError,
-} from "sequelize";
+import { Response, NextFunction } from "express";
 import { Op } from "sequelize";
-import { AxiosError } from "axios";
 import { EsignService } from "@/services/esign.service";
 import { MinioService } from "@/services/minio.service";
 import { appConfig } from "@/config/app.config";
 import QRCode from "qrcode";
 import { Logger } from "@/services/log.service";
+import { AlikaService } from "@/services/alika.service";
 
 const minioService = new MinioService();
 
 export const getAllTermin = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
+  next: NextFunction
 ) => {
   try {
     const { mutasiId } = req.params;
     const { nip } = req.user;
+    if (!nip) {
+      return errorResponse(
+        res,
+        "Pengguna tidak dapat di verifikasi",
+        null,
+        403
+      );
+    }
 
     const data = await Termin.findAll({
       where: {
@@ -50,57 +53,25 @@ export const getAllTermin = async (
 
     return successResponse(res, "data berhasil didapatkan", data);
   } catch (error: unknown) {
-    if (
-      error instanceof ValidationError ||
-      error instanceof UniqueConstraintError
-    ) {
-      const parsedErrors = error.errors.map((err) => ({
-        field: err.path,
-        message: err.message,
-      }));
-      return errorResponse(res, "Validation gagal", parsedErrors, 422);
-    } else if (
-      error instanceof DatabaseError ||
-      error instanceof ConnectionError
-    ) {
-      const parsedErrors = error.message;
-      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
-    } else if (error instanceof ConnectionError) {
-      const parsedErrors = { message: "Gagal terhubung ke database" };
-      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
-    } else if (error instanceof AxiosError) {
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "isAxiosError" in error &&
-        (error as AxiosError).isAxiosError
-      ) {
-        const axiosError = error as AxiosError;
-        const statusCode = axiosError.response?.status || 500;
-        const message =
-          (axiosError.response?.data as { message?: string })?.message ||
-          axiosError.message ||
-          "Kesalahan pada permintaan eksternal";
-        const details = axiosError.response?.data || null;
-        return errorResponse(res, message, details, statusCode);
-      }
-      return errorResponse(res, "Terjadi kesalahan", null, 500);
-    } else if (error instanceof Error) {
-      const parsedErrors = { message: error.message };
-      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
-    } else {
-      const parsedErrors = { message: "Kesalahan tidak diketahui" };
-      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
-    }
+    next(error);
   }
 };
 
 export const getTerminById = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
+  next: NextFunction
 ) => {
   try {
     const { nip } = req.user;
+    if (!nip) {
+      return errorResponse(
+        res,
+        "Pengguna tidak dapat di verifikasi",
+        null,
+        403
+      );
+    }
     const { mutasiId, terminId } = req.params;
     const data = await Termin.findOne({
       where: {
@@ -129,55 +100,27 @@ export const getTerminById = async (
 
     return successResponse(res, "Data berhasil didapatkan", data);
   } catch (error: unknown) {
-    if (
-      error instanceof ValidationError ||
-      error instanceof UniqueConstraintError
-    ) {
-      const parsedErrors = error.errors.map((err) => ({
-        field: err.path,
-        message: err.message,
-      }));
-      return errorResponse(res, "Validation gagal", parsedErrors, 422);
-    } else if (
-      error instanceof DatabaseError ||
-      error instanceof ConnectionError
-    ) {
-      const parsedErrors = error.message;
-      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
-    } else if (error instanceof ConnectionError) {
-      const parsedErrors = { message: "Gagal terhubung ke database" };
-      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
-    } else if (error instanceof AxiosError) {
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "isAxiosError" in error &&
-        (error as AxiosError).isAxiosError
-      ) {
-        const axiosError = error as AxiosError;
-        const statusCode = axiosError.response?.status || 500;
-        const message =
-          (axiosError.response?.data as { message?: string })?.message ||
-          axiosError.message ||
-          "Kesalahan pada permintaan eksternal";
-        const details = axiosError.response?.data || null;
-        return errorResponse(res, message, details, statusCode);
-      }
-      return errorResponse(res, "Terjadi kesalahan", null, 500);
-    } else if (error instanceof Error) {
-      const parsedErrors = { message: error.message };
-      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
-    } else {
-      const parsedErrors = { message: "Kesalahan tidak diketahui" };
-      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
-    }
+    next(error);
   }
 };
 
-export const kirimTermin = async (req: AuthenticatedRequest, res: Response) => {
+export const kirimTermin = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
   const t = await sequelize.transaction();
   try {
     const { nip, nik, nama } = req.user;
+    await t.rollback();
+    if (!nip) {
+      return errorResponse(
+        res,
+        "Pengguna tidak dapat di verifikasi",
+        null,
+        403
+      );
+    }
     const { mutasiId, terminId } = req.params;
     const { passphrase } = await req.body;
     const data = await Termin.findOne({
@@ -306,50 +249,16 @@ export const kirimTermin = async (req: AuthenticatedRequest, res: Response) => {
       description: null,
       transaction: t,
     });
+    const userSDM = await AlikaService.getUserSDM();
+    await AlikaService.sendBulkPushNotification({
+      nip: userSDM.map((user) => user.nip),
+      message: `${data.Pegawai.nama} mengajukan pembayaran mutasi`,
+      title: "Pengajuan Pembayaran Mutasi",
+    });
     await t.commit();
     return successResponse(res, "Termin berhasil di proses");
   } catch (error: unknown) {
     await t.rollback();
-    if (
-      error instanceof ValidationError ||
-      error instanceof UniqueConstraintError
-    ) {
-      const parsedErrors = error.errors.map((err) => ({
-        field: err.path,
-        message: err.message,
-      }));
-      return errorResponse(res, "Validation gagal", parsedErrors, 422);
-    } else if (
-      error instanceof DatabaseError ||
-      error instanceof ConnectionError
-    ) {
-      const parsedErrors = error.message;
-      return errorResponse(res, "Kesalahan pada database", parsedErrors, 500);
-    } else if (error instanceof ConnectionError) {
-      const parsedErrors = { message: "Gagal terhubung ke database" };
-      return errorResponse(res, "Koneksi ke database gagal", parsedErrors, 503);
-    } else if (error instanceof AxiosError) {
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "isAxiosError" in error &&
-        (error as AxiosError).isAxiosError
-      ) {
-        const axiosError = error as AxiosError;
-        const statusCode = axiosError.response?.status || 500;
-        const message =
-          (axiosError.response?.data as { message?: string })?.message ||
-          axiosError.message ||
-          "Kesalahan pada permintaan eksternal";
-        const details = axiosError.response?.data || null;
-        return errorResponse(res, message, details, statusCode);
-      }
-      return errorResponse(res, "Terjadi kesalahan", null, 500);
-    } else if (error instanceof Error) {
-      return errorResponse(res, error.message, null, 500);
-    } else {
-      const parsedErrors = { message: "Kesalahan tidak diketahui" };
-      return errorResponse(res, "Terjadi kesalahan", parsedErrors, 500);
-    }
+    next(error);
   }
 };

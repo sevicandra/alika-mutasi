@@ -17,6 +17,7 @@ import MonitoringTagihan from "./MonitoringTagihan.model";
 import Sanggah from "./Sanggah.model";
 import Termin from "./Termin.model";
 import Rekening from "./Rekening.model";
+import PembayaranLog from "./PembayaranLog.model";
 
 type PegawaiMutasiAttributes = {
   id: string;
@@ -116,6 +117,7 @@ class PegawaiMutasi
   public Sanggah!: Sanggah[] | [];
   public Termin!: Termin[] | [];
   public Rekening!: Rekening | null;
+  public Log!: PembayaranLog[] | [];
 
   public static associations: {
     KantorAsal: BelongsTo<PegawaiMutasi, RefKantor>;
@@ -133,6 +135,7 @@ class PegawaiMutasi
     CurrentSanggah: HasOne<PegawaiMutasi, Sanggah>;
     Sanggah: HasMany<PegawaiMutasi, Sanggah>;
     Termin: HasMany<PegawaiMutasi, Termin>;
+    Log: HasMany<PegawaiMutasi, PembayaranLog>;
   };
 
   async addKeluarga({

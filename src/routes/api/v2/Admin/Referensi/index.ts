@@ -10,6 +10,7 @@ import HubunganKeluarga from "./HubunganKeluarga.route";
 import Tarif from "./Tarif.route";
 import UangHarian from "./UangHarian.route";
 import Pejabat from "./Pejabat.route";
+import Faq from "./Faq.route";
 
 const router = Router({ mergeParams: true });
 
@@ -24,5 +25,6 @@ router.use("/Pesawat", Pesawat);
 router.use("/Provinsi", Provinsi);
 router.use("/Tarif", Tarif);
 router.use("/UangHarian", UangHarian);
+router.use("/Faq", Faq);
 
 export default router;

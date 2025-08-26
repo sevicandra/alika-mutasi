@@ -8,4 +8,5 @@ export const appConfig = {
   version: process.env.APP_VERSION || "1.0.0",
   timezone: process.env.APP_TIMEZONE || "Asia/Jakarta",
   locale: process.env.APP_LOCALE || "id",
+  LEVEL_LOG: process.env.APP_LEVEL_LOG || "info",
 };

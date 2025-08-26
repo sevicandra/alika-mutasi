@@ -520,7 +520,7 @@ export class BiayaMutasiService {
         biaya[kota_asal.kota] = 0;
         transitCount[kota_asal.kota] = 0;
         biayaBobot[kota_asal.kota] = 0;
-        pesawatCount[kota_asal.kota] = 0;        
+        pesawatCount[kota_asal.kota] = 0;
         queue.push({
           kota: kota_asal.kota,
           biaya: 0,
@@ -531,7 +531,10 @@ export class BiayaMutasiService {
         });
         while (queue.length > 0) {
           queue.sort(
-            (a, b) => a.transit - b.transit || a.pesawat - b.pesawat || a.biayaBobot - b.biayaBobot
+            (a, b) =>
+              a.transit - b.transit ||
+              a.pesawat - b.pesawat ||
+              a.biayaBobot - b.biayaBobot
           );
           const {
             kota,
@@ -547,12 +550,13 @@ export class BiayaMutasiService {
             moda: jenis,
             biayaBobot: hargaBobot,
           } of graph[kota]) {
-
             const biayaBaru = biaya[kota] + harga;
             const biayaBobotBaru = biayaBobot[kota] + hargaBobot;
             const transitBaru =
               transit + (modaSebelumnya !== null && jenis === "BUS" ? 1 : 0);
-            const pesawatBaru = pesawat + (modaSebelumnya !== null && jenis === "PESAWAT" ? 1 : 0);
+            const pesawatBaru =
+              pesawat +
+              (modaSebelumnya !== null && jenis === "PESAWAT" ? 1 : 0);
 
             if (
               transitBaru < transitCount[tujuanKota] ||

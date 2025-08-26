@@ -1,6 +1,9 @@
 import axios from "axios";
 import { alikaConfig } from "@/config/alika.config";
 import jwkToPem from "jwk-to-pem";
+import { RedisService } from "./redis.service";
+import { appConfig } from "@/config/app.config";
+const redis = new RedisService();
 
 export class AlikaService {
   private static token: string | null = null;
@@ -108,6 +111,76 @@ export class AlikaService {
     } catch (error) {
       console.error("Error getting public key:", error);
       throw new Error("Failed to get public key");
+    }
+  }
+  static async getUserSDM(): Promise<
+    {
+      nama: string;
+      nip: string;
+    }[]
+  > {
+    try {
+      const cachedUser = await redis.getCache(
+        `${appConfig.name}:Alika:User:SDM`
+      );
+      if (cachedUser) {
+        return JSON.parse(cachedUser);
+      }
+      const { data } = await axios.get(
+        `${alikaConfig.BASE_URI}/api/v1/user/getByRole?service_kode=005&role=002`,
+        {
+          headers: {
+            Authorization: `Bearer ${await this.getAccessToken()}`,
+          },
+        }
+      );
+      await redis.setCache(
+        `${appConfig.name}:Alika:User:SDM`,
+        JSON.stringify(data.data),
+        3600
+      );
+      return data.data as {
+        nama: string;
+        nip: string;
+      }[];
+    } catch (error) {
+      console.error("Error getting user SDM key:", error);
+      throw new Error("Failed to get user SDM key");
+    }
+  }
+  static async getUserKeu(): Promise<
+    {
+      nama: string;
+      nip: string;
+    }[]
+  > {
+    try {
+      const cachedUser = await redis.getCache(
+        `${appConfig.name}:Alika:User:Keu`
+      );
+      if (cachedUser) {
+        return JSON.parse(cachedUser);
+      }
+      const { data } = await axios.get(
+        `${alikaConfig.BASE_URI}/api/v1/user/getByRole?service_kode=005&role=003`,
+        {
+          headers: {
+            Authorization: `Bearer ${await this.getAccessToken()}`,
+          },
+        }
+      );
+      await redis.setCache(
+        `${appConfig.name}:Alika:User:Keu`,
+        JSON.stringify(data.data),
+        3600
+      );
+      return data.data as {
+        nama: string;
+        nip: string;
+      }[];
+    } catch (error) {
+      console.error("Error getting user Keu key:", error);
+      throw new Error("Failed to get user Keu key");
     }
   }
 }

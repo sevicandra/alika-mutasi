@@ -32,6 +32,7 @@ import PembayaranLog from "./PembayaranLog.model";
 import Rekening from "./Rekening.model";
 import Payroll from "./Payroll.model";
 import PayrollCounter from "./PayrollCounter.model";
+import Faq from "./Faq.model";
 import { Op } from "sequelize";
 
 Art.belongsTo(PegawaiMutasi, {
@@ -405,5 +406,6 @@ export {
   PembayaranLog,
   Rekening,
   Payroll,
-  PayrollCounter
+  PayrollCounter,
+  Faq,
 };

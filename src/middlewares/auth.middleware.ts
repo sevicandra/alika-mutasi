@@ -56,7 +56,6 @@ export function authenticate(
         "iss",
         "aud",
       ]);
-      req.roles = decoded.account.find((a) => a.service.toLowerCase() === "mutasi")?.roles;
       req.user = omit(decoded, [
         "scope",
         "account",
@@ -84,8 +83,13 @@ export function authenticate(
         }
       }
       if (requiredRoles) {
+        req.roles = decoded.account?.find(
+          (a) => a.service.toLowerCase() === "mutasi"
+        )?.roles;
         const hasRequiredRoles = requiredRoles.every((role) => {
-          return req.roles?.some((r) => r.nama.toUpperCase() === role.toUpperCase());
+          return req.roles?.some(
+            (r) => r.nama.toUpperCase() === role.toUpperCase()
+          );
         });
         if (!hasRequiredRoles) {
           return errorResponse(res, "Unauthorized", null, 401);

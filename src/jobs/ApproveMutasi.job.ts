@@ -55,6 +55,15 @@ export const processApproveMutasi = async (
         },
         transaction: t,
       });
+      if (asal === tujuan) {
+        await PegawaiMutasi.update(
+          { status: "APPROVED" },
+          { where: { id: pegawai_id }, transaction: t }
+        );
+        await t.commit();
+        resolve();
+        return;
+      }
       const ruteOrang = await RincianBiaya.findAll({
         where: { pegawai_id: pegawai_id, jenis: "BIAYA_ANGKUT_ORANG" },
       });
@@ -71,16 +80,6 @@ export const processApproveMutasi = async (
         !agenda
       ) {
         throw new Error("Rute tidak ditemukan");
-      }
-
-      if (asal === tujuan) {
-        await PegawaiMutasi.update(
-          { process_biaya: "DONE" },
-          { where: { id: pegawai_id }, transaction: t }
-        );
-        await t.commit();
-        resolve();
-        return;
       }
       switch (1 + jumlah_tanggungan_dewasa + jumlah_tanggungan_invant) {
         case 1:
@@ -315,7 +314,6 @@ export const processApproveMutasi = async (
           actor_role: "System",
           action: "Hitung Biaya Mutasi",
           description: `mutasi berhasil dihitung dan dokumen pendukung gagal dibuat, error: ${error}`,
-          transaction: t,
         });
         console.log("Job gagal maksimal, status diubah ke failed.");
       }

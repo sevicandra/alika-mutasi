@@ -2,7 +2,7 @@ import fs from "fs";
 import { Content } from "pdfmake/interfaces";
 import generatePdf from "@/config/pdf.config";
 import path from "path";
-import { PegawaiMutasi, RefPejabat, Termin } from "@/models";
+import { PegawaiMutasi, RefPejabat, SuratKeputusan, Termin } from "@/models";
 import { numberToWords } from "@/helpers/numberToWord.helper";
 import { toTitleCase, snackToTitleCase } from "@/helpers/string.helper";
 export class PdfService {
@@ -1436,6 +1436,178 @@ export class PdfService {
           json: body,
           margin: { top: 1, right: 1, bottom: 1, left: 1.5 },
           fontSize: 11,
+        });
+        resolve(pdf);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          reject(error.message);
+        } else {
+          reject("Unknown error");
+        }
+      }
+    });
+  }
+  static async OverviewSK(data: SuratKeputusan): Promise<String> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const body = [
+          {
+            text: `SURAT KEPUTUSAN NOMOR ${data.nomor} TANGGAL ${new Date(
+              data.tanggal
+            ).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            })}`,
+            alignment: "center",
+            fontSize: 14,
+            bold: true,
+            margin: [0, 10, 0, 10],
+          },
+          {
+            text: `Tentang ${data.uraian}`,
+            alignment: "center",
+            fontSize: 12,
+            margin: [0, 0, 0, 10],
+          },
+          {
+            table: {
+              widths: ["5%", "20%", "4%", "16%", "20%", "23%", "12%"],
+              body: [
+                [
+                  { text: "No", alignment: "center" },
+                  { text: "Nama/NIP", alignment: "center" },
+                  { text: "Gol", alignment: "center" },
+                  { text: "Rute", alignment: "center" },
+                  { text: "Keluarga", alignment: "center" },
+                  { text: "Biaya", alignment: "center" },
+                  { text: "Termin", alignment: "center" },
+                ],
+                ...data.Pegawai.sort((a, b) => {
+                  return a.golongan.localeCompare(b.golongan);
+                }).map((pegawai, index) => {
+                  return [
+                    { text: index + 1, alignment: "center" },
+                    {
+                      text: `${pegawai.nama} / ${pegawai.nip}`,
+                      alignment: "left",
+                    },
+                    { text: pegawai.Golongan.kode, alignment: "center" },
+                    {
+                      stack: [
+                        {
+                          text: `${pegawai.KantorAsal.kantor} (${pegawai.KantorAsal.Kota.kota})`,
+                        },
+                        { text: " - " },
+                        {
+                          text: `${pegawai.KantorTujuan.kantor} (${pegawai.KantorTujuan.Kota.kota})`,
+                        },
+                      ],
+                      alignment: "left",
+                    },
+                    {
+                      ul: [
+                        ...pegawai.Keluarga.sort((a, b) => {
+                          const getPriority = (d: any) => {
+                            if (d.Ref.jenis === "PASANGAN") return 0;
+                            if (d.Ref.jenis === "ANAK") return 1;
+                            if (d.Ref.kode === 99) return 2;
+                            return 3;
+                          };
+                          return getPriority(a) - getPriority(b);
+                        }).map((k) => {
+                          return {
+                            stack: [
+                              `${k.nama} (${k.Ref.nama})`,
+                              `${new Date(k.tanggal_lahir).toLocaleDateString(
+                                "id-ID",
+                                {
+                                  day: "2-digit",
+                                  month: "long",
+                                  year: "numeric",
+                                }
+                              )} ${k.is_invant ? "(Invan)" : ""}`,
+                              k.pekerjaan ? `${k.pekerjaan}` : "-",
+                              k.status,
+                            ],
+                            alignment: "left",
+                            margin: [0, 0, 0, 5],
+                          };
+                        }),
+                        ...(pegawai.Keluarga.length === 0
+                          ? ["Tidak ada keluarga"]
+                          : []),
+                      ],
+                      alignment: "left",
+                    },
+                    {
+                      ul: [
+                        ...pegawai.RincianBiaya.sort((a, b) => {
+                          const getPriority = (d: any) => {
+                            if (d.jenis === "BIAYA_ANGKUT_ORANG") return 0;
+                            if (d.jenis === "BIAYA_ANGKUT_BARANG") return 1;
+                            if (d.jenis === "UANG_HARIAN") return 2;
+                            if (d.jenis === "BIAYA_ANGKUT_ORANG_ART") return 3;
+                            if (d.jenis === "BIAYA_ANGKUT_BARANG_ART") return 4;
+                            if (d.jenis === "UANG_HARIAN_ART") return 5;
+                            return 6;
+                          };
+                          return (
+                            getPriority(a) - getPriority(b) ||
+                            (a.urutan || 99) - (b.urutan || 99)
+                          );
+                        }).map((rb) => {
+                          return {
+                            stack: [
+                              rb.sub_jenis,
+                              rb.keterangan,
+                              `${rb.harga_satuan.toLocaleString("id-ID", {
+                                currency: "IDR",
+                              })} x ${rb.volume} = ${(
+                                rb.harga_satuan * rb.volume
+                              ).toLocaleString("id-ID", {
+                                currency: "IDR",
+                              })}`,
+                            ],
+                            alignment: "left",
+                            margin: [0, 0, 0, 5],
+                          };
+                        }),
+                        ...(pegawai.RincianBiaya.length === 0
+                          ? ["Tidak ada rincian biaya"]
+                          : []),
+                      ],
+                    },
+                    {
+                      ul: [
+                        ...pegawai.Termin.map((t) => {
+                          return {
+                            stack: [
+                              `${t.Ref.nama} (${t.tahun})`,
+                              `Rp. ${t.nominal.toLocaleString("id-ID", {
+                                currency: "IDR",
+                              })}`,
+                            ],
+                            alignment: "left",
+                            margin: [0, 0, 0, 5],
+                          };
+                        }),
+                        ...(pegawai.Termin.length === 0
+                          ? ["Tidak ada termin"]
+                          : []),
+                      ],
+                    },
+                  ];
+                }),
+              ],
+            },
+          },
+        ] as Content[];
+        const pdf = await generatePdf({
+          json: body,
+          margin: { top: 1, right: 1, bottom: 1, left: 1.5 },
+          fontSize: 11,
+          orientation: "landscape",
         });
         resolve(pdf);
       } catch (error: unknown) {
