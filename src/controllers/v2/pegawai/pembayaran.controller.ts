@@ -112,8 +112,8 @@ export const kirimTermin = async (
   const t = await sequelize.transaction();
   try {
     const { nip, nik, nama } = req.user;
-    await t.rollback();
     if (!nip) {
+      await t.rollback();
       return errorResponse(
         res,
         "Pengguna tidak dapat di verifikasi",

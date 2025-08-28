@@ -17,10 +17,10 @@ export const generateQRCodeWithText = async (
 ): Promise<string> => {
   return new Promise(async (resolve, reject) => {
     try {
-      // --- 1. Konfigurasi ---
-      const width = 220;
-      const height = 300;
-      const qrSize = 220;
+      // --- 1. Konfigurasi QR Code ---
+      const qrSize = 220; // Ukuran QR Code
+      const padding = 10; // Padding antara elemen
+      const textHeight = 40; // Perkiraan tinggi untuk setiap baris teks
 
       const qrCodeBuffer = await QRCode.toBuffer(url, {
         type: "png",
@@ -29,40 +29,43 @@ export const generateQRCodeWithText = async (
         errorCorrectionLevel: "H",
       });
 
-      // --- 3. Buat Teks sebagai SVG (diubah menjadi Buffer) ---
+      // --- 2. Buat Teks sebagai SVG (diubah menjadi Buffer) ---
       const topTextSvg = Buffer.from(`
-      <svg width="${width}" height="40">
+      <svg width="100%" height="${textHeight}" xmlns="http://www.w3.org/2000/svg">
         <text
           y="50%"
           text-anchor="start"
           dy=".3em"
           font-family="Arial, sans-serif"
-          font-size="18px"
-          font-weight="bold"
+          font-size="18"
+          font-weight="normal"
           fill="#000">
           ${header}
         </text>
       </svg>
     `);
       const bottomTextSvg = Buffer.from(`
-      <svg width="${width}" height="40">
+      <svg width="100%" height="${textHeight}" xmlns="http://www.w3.org/2000/svg">
         <text
           y="50%"
           text-anchor="start"
           dy=".3em"
           font-family="Arial, sans-serif"
-          font-size="20px"
-          font-weight="bold"
+          font-size="20"
+          font-weight="normal"
           fill="#000">
           ${footer}
         </text>
       </svg>
     `);
-      // --- 4. Buat gambar dasar dan gabungkan semuanya ---
+      const estimatedTextWidth = Math.max(header.length * 10, footer.length * 12);
+      const finalWidth = Math.max(qrSize, estimatedTextWidth) + padding * 2;
+      const finalHeight = textHeight + qrSize + textHeight + padding * 3;
+
       const finalImageBuffer = await sharp({
         create: {
-          width: width,
-          height: height,
+          width: finalWidth,
+          height: finalHeight,
           channels: 4,
           background: { r: 0, g: 0, b: 0, alpha: 0 },
         },
@@ -70,14 +73,14 @@ export const generateQRCodeWithText = async (
         .composite([
           // Tempelkan teks atas
           { input: topTextSvg, top: 10, left: 0 },
-          // Tempelkan QR Code di tengah
+          // Tempelkan QR Code
           {
             input: qrCodeBuffer,
-            top: 45,
+            top: textHeight + padding,
             left: 0,
           },
           // Tempelkan teks bawah
-          { input: bottomTextSvg, top: 40 + qrSize + 10, left: 0 },
+          { input: bottomTextSvg, top: textHeight + qrSize + padding * 2, left: 0 },
         ])
         .png() // Tentukan format output
         .toBuffer(); // Hasilkan sebagai buffer

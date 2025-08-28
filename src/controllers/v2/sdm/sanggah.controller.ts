@@ -158,7 +158,7 @@ export const reviewSanggah = async (
           data: d.new_value
             ? JSON.parse(JSON.stringify(d.new_value))
             : undefined,
-          catatan: d.reason,
+          catatan: reviewData.admin_notes,
           file: d.file,
           confrimation: reviewData.is_approved,
         });

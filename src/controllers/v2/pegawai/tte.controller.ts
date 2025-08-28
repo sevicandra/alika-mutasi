@@ -165,6 +165,7 @@ export const processTte = async (
   try {
     const { nip, nik, name } = req.user;
     if (!nip) {
+      t.rollback();
       return errorResponse(
         res,
         "Pengguna tidak dapat di verifikasi",
@@ -181,6 +182,11 @@ export const processTte = async (
           include: [
             {
               association: "Termin",
+              include: [
+                {
+                  association: "Pegawai",
+                },
+              ],
             },
           ],
         },
@@ -255,8 +261,6 @@ export const processTte = async (
     await t.commit();
     return successResponse(res, "berhasil di proses", data);
   } catch (error: unknown) {
-    console.log(error);
-
     t.rollback();
     next(error);
   }
@@ -271,6 +275,7 @@ export const tolakTte = async (
   try {
     const { nip, name } = req.user;
     if (!nip) {
+      t.rollback();
       return errorResponse(
         res,
         "Pengguna tidak dapat di verifikasi",
