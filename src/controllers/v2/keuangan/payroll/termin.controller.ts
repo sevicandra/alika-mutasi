@@ -224,8 +224,8 @@ export const getRekening = async (
         },
       ],
     });
-    if (!data) {
-      return errorResponse(res, "Termin tidak ditemukan", null, 404);
+    if (!data || !data.Pegawai.Rekening) {
+      return errorResponse(res, "Rekening pegawai tidak ditemukan", null, 404);
     }
     return successResponse(
       res,
