@@ -129,16 +129,25 @@ export const reviewSanggah = async (
       return errorResponse(res, "Data tidak ditemukan", null, 404);
     }
     const dataSanggahIds = data.DataSanggah.map((d: any) => d.id);
-    const invalidIds = review
-      .map((r) => r.id)
-      .filter((id) => !dataSanggahIds.includes(id));
+    if (
+      review.length !== dataSanggahIds.length ||
+      !review.every((r) => dataSanggahIds.includes(r.id))
+    ) {
+      return errorResponse(
+        res,
+        "belum melakukan review untuk seluruh data",
+        null,
+        400
+      );
+    }
 
-    if (invalidIds.length > 0) {
+    const allReviewed = review.every((r) => r.is_approved !== undefined);
+    if (!allReviewed) {
       await t.rollback();
       return errorResponse(
         res,
-        "Beberapa ID review tidak sesuai dengan data sanggah",
-        { invalidIds },
+        "belum melakukan review untuk seluruh data",
+        null,
         400
       );
     }
@@ -262,8 +271,6 @@ export const reviewSanggah = async (
     await t.commit();
     return successResponse(res, "Review sanggah berhasil", null, 200);
   } catch (error: unknown) {
-    console.log(error);
-
     await t.rollback();
     next(error);
   }

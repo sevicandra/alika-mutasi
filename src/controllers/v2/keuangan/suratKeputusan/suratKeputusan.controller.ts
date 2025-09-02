@@ -6,6 +6,7 @@ import { Op } from "sequelize";
 import { MinioService } from "@/services/minio.service";
 import sequelize from "@/config/db.config";
 import { parse } from "csv-parse";
+import { PdfService } from "@/services/pdf.service";
 
 const minioService = new MinioService();
 
@@ -334,15 +335,98 @@ export const importPayroll = async (
         422
       );
     }
-    await Rekening.bulkCreate(records, {
-      transaction: t,
-    });
+    for (const record of records) {
+      await Rekening.upsert(
+        {
+          pegawai_id: record.pegawai_id,
+          nomor_rekening: record.nomor_rekening,
+          nama_rekening: record.nama_rekening,
+          nama_bank: record.nama_bank,
+        },
+        { transaction: t }
+      );
+    }
     await t.commit();
     return successResponse(res, "Berhasil mengimpor payroll", null);
   } catch (error: unknown) {
-    console.log(error);
-
     await t.rollback();
+    next(error);
+  }
+};
+
+export const getOverview = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { SkId } = req.params;
+    const data = await SuratKeputusan.findOne({
+      include: [
+        {
+          association: "Pegawai",
+          include: [
+            {
+              association: "Golongan",
+            },
+            {
+              association: "Keluarga",
+              include: [
+                {
+                  association: "Ref",
+                },
+              ],
+            },
+            {
+              association: "RincianBiaya",
+            },
+            {
+              association: "Termin",
+              include: [
+                {
+                  association: "Ref",
+                },
+              ],
+            },
+            {
+              association: "KantorAsal",
+              include: [
+                {
+                  association: "Kota",
+                },
+              ],
+            },
+            {
+              association: "KantorTujuan",
+              include: [
+                {
+                  association: "Kota",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      where: {
+        id: SkId,
+        status: {
+          [Op.ne]: "DRAFT",
+        },
+      },
+    });
+
+    if (!data) {
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+    const pdf = await PdfService.OverviewSK(data);
+    const pdfBuffer = Buffer.from(pdf, "base64");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${data.nomor.replace(/\//g, "_")}.pdf"`
+    );
+    return res.status(200).send(pdfBuffer);
+  } catch (error: unknown) {
     next(error);
   }
 };

@@ -12,7 +12,9 @@ import {
   processTermin,
   publishSuratKeputusan,
   setTimeline,
-  getOverview
+  getOverview,
+  batalSuratKeputusan,
+  selesaiSuratKeputusan
 } from "@/controllers/v2/sdm/suratKeputusan.controller";
 import multer from "multer";
 
@@ -43,5 +45,7 @@ router.post("/:SkId/ProcessTermin", processTermin);
 router.post("/:SkId/Publish", publishSuratKeputusan);
 router.post("/:SkId/SetTimeline", setTimeline);
 router.get("/:SkId/Overview", getOverview);
+router.post("/:SkId/Batal", batalSuratKeputusan);
+router.post("/:SkId/Selesai", selesaiSuratKeputusan);
 
 export default router;

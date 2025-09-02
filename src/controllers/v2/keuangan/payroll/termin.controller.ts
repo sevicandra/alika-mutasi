@@ -168,6 +168,7 @@ export const tolakTermin = async (
       include: [
         { association: "Pegawai", where: { sk_id: SkId } },
         { association: "Payroll" },
+        { association: "Ref" },
       ],
     });
     if (!data) {
@@ -183,7 +184,7 @@ export const tolakTermin = async (
       pegawai_id: data.Pegawai.id,
       actor_nip: nip,
       actor_role: "Keuangan",
-      action: "Tolak Payroll",
+      action: `Tolak Payroll (${data.Ref.nama})`,
       description: `Proses Payroll di tolak oleh Keuangan dengan catatan: ${catatan}`,
       transaction: t,
     });
@@ -256,7 +257,7 @@ export const updateRekening = async (
         {
           association: "Pegawai",
           where: { sk_id: SkId },
-          include: [{ association: "Rekening" }],
+          required: true,
         },
       ],
       transaction: t,
@@ -270,20 +271,16 @@ export const updateRekening = async (
       return errorResponse(res, "Payroll telah di prosess", null, 400);
     }
 
-    const rekening = data.Pegawai.Rekening;
-    if (!rekening) {
-      return errorResponse(res, "Rekening pegawai tidak ditemukan", null, 404);
-    }
-    await rekening.destroy({ transaction: t });
-
-    await Rekening.create(
+    await Rekening.upsert(
       {
         pegawai_id: data.Pegawai.id,
         nama_rekening,
         nama_bank,
         nomor_rekening,
       },
-      { transaction: t }
+      {
+        transaction: t,
+      }
     );
     await t.commit();
     return successResponse(res, "Berhasil memperbarui rekening", null, 200);

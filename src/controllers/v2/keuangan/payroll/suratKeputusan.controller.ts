@@ -211,6 +211,9 @@ export const downloadPayroll = async (
             },
           ],
         },
+        {
+          association: "Ref",
+        },
       ],
     });
 
@@ -356,7 +359,7 @@ export const downloadPayroll = async (
         pegawai_id: p.Pegawai.id,
         actor_nip: nip,
         actor_role: "KEU",
-        action: "Proses Payroll",
+        action: `Proses Payroll (${p.Ref.nama})`,
         description: `Permohonan pembayaran untuk ${
           p.Pegawai.nama
         } telah disetujui dan akan diproses payroll pada tanggal ${new Date(

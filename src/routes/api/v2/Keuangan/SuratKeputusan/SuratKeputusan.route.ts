@@ -3,7 +3,8 @@ import {
   getAllSuratKeputusan,
   getSuratKeputusanById,
   getSuratKeputusanFile,
-  importPayroll
+  importPayroll,
+  getOverview,
 } from "@/controllers/v2/keuangan/suratKeputusan/suratKeputusan.controller";
 import multer from "multer";
 
@@ -24,5 +25,6 @@ router.get("/", getAllSuratKeputusan);
 router.get("/:SkId", getSuratKeputusanById);
 router.get("/:SkId/File", getSuratKeputusanFile);
 router.post("/:SkId/Payroll", upload.single("file"), importPayroll);
+router.get("/:SkId/Overview", getOverview);
 
 export default router;

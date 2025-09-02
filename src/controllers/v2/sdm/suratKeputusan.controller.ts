@@ -1,4 +1,10 @@
-import { SuratKeputusan, PegawaiMutasi, Timeline } from "@/models";
+import {
+  SuratKeputusan,
+  PegawaiMutasi,
+  Timeline,
+  DokumenTermin,
+  Termin,
+} from "@/models";
 import { errorResponse, successResponse } from "@/helpers/respose.helper";
 import { AuthenticatedRequest } from "@/types/auth";
 import { Response, NextFunction } from "express";
@@ -838,7 +844,161 @@ export const getOverview = async (
     );
     return res.status(200).send(pdfBuffer);
   } catch (error: unknown) {
-    console.log(error);
+    next(error);
+  }
+};
+
+export const batalSuratKeputusan = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const t = await sequelize.transaction();
+  try {
+    const { SkId } = req.params;
+    const data = await SuratKeputusan.findByPk(SkId, {
+      include: [
+        {
+          association: "Pegawai",
+          include: [
+            {
+              association: "Termin",
+              include: [
+                {
+                  association: "DokumenTermin",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!data) {
+      t.rollback();
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+
+    if (data.status !== "PUBLISH") {
+      t.rollback();
+      return errorResponse(
+        res,
+        "Surat Keputusan tidak dalam status PUBLISH",
+        null,
+        400
+      );
+    }
+
+    for (const pegawai of data.Pegawai) {
+      for (const termin of pegawai.Termin) {
+        for (const dokumen of termin.DokumenTermin) {
+          if (dokumen.file) {
+            await minioService.deleteFile(dokumen.file);
+          }
+        }
+      }
+    }
+
+    await PegawaiMutasi.update(
+      {
+        status: "DRAFT",
+      },
+      { where: { sk_id: SkId }, transaction: t }
+    );
+    const pegawai = data.Pegawai.map((pegawai) => pegawai.id);
+    await Termin.update(
+      {
+        status: "DRAFT",
+      },
+      { where: { pegawai_id: pegawai }, transaction: t }
+    );
+    data.status = "DRAFT";
+    await data.save({ transaction: t });
+    const termin = data.Pegawai.flatMap((pegawai) => pegawai.Termin);
+    await DokumenTermin.destroy({
+      where: {
+        termin_id: termin.map((t) => t.id),
+      },
+      transaction: t,
+    });
+    await AlikaService.sendBulkPushNotification({
+      nip: data.Pegawai.map((p) => p.nip),
+      title: "Surat Keputusan Mutasi",
+      message:
+        "Surat Keputusan Mutasi telah dibatalkan oleh Bagian SDM, karena ada kesalahan teknis",
+    });
+    await t.commit();
+    return successResponse(res, "Surat Keputusan berhasil dibatalkan", {
+      id: SkId,
+    });
+  } catch (error: unknown) {
+    await t.rollback();
+    next(error);
+  }
+};
+
+export const selesaiSuratKeputusan = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const t = await sequelize.transaction();
+  try {
+    const { SkId } = req.params;
+    const data = await SuratKeputusan.findByPk(SkId, {
+      include: [
+        {
+          association: "Pegawai",
+          include: [
+            {
+              association: "Termin",
+              include: [
+                {
+                  association: "DokumenTermin",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!data) {
+      t.rollback();
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+
+    if (data.status !== "PUBLISH") {
+      t.rollback();
+      return errorResponse(
+        res,
+        "Surat Keputusan tidak dalam status PUBLISH",
+        null,
+        400
+      );
+    }
+
+    const termin = data.Pegawai.flatMap((pegawai) => pegawai.Termin);
+
+    const allTerminPaid = termin.every((t) => t.status === "PAID");
+
+    if (!allTerminPaid) {
+      t.rollback();
+      return errorResponse(
+        res,
+        "Masih terdapat termin yang belum dibayar",
+        null,
+        400
+      );
+    }
+    data.status = "SELESAI";
+    await data.save({ transaction: t });
+    await t.commit();
+    return successResponse(res, "Surat Keputusan berhasil diselesaikan", {
+      id: SkId,
+    });
+  } catch (error: unknown) {
+    await t.rollback();
     next(error);
   }
 };

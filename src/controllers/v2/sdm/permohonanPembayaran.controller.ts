@@ -107,6 +107,9 @@ export const setujuiPermohonan = async (
         {
           association: "Pegawai",
         },
+        {
+          association: "Ref"
+        }
       ],
       transaction: t,
     });
@@ -124,7 +127,7 @@ export const setujuiPermohonan = async (
       pegawai_id: data.Pegawai.id,
       actor_nip: nip,
       actor_role: "SDM",
-      action: "Setujui permohonan pembayaran",
+      action: `Setujui permohonan pembayaran (${data.Ref.nama})`,
       description: catatan ? catatan : null,
       transaction: t,
     });
@@ -175,6 +178,9 @@ export const tolakPermohonan = async (
         {
           association: "Pegawai",
         },
+        {
+          association: "Ref"
+        }
       ],
       transaction: t,
     });
@@ -192,7 +198,7 @@ export const tolakPermohonan = async (
       pegawai_id: data.Pegawai.id,
       actor_nip: nip,
       actor_role: "SDM",
-      action: "Tolak permohonan pembayaran",
+      action: `Tolak permohonan pembayaran (${data.Ref.nama})`,
       description: catatan,
       transaction: t,
     });

@@ -150,6 +150,9 @@ export const kirimTermin = async (
             },
           ],
         },
+        {
+          association: "Ref",
+        },
       ],
     });
     if (!data) {
@@ -245,7 +248,7 @@ export const kirimTermin = async (
       pegawai_id: mutasiId,
       actor_nip: nip,
       actor_role: "PEGAWAI",
-      action: "Kirim Dokumen Permohonan Pembayaran Mutasi",
+      action: `Kirim Dokumen Permohonan Pembayaran Mutasi (${data.Ref.nama})`,
       description: null,
       transaction: t,
     });

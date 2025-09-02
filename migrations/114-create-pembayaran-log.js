@@ -27,7 +27,7 @@ module.exports = {
         allowNull: false,
       },
       action: {
-        type: Sequelize.STRING(50),
+        type: Sequelize.STRING(225),
         allowNull: false,
       },
       action_type: {
