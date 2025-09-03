@@ -37,7 +37,7 @@ export const generateQRCodeWithText = async (
           text-anchor="start"
           dy=".3em"
           font-family="Arial, sans-serif"
-          font-size="18"
+          font-size="18pt"
           font-weight="normal"
           fill="#000">
           ${header}
@@ -51,7 +51,7 @@ export const generateQRCodeWithText = async (
           text-anchor="start"
           dy=".3em"
           font-family="Arial, sans-serif"
-          font-size="20"
+          font-size="20pt"
           font-weight="normal"
           fill="#000">
           ${footer}

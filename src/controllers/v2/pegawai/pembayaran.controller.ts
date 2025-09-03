@@ -112,6 +112,10 @@ export const kirimTermin = async (
   const t = await sequelize.transaction();
   try {
     const { nip, nik, nama } = req.user;
+    const inputValidation: {
+      field: string;
+      message: string;
+    }[] = [];
     if (!nip) {
       await t.rollback();
       return errorResponse(
@@ -122,7 +126,21 @@ export const kirimTermin = async (
       );
     }
     const { mutasiId, terminId } = req.params;
-    const { passphrase } = await req.body;
+    const { passphrase, confirmation } = await req.body;
+    if (!passphrase)
+      inputValidation.push({
+        field: "passphrase",
+        message: "passphrase tidak boleh kosong",
+      });
+    if (!confirmation || confirmation !== true)
+      inputValidation.push({
+        field: "confirmation",
+        message: "mohon centang untuk melanjutkan",
+      });
+      if (inputValidation.length > 0) {
+        await t.rollback();
+        return errorResponse(res, "Parameter tidak lengkap", inputValidation, 422);
+      }
     const data = await Termin.findOne({
       where: {
         id: terminId,

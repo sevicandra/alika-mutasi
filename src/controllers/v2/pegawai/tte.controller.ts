@@ -164,6 +164,10 @@ export const processTte = async (
   const t = await sequelize.transaction();
   try {
     const { nip, nik, name } = req.user;
+    const inputValidation: {
+      field: string;
+      message: string;
+    }[] = [];
     if (!nip) {
       t.rollback();
       return errorResponse(
@@ -174,7 +178,25 @@ export const processTte = async (
       );
     }
     const { id } = req.params;
-    const { passphrase, tanggal } = await req.body;
+    const { passphrase, tanggal, confirmation } = await req.body;
+    if (!tanggal) inputValidation.push({
+      field: "tanggal",
+      message: "Tanggal tidak boleh kosong",
+    });
+    if(!passphrase) inputValidation.push({
+      field: "passphrase",
+      message: "passphrase tidak boleh kosong",
+    });
+    if(!confirmation || confirmation !== true) inputValidation.push({
+      field: "confirmation",
+      message: "mohon centang untuk melanjutkan",
+    });
+
+    if (inputValidation.length > 0) {
+      t.rollback();
+      return errorResponse(res, "Parameter tidak lengkap", inputValidation, 422);
+    }
+    
     const data = await TteDokumen.findByPk(id, {
       include: [
         {
