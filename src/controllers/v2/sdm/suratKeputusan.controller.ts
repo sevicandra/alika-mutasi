@@ -827,6 +827,9 @@ export const getOverview = async (
                 },
               ],
             },
+            {
+              association: "MonitoringTagihan",
+            },
           ],
         },
       ],
@@ -835,7 +838,56 @@ export const getOverview = async (
     if (!data) {
       return errorResponse(res, "data tidak ditemukan", null, 404);
     }
-    const pdf = await PdfService.OverviewSK(data);
+    const { Pegawai } = data;
+    const totalBiaya = Pegawai.reduce((acc, pegawai) => {
+      return acc + pegawai.MonitoringTagihan.total_tagihan;
+    }, 0);
+    const biayaTertinggi = Pegawai.reduce((max, pegawai) => {
+      return pegawai.MonitoringTagihan.total_tagihan > max
+        ? pegawai.MonitoringTagihan.total_tagihan
+        : max;
+    }, 0);
+    const biayaTerendah = Pegawai.reduce((min, pegawai) => {
+      return pegawai.MonitoringTagihan.total_tagihan < min
+        ? pegawai.MonitoringTagihan.total_tagihan
+        : min;
+    }, Number.MAX_VALUE);
+    const rataRataBiaya = Pegawai.length > 0 ? totalBiaya / Pegawai.length : 0;
+
+    const nilaiTermin: {
+      nama: string;
+      nominal: number;
+    }[] = Pegawai.flatMap((pegawai) =>
+      pegawai.Termin.map((termin) => ({
+        nama: termin.Ref.nama,
+        nominal: termin.nominal,
+      }))
+    );
+
+    const aggregatedNilaiTermin: { [key: string]: number } = {};
+    nilaiTermin.forEach((item) => {
+      if (aggregatedNilaiTermin[item.nama]) {
+        aggregatedNilaiTermin[item.nama] += item.nominal;
+      } else {
+        aggregatedNilaiTermin[item.nama] = item.nominal;
+      }
+    });
+
+    const finalNilaiTermin = Object.keys(aggregatedNilaiTermin).map((nama) => ({
+      nama,
+      nominal: aggregatedNilaiTermin[nama],
+    }));
+
+    const summary = {
+      total_pegawai: Pegawai.length,
+      total_biaya: totalBiaya,
+      biaya_tertinggi: biayaTertinggi,
+      biaya_terendah: biayaTerendah === Number.MAX_VALUE ? 0 : biayaTerendah,
+      rata_rata_biaya: rataRataBiaya,
+      nilai_termin: finalNilaiTermin,
+    };
+
+    const pdf = await PdfService.OverviewSK({ data, summary });
     const pdfBuffer = Buffer.from(pdf, "base64");
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(

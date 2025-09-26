@@ -1447,27 +1447,197 @@ export class PdfService {
       }
     });
   }
-  static async OverviewSK(data: SuratKeputusan): Promise<String> {
+  static async OverviewSK({
+    data,
+    summary,
+  }: {
+    data: SuratKeputusan;
+    summary: {
+      total_pegawai: number;
+      total_biaya: number;
+      biaya_tertinggi: number;
+      biaya_terendah: number;
+      rata_rata_biaya: number;
+      nilai_termin: {
+        nama: string;
+        nominal: number;
+      }[];
+    };
+  }): Promise<String> {
     return new Promise(async (resolve, reject) => {
       try {
         const body = [
           {
-            text: `SURAT KEPUTUSAN NOMOR ${data.nomor} TANGGAL ${new Date(
-              data.tanggal
-            ).toLocaleDateString("id-ID", {
-              day: "2-digit",
-              month: "long",
-              year: "numeric",
-            })}`,
+            text: ["LAPORAN MUTASI PEGAWAI"],
+            margin: [0, 0, 0, 10],
+            fontSize: 14,
+            bold: true,
+          },
+          {
+            stack: [
+              `Surat Keputusan Nomor ${data.nomor}`,
+              `Tanggal ${new Date(data.tanggal).toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}`,
+              `Tentang ${data.uraian}`,
+            ],
+            margin: [0, 0, 0, 10],
+            fontSize: 12,
+          },
+          {
+            text: "RINGKASAN EKSEKUTIF",
+            fontSize: 14,
+            bold: true,
+            margin: [0, 0, 0, 10],
+          },
+          {
+            stack: [
+              `Laporan ini merangkum pelaksanaan pemindahan ${
+                summary.total_pegawai
+              } pegawai berdasarkan Surat Keputusan Nomor ${
+                data.nomor
+              } dengan total anggaran ${summary.total_biaya.toLocaleString(
+                "id-ID",
+                {
+                  currency: "IDR",
+                  style: "currency",
+                }
+              )}. Pembayaran dilaksanakan dalam ${
+                summary.nilai_termin.length
+              } termin dengan rincian sebagai berikut:`,
+              ...summary.nilai_termin.map((t) => {
+                return `- ${t.nama}: ${t.nominal.toLocaleString("id-ID", {
+                  currency: "IDR",
+                  style: "currency",
+                })}`;
+              }),
+            ],
+            margin: [0, 0, 0, 10],
+          },
+          {
+            text: "STATISTIK UTAMA",
+            margin: [0, 0, 0, 10],
+            fontSize: 14,
+            bold: true,
+          },
+          {
+            columnGap: 10,
+            columns: [
+              {
+                width: "*",
+                text: "",
+              },
+              {
+                width: "50%",
+                table: {
+                  widths: ["50%", "50%"],
+                  body: [
+                    [
+                      {
+                        text: "Indikator",
+                        alignment: "center",
+                        padding: [0, 5, 0, 5],
+                      },
+                      {
+                        text: "Nilai",
+                        alignment: "center",
+                        padding: [0, 5, 0, 5],
+                      },
+                    ],
+                    [
+                      {
+                        text: "Total Pegawai",
+                        alignment: "left",
+                        padding: [0, 5, 0, 5],
+                      },
+                      {
+                        text: summary.total_pegawai.toLocaleString("id-ID"),
+                        alignment: "right",
+                        padding: [0, 5, 0, 5],
+                      },
+                    ],
+                    [
+                      {
+                        text: "Total Biaya",
+                        alignment: "left",
+                        padding: [0, 5, 0, 5],
+                      },
+                      {
+                        text: summary.total_biaya.toLocaleString("id-ID", {
+                          currency: "IDR",
+                          style: "currency",
+                        }),
+                        alignment: "right",
+                        padding: [0, 5, 0, 5],
+                      },
+                    ],
+                    [
+                      {
+                        text: "Biaya Tertinggi",
+                        alignment: "left",
+                        padding: [0, 5, 0, 5],
+                      },
+                      {
+                        text: summary.biaya_tertinggi.toLocaleString("id-ID", {
+                          currency: "IDR",
+                          style: "currency",
+                        }),
+                        alignment: "right",
+                        padding: [0, 5, 0, 5],
+                      },
+                    ],
+                    [
+                      {
+                        text: "Biaya Terendah",
+                        alignment: "left",
+                        padding: [0, 5, 0, 5],
+                      },
+                      {
+                        text: summary.biaya_terendah.toLocaleString("id-ID", {
+                          currency: "IDR",
+                          style: "currency",
+                        }),
+                        alignment: "right",
+                        padding: [0, 5, 0, 5],
+                      },
+                    ],
+                    [
+                      {
+                        text: "Rata-rata Biaya",
+                        alignment: "left",
+                        padding: [0, 5, 0, 5],
+                      },
+                      {
+                        text: summary.rata_rata_biaya.toLocaleString("id-ID", {
+                          currency: "IDR",
+                          style: "currency",
+                        }),
+                        alignment: "right",
+                        padding: [0, 5, 0, 5],
+                      },
+                    ],
+                  ],
+                },
+              },
+              {
+                width: "*",
+                text: "",
+              },
+            ],
+            margin: [0, 0, 0, 10],
+          },
+          {
+            text: "",
+            pageBreak: "after",
+            pageOrientation: "landscape",
+          },
+          {
+            text: "DAFTAR PEGAWAI MUTASI",
             alignment: "center",
             fontSize: 14,
             bold: true,
-            margin: [0, 10, 0, 10],
-          },
-          {
-            text: `Tentang ${data.uraian}`,
-            alignment: "center",
-            fontSize: 12,
             margin: [0, 0, 0, 10],
           },
           {
@@ -1607,7 +1777,7 @@ export class PdfService {
           json: body,
           margin: { top: 1, right: 1, bottom: 1, left: 1.5 },
           fontSize: 11,
-          orientation: "landscape",
+          orientation: "portrait",
         });
         resolve(pdf);
       } catch (error: unknown) {
