@@ -419,7 +419,7 @@ export const getEstimasi = async (
     const rute_barang = await BiayaMutasiService.RuteBarang({
       asal: kota_asal.kode_kota,
       tujuan: kota_tujuan.kode_kota,
-      faktor_laut: 1,
+      faktor_laut: 5,
       faktor_darat: 1,
     });
     if (rute_barang.rute.length === 0) {

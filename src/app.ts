@@ -7,7 +7,6 @@ import router from "./routes";
 import morgan from "morgan";
 import logger from "./utils/Logger.utils";
 import { appConfig } from "@/config/app.config";
-import redisClient from "@/config/redis.config";
 import "./register-alias";
 import methodOverride from "method-override";
 import { approveMutasi } from "@/controllers/otomasi.controller";
@@ -27,7 +26,6 @@ dotenv.config();
 const port = appConfig.port;
 const publicPath = path.join(__dirname, "../public");
 const app = express();
-redisClient.connect();
 app.use((req: Request, res: Response, next: NextFunction) => {
   req.id = Math.random().toString(36).substr(2, 9);
   res.setHeader("X-Request-ID", req.id);

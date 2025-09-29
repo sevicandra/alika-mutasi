@@ -5,8 +5,8 @@ import dotenv from "dotenv";
 dotenv.config();
 export const queueOptions: QueueOptions = {
   redis: {
-    host: redisConfig.host,
-    port: redisConfig.port,
+    host: redisConfig.url.replace(/^redis:\/\//, '').split(':')[0],
+    port: parseInt(redisConfig.url.replace(/^redis:\/\//, '').split(':')[1]) || 6379,
     password: redisConfig.password,
     db: redisConfig.db,
   },

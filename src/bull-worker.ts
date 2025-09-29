@@ -1,8 +1,6 @@
 import dotenv from "dotenv";
 import "./register-alias";
 dotenv.config();
-import redisClient from "@/config/redis.config";
-redisClient.connect();
 import { keluargaQueue } from "./queues/Keluarga.queue";
 import { processKeluarga } from "./jobs/Keluarga.job";
 import { biayaQueue } from "./queues/Biaya.queue";
