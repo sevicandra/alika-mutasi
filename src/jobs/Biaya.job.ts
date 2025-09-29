@@ -146,18 +146,48 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
 
       let packingDarat = false;
       let packingLaut = false;
+      const pulau_awal = rute_barang.rute[0].pulau;
+      const index_kapal = rute_barang.rute.findIndex((r) => r.moda === "KAPAL");
+      const jarak_darat_awal =
+        index_kapal > 0
+          ? rute_barang.rute
+              .slice(0, index_kapal)
+              .reduce((a, b) => a + b.jarak, 0)
+          : 0;
+
+      const jarak_darat_jawa = rute_barang.rute
+        .filter((r) => r.pulau === "JAWA")
+        .reduce((a, b) => a + b.jarak, 0);
+
+      const jarak_darat_luar_jawa = rute_barang.rute
+        .filter((r) => r.pulau === "LUAR_JAWA")
+        .reduce((a, b) => a + b.jarak, 0);
+
       for (let index = 1; index < rute_barang.rute.length; index++) {
         const current = rute_barang.rute[index];
         const prev = rute_barang.rute[index - 1];
+        const coefisien_jawa = jarak_darat_jawa >= 100 ? 1 : 0.5;
+        const coefisien_luar_jawa = jarak_darat_luar_jawa >= 50 ? 1 : 0.5;
         if (current.biaya === 0) {
           continue;
         }
         if (current.moda === "TRUK") {
           if (!packingDarat && !packingLaut) {
+            const coefisien_packing_darat =
+              pulau_awal === "JAWA"
+                ? (jarak_darat_awal >= 100
+                  ? 1
+                  : 0.5)
+                : (jarak_darat_awal >= 50
+                ? 1
+                : 0.5);
+
+
+            
             rute.push({
               pegawai_id: pegawai_id,
               volume: volume_barang_keluarga,
-              harga_satuan: tarif_packing_darat,
+              harga_satuan: tarif_packing_darat * coefisien_packing_darat,
               jenis: "BIAYA_ANGKUT_BARANG",
               sub_jenis: "PACKING DARAT",
               keterangan: `PACKING DARAT`,
@@ -167,7 +197,7 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
               rute.push({
                 pegawai_id: pegawai_id,
                 volume: volume_barang_art,
-                harga_satuan: tarif_packing_darat,
+                harga_satuan: tarif_packing_darat * coefisien_packing_darat,
                 jenis: "BIAYA_ANGKUT_BARANG_ART",
                 sub_jenis: "PACKING DARAT",
                 keterangan: `PACKING DARAT`,
@@ -199,10 +229,18 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
           }
           packingLaut = true;
         }
+
+        const harga_satuan = current.pulau
+          ? current.pulau === "JAWA"
+            ? (current.biaya || 0) * coefisien_jawa
+            : (current.biaya || 0) * coefisien_luar_jawa
+          : current.biaya || 0;
+
         rute.push({
           pegawai_id: pegawai_id,
           volume: volume_barang_keluarga,
-          harga_satuan: current.biaya || 0,
+          harga_satuan:
+            (current.moda === "TRUK" ? harga_satuan : current.biaya) || 0,
           jenis: "BIAYA_ANGKUT_BARANG",
           sub_jenis: current.moda || "TRUK",
           keterangan: `${prev.kota} - ${current.kota}`,
@@ -212,7 +250,8 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
           rute.push({
             pegawai_id: pegawai_id,
             volume: volume_barang_art,
-            harga_satuan: current.biaya || 0,
+            harga_satuan:
+              (current.moda === "TRUK" ? harga_satuan : current.biaya) || 0,
             jenis: "BIAYA_ANGKUT_BARANG_ART",
             sub_jenis: current.moda || "TRUK",
             keterangan: `${prev.kota} - ${current.kota}`,

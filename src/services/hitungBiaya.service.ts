@@ -239,6 +239,8 @@ export class BiayaMutasiService {
       kota: string;
       moda: "KAPAL" | "TRUK" | null;
       biaya?: number | undefined;
+      jarak: number;
+      pulau: "JAWA" | "LUAR_JAWA" | null;
     }[];
     totalBiaya: number;
   }> {
@@ -251,6 +253,8 @@ export class BiayaMutasiService {
             biaya: number;
             moda: "KAPAL" | "TRUK";
             biayaBobot: number;
+            jarak: number;
+            pulau: "JAWA" | "LUAR_JAWA" | null;
           }[]
         > = {};
         const kota_asal = await this.getKota({ kode: asal });
@@ -272,16 +276,11 @@ export class BiayaMutasiService {
             biaya: tarif,
             moda: "KAPAL",
             biayaBobot: tarif / faktor_laut,
-          });
-          if (!graph[KotaTujuan.kota]) graph[KotaTujuan.kota] = [];
-          graph[KotaAsal.kota].push({
-            tujuan: KotaAsal.kota,
-            biaya: tarif,
-            moda: "KAPAL",
-            biayaBobot: tarif / faktor_laut,
+            jarak: 0,
+            pulau: null,
           });
         });
-        refDarat.forEach(({ jarak, KotaAsal, KotaTujuan }) => {
+        refDarat.forEach(({ jarak, KotaAsal, KotaTujuan, pulau }) => {
           const faktor = faktor_darat as number;
           const biayaBobot = (jarak * tarifDarat) / faktor;
           if (!graph[KotaAsal.kota]) graph[KotaAsal.kota] = [];
@@ -290,6 +289,8 @@ export class BiayaMutasiService {
             biaya: tarifDarat * jarak,
             moda: "TRUK",
             biayaBobot: biayaBobot,
+            jarak: jarak,
+            pulau: pulau,
           });
           if (!graph[KotaTujuan.kota]) graph[KotaTujuan.kota] = [];
           graph[KotaTujuan.kota].push({
@@ -297,6 +298,8 @@ export class BiayaMutasiService {
             biaya: tarifDarat * jarak,
             moda: "TRUK",
             biayaBobot: biayaBobot,
+            jarak: jarak,
+            pulau: pulau,
           });
         });
         const biaya: Record<string, number> = {};
@@ -309,6 +312,8 @@ export class BiayaMutasiService {
             moda: "KAPAL" | "TRUK" | null;
             biaya: number;
             transit: number;
+            jarak: number;
+            pulau: "JAWA" | "LUAR_JAWA" | null;
           } | null
         > = {};
         const queue: {
@@ -346,6 +351,8 @@ export class BiayaMutasiService {
             biaya: harga,
             moda: jenis,
             biayaBobot: hargaBobot,
+            jarak,
+            pulau,
           } of graph[kota]) {
             const biayaBaru = biaya[kota] + harga;
             const biayaBobotBaru = biayaBobot[kota] + hargaBobot;
@@ -365,6 +372,8 @@ export class BiayaMutasiService {
                 moda: jenis,
                 biaya: harga,
                 transit: transitBaru,
+                jarak: jarak,
+                pulau: pulau,
               };
               queue.push({
                 kota: tujuanKota,
@@ -380,6 +389,8 @@ export class BiayaMutasiService {
           kota: string;
           moda: "KAPAL" | "TRUK" | null;
           biaya?: number;
+          jarak: number;
+          pulau: "JAWA" | "LUAR_JAWA" | null;
         }[] = [];
         let current = kota_tujuan.kota;
         while (current && jalur[current]) {
@@ -387,11 +398,19 @@ export class BiayaMutasiService {
             kota: current,
             moda: jalur[current]!.moda,
             biaya: jalur[current]!.biaya,
+            jarak: jalur[current]!.jarak,
+            pulau: jalur[current]!.pulau,
           });
           current = jalur[current]!.kota;
         }
         if (rute.length > 0) {
-          rute.unshift({ kota: kota_asal.kota, moda: null, biaya: 0 });
+          rute.unshift({
+            kota: kota_asal.kota,
+            moda: null,
+            biaya: 0,
+            jarak: 0,
+            pulau: null,
+          });
           resolve({ rute, totalBiaya: biaya[kota_tujuan.kota] });
         } else {
           reject({ message: "Rute Barang tidak ditemukan" });
@@ -488,18 +507,18 @@ export class BiayaMutasiService {
           });
         });
         const biaya: Record<string, number> = {};
-        const transitCount: Record<string, number> = {};
         const biayaBobot: Record<string, number> = {};
         const pesawatCount: Record<string, number> = {};
-
+        const busCount: Record<string, number> = {};
+        const score: Record<string, number> = {};
         const jalur: Record<
           string,
           {
             kota: string;
             moda: "BUS" | "PESAWAT" | null;
             biaya: number;
-            transit: number;
             pesawat: number;
+            bus: number;
           } | null
         > = {};
         const queue: {
@@ -507,41 +526,35 @@ export class BiayaMutasiService {
           biaya: number;
           moda: "BUS" | "PESAWAT" | null;
           biayaBobot: number;
-          transit: number;
           pesawat: number;
+          bus: number;
+          score: number;
         }[] = [];
         Object.keys(graph).forEach((kota) => {
           biaya[kota] = Infinity;
           biayaBobot[kota] = Infinity;
           jalur[kota] = null;
-          transitCount[kota] = Infinity;
           pesawatCount[kota] = Infinity;
+          busCount[kota] = Infinity;
+          score[kota] = Infinity;
         });
         biaya[kota_asal.kota] = 0;
-        transitCount[kota_asal.kota] = 0;
         biayaBobot[kota_asal.kota] = 0;
         pesawatCount[kota_asal.kota] = 0;
+        busCount[kota_asal.kota] = 0;
+        score[kota_asal.kota] = 0;
         queue.push({
           kota: kota_asal.kota,
           biaya: 0,
           moda: null,
           biayaBobot: 0,
-          transit: 0,
           pesawat: 0,
+          bus: 0,
+          score: 0,
         });
         while (queue.length > 0) {
-          queue.sort(
-            (a, b) =>
-              a.transit - b.transit ||
-              a.pesawat - b.pesawat ||
-              a.biayaBobot - b.biayaBobot
-          );
-          const {
-            kota,
-            moda: modaSebelumnya,
-            transit,
-            pesawat,
-          } = queue.shift()!;
+          queue.sort((a, b) => a.score - b.score);
+          const { kota, pesawat } = queue.shift()!;
           if (kota === kota_tujuan.kota) continue;
 
           for (const {
@@ -552,38 +565,31 @@ export class BiayaMutasiService {
           } of graph[kota]) {
             const biayaBaru = biaya[kota] + harga;
             const biayaBobotBaru = biayaBobot[kota] + hargaBobot;
-            const transitBaru =
-              transit + (modaSebelumnya !== null && jenis === "BUS" ? 1 : 0);
-            const pesawatBaru =
-              pesawat +
-              (modaSebelumnya !== null && jenis === "PESAWAT" ? 1 : 0);
-
-            if (
-              transitBaru < transitCount[tujuanKota] ||
-              (transitBaru === transitCount[tujuanKota] &&
-                pesawatBaru < pesawatCount[tujuanKota]) ||
-              (transitBaru === transitCount[tujuanKota] &&
-                pesawatBaru === pesawatCount[tujuanKota] &&
-                biayaBobotBaru < biayaBobot[tujuanKota])
-            ) {
+            const pesawatBaru = pesawat + (jenis === "PESAWAT" ? 1 : 0);
+            const busBaru = busCount[kota] + (jenis === "BUS" ? 1 : 0);
+            const scoreBaru =
+              busBaru * 100000 + pesawatBaru * 10000 + biayaBobotBaru;
+            if (scoreBaru < score[tujuanKota]) {
               biaya[tujuanKota] = biayaBaru;
               biayaBobot[tujuanKota] = biayaBobotBaru;
-              transitCount[tujuanKota] = transitBaru;
               pesawatCount[tujuanKota] = pesawatBaru;
+              busCount[tujuanKota] = busBaru;
+              score[tujuanKota] = scoreBaru;
               jalur[tujuanKota] = {
                 kota,
                 moda: jenis,
                 biaya: harga,
-                transit: transitBaru,
                 pesawat: pesawatBaru,
+                bus: busBaru,
               };
               queue.push({
                 kota: tujuanKota,
                 moda: jenis,
                 biaya: biayaBaru,
                 biayaBobot: biayaBobotBaru,
-                transit: transitBaru,
                 pesawat: pesawatBaru,
+                bus: busBaru,
+                score: scoreBaru,
               });
             }
           }
