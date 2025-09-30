@@ -303,17 +303,20 @@ export class BiayaMutasiService {
           });
         });
         const biaya: Record<string, number> = {};
-        const transitCount: Record<string, number> = {};
         const biayaBobot: Record<string, number> = {};
+        const kapalCount: Record<string, number> = {};
+        const trukCount: Record<string, number> = {};
+        const score: Record<string, number> = {};
         const jalur: Record<
           string,
           {
             kota: string;
             moda: "KAPAL" | "TRUK" | null;
             biaya: number;
-            transit: number;
             jarak: number;
             pulau: "JAWA" | "LUAR_JAWA" | null;
+            kapal: number;
+            truk: number;
           } | null
         > = {};
         const queue: {
@@ -321,29 +324,35 @@ export class BiayaMutasiService {
           biaya: number;
           moda: "KAPAL" | "TRUK" | null;
           biayaBobot: number;
-          transit: number;
+          kapal: number;
+          truk: number;
+          score: number;
         }[] = [];
         Object.keys(graph).forEach((kota) => {
           biaya[kota] = Infinity;
           biayaBobot[kota] = Infinity;
           jalur[kota] = null;
-          transitCount[kota] = Infinity;
+          trukCount[kota] = Infinity;
+          kapalCount[kota] = Infinity;
+          score[kota] = Infinity;
         });
         biaya[kota_asal.kota] = 0;
-        transitCount[kota_asal.kota] = 0;
         biayaBobot[kota_asal.kota] = 0;
+        trukCount[kota_asal.kota] = 0;
+        kapalCount[kota_asal.kota] = 0;
+        score[kota_asal.kota] = 0;
         queue.push({
           kota: kota_asal.kota,
           biaya: 0,
           moda: null,
           biayaBobot: 0,
-          transit: 0,
+          kapal: 0,
+          truk: 0,
+          score: 0,
         });
         while (queue.length > 0) {
-          queue.sort(
-            (a, b) => a.transit - b.transit || a.biayaBobot - b.biayaBobot
-          );
-          const { kota, moda: modaSebelumnya, transit } = queue.shift()!;
+          queue.sort((a, b) => a.score - b.score);
+          const { kota, kapal, truk } = queue.shift()!;
           if (kota === kota_tujuan.kota) continue;
 
           for (const {
@@ -356,31 +365,33 @@ export class BiayaMutasiService {
           } of graph[kota]) {
             const biayaBaru = biaya[kota] + harga;
             const biayaBobotBaru = biayaBobot[kota] + hargaBobot;
-            const transitBaru =
-              transit + (modaSebelumnya !== null && harga !== 0 ? 1 : 0);
-
-            if (
-              transitBaru < transitCount[tujuanKota] ||
-              (transitBaru === transitCount[tujuanKota] &&
-                biayaBobotBaru < biayaBobot[tujuanKota])
-            ) {
+            const trukBaru = truk + (jenis === "TRUK" ? 1 : 0);
+            const kapalBaru = kapal + (jenis === "KAPAL" ? 1 : 0);
+            const scoreBaru =
+              trukBaru * 100000 + kapalBaru * 10000 + biayaBobotBaru;
+            if (scoreBaru < score[tujuanKota]) {
               biaya[tujuanKota] = biayaBaru;
               biayaBobot[tujuanKota] = biayaBobotBaru;
-              transitCount[tujuanKota] = transitBaru;
+              trukCount[tujuanKota] = trukBaru;
+              kapalCount[tujuanKota] = kapalBaru;
+              score[tujuanKota] = scoreBaru;
               jalur[tujuanKota] = {
                 kota,
                 moda: jenis,
                 biaya: harga,
-                transit: transitBaru,
                 jarak: jarak,
                 pulau: pulau,
+                kapal: kapalBaru,
+                truk: trukBaru,
               };
               queue.push({
                 kota: tujuanKota,
                 moda: jenis,
                 biaya: biayaBaru,
                 biayaBobot: biayaBobotBaru,
-                transit: transitBaru,
+                kapal: kapalBaru,
+                truk: trukBaru,
+                score: scoreBaru,
               });
             }
           }
@@ -554,7 +565,7 @@ export class BiayaMutasiService {
         });
         while (queue.length > 0) {
           queue.sort((a, b) => a.score - b.score);
-          const { kota, pesawat } = queue.shift()!;
+          const { kota, pesawat, bus } = queue.shift()!;
           if (kota === kota_tujuan.kota) continue;
 
           for (const {
@@ -566,7 +577,7 @@ export class BiayaMutasiService {
             const biayaBaru = biaya[kota] + harga;
             const biayaBobotBaru = biayaBobot[kota] + hargaBobot;
             const pesawatBaru = pesawat + (jenis === "PESAWAT" ? 1 : 0);
-            const busBaru = busCount[kota] + (jenis === "BUS" ? 1 : 0);
+            const busBaru = bus + (jenis === "BUS" ? 1 : 0);
             const scoreBaru =
               busBaru * 100000 + pesawatBaru * 10000 + biayaBobotBaru;
             if (scoreBaru < score[tujuanKota]) {
