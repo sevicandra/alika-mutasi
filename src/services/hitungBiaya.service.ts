@@ -351,7 +351,7 @@ export class BiayaMutasiService {
           score: 0,
         });
         while (queue.length > 0) {
-          queue.sort((a, b) => a.score - b.score);
+          queue.sort((a, b) => b.score - a.score);
           const { kota, kapal, truk } = queue.shift()!;
           if (kota === kota_tujuan.kota) continue;
 
@@ -564,7 +564,7 @@ export class BiayaMutasiService {
           score: 0,
         });
         while (queue.length > 0) {
-          queue.sort((a, b) => a.score - b.score);
+          queue.sort((a, b) => b.score - a.score);
           const { kota, pesawat, bus } = queue.shift()!;
           if (kota === kota_tujuan.kota) continue;
 
