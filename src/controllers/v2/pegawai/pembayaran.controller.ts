@@ -92,6 +92,10 @@ export const getTerminById = async (
         {
           association: "DokumenTermin",
         },
+        {
+          association: "Ref",
+          attributes: ["nama"],
+        }
       ],
     });
     if (!data) {

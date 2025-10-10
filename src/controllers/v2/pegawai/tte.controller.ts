@@ -41,9 +41,6 @@ export const getAllTte = async (
       include: [
         {
           association: "Dokumen",
-          where: {
-            document_type: "SPD2",
-          },
           include: [
             {
               association: "Termin",

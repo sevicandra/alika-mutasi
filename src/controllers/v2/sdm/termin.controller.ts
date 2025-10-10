@@ -142,6 +142,9 @@ export const getDokumen = async (
         {
           association: "DokumenTermin",
         },
+        {
+          association: "Ref",
+        },
       ],
     });
     if (!data) {

@@ -257,6 +257,55 @@ export const downloadPayroll = async (
       "Netto",
       "Bank",
     ]);
+    worksheet.getCell(`A${5}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`B${5}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`C${5}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`D${5}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`E${5}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`F${5}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`G${5}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`H${5}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+
     worksheet.addRows(
       terminBNI.map((t, index) => [
         index + 1,
@@ -267,25 +316,22 @@ export const downloadPayroll = async (
         0,
         t.nominal || 0,
         t.Pegawai.Rekening?.nama_bank || "-",
-      ])
+      ]),
+      "i"
     );
-    worksheet.addRow([
-      "Total",
-      "",
-      "",
-      terminBNI.reduce((total, t) => total + (t.nominal || 0), 0),
-      "",
-      "",
-      terminBNI.reduce((total, t) => total + (t.nominal || 0), 0),
-      "",
-    ]);
-
-    worksheet.getCell(`A${5}`, `H${worksheet.rowCount}`).border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
+    worksheet.addRow(
+      [
+        "Total",
+        "",
+        "",
+        terminBNI.reduce((total, t) => total + (t.nominal || 0), 0),
+        "",
+        "",
+        terminBNI.reduce((total, t) => total + (t.nominal || 0), 0),
+        "",
+      ],
+      "i"
+    );
 
     worksheet.addRow([]);
     worksheet.addRow(["Non BNI"]);
@@ -299,6 +345,54 @@ export const downloadPayroll = async (
       "Netto",
       "Bank",
     ]);
+    worksheet.getCell(`A${5 + 4 + terminBNI.length}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`B${5 + 4 + terminBNI.length}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`C${5 + 4 + terminBNI.length}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`D${5 + 4 + terminBNI.length}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`E${5 + 4 + terminBNI.length}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`F${5 + 4 + terminBNI.length}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`G${5 + 4 + terminBNI.length}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell(`H${5 + 4 + terminBNI.length}`).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
     worksheet.addRows(
       terminNonBNI.map((t, index) => [
         index + 1,
@@ -309,27 +403,22 @@ export const downloadPayroll = async (
         2900,
         t.nominal - 2900 || 0,
         t.Pegawai.Rekening?.nama_bank || "-",
-      ])
+      ]),
+      "i"
     );
-    worksheet.addRow([
-      "Total",
-      "",
-      "",
-      terminNonBNI.reduce((total, t) => total + (t.nominal || 0), 0),
-      "",
-      "",
-      terminNonBNI.reduce((total, t) => total + (t.nominal - 2900 || 0), 0),
-      "",
-    ]);
-    worksheet.getCell(
-      `A${5 + 4 + terminBNI.length}`,
-      `H${worksheet.rowCount}`
-    ).border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
+    worksheet.addRow(
+      [
+        "Total",
+        "",
+        "",
+        terminNonBNI.reduce((total, t) => total + (t.nominal || 0), 0),
+        "",
+        "",
+        terminNonBNI.reduce((total, t) => total + (t.nominal - 2900 || 0), 0),
+        "",
+      ],
+      "i"
+    );
     worksheet.getColumn("A").width = 5;
     worksheet.getColumn("B").width = 20;
     worksheet.getColumn("C").width = 20;
