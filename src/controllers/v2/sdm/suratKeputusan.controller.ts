@@ -473,11 +473,9 @@ export const processTermin = async (
       field: string;
       message: string;
     }[] = [];
-
     if (type !== "UANG_MUKA" && type !== "LUNAS") {
       return errorResponse(res, "Type harus UANG_MUKA atau LUNAS", null, 400);
     }
-
     if (type === "UANG_MUKA") {
       if (!percentage)
         ValidationError.push({
@@ -502,11 +500,9 @@ export const processTermin = async (
         field: "tahun_lunas",
         message: "Tahun lunas tidak boleh kosong",
       });
-
     if (ValidationError.length > 0) {
       return errorResponse(res, "Validation gagal", ValidationError, 422);
     }
-
     const data = await SuratKeputusan.findByPk(SkId, {
       include: [
         {
@@ -521,7 +517,6 @@ export const processTermin = async (
         },
       ],
     });
-
     if (!data) {
       return errorResponse(res, "data tidak ditemukan", null, 404);
     }
@@ -533,7 +528,6 @@ export const processTermin = async (
         400
       );
     }
-
     if (type === "UANG_MUKA") {
       const pegawai = data.Pegawai.map((pegawai) => {
         return {
@@ -557,7 +551,6 @@ export const processTermin = async (
       });
       await terminJobService.addBatchJobs(pegawai);
     }
-
     return successResponse(res, "Berhasil memproses data termin", {
       id: SkId,
     });
@@ -682,8 +675,6 @@ export const publishSuratKeputusan = async (
       id: SkId,
     });
   } catch (error: unknown) {
-    console.log(error);
-
     await t.rollback();
     next(error);
   }
