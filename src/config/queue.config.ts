@@ -7,6 +7,7 @@ export const queueOptions: QueueOptions = {
   redis: {
     host: redisConfig.url.replace(/^redis:\/\//, '').split(':')[0],
     port: parseInt(redisConfig.url.replace(/^redis:\/\//, '').split(':')[1]) || 6379,
+    username: redisConfig.username,
     password: redisConfig.password,
     db: redisConfig.db,
   },
