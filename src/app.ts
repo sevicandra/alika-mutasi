@@ -21,6 +21,8 @@ import { AxiosError } from "axios";
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import { errorResponse } from "@/helpers/respose.helper";
+import redisClient from "@/config/redis.config";
+redisClient.connect();
 
 dotenv.config();
 const port = appConfig.port;

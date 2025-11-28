@@ -5,8 +5,8 @@ import dotenv from "dotenv";
 dotenv.config();
 export const queueOptions: QueueOptions = {
   redis: {
-    host: redisConfig.url.replace(/^redis:\/\//, '').split(':')[0],
-    port: parseInt(redisConfig.url.replace(/^redis:\/\//, '').split(':')[1]) || 6379,
+    host: redisConfig.host,
+    port: redisConfig.port,
     username: redisConfig.username,
     password: redisConfig.password,
     db: redisConfig.db,
@@ -15,17 +15,17 @@ export const queueOptions: QueueOptions = {
   defaultJobOptions: {
     attempts: 3,
     backoff: {
-      type: "exponential",
+      type: 'exponential',
       delay: 1000,
     },
     removeOnComplete: true,
     removeOnFail: 100, // Keep last 100 failed jobs for debugging
   },
   settings: {
-    stalledInterval: 1000 * 60 * 1,
+    stalledInterval: 300000, // 5 minutes
     maxStalledCount: 1,
     guardInterval: 5000,
     retryProcessDelay: 500,
-    drainDelay: 1000 * 60,
+    drainDelay: 5,
   },
 };

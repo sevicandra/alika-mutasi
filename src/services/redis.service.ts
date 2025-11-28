@@ -1,48 +1,44 @@
-import { redisConfig } from "@/config/redis.config";
-import { createClient, RedisClientType } from "redis";
+import client from "@/config/redis.config"; // Mengimpor client yang sudah terkoneksi
 
 export class RedisService {
-  private client: RedisClientType;
-  private connected: boolean = false;
-
-  constructor() {
-    this.client = createClient({
-      url: redisConfig.url,
-      password: redisConfig.password,
-      socket: {
-        connectTimeout: 60000,
-      },
-    });
-
-    this.client.on("error", (error) => {
-      console.error("Redis connection error:", error);
-      this.connected = false;
-    });
-
-    this.client.on("connect", () => {
-      console.log("Redis connected");
-      this.connected = true;
-    });
-  }
-
-  async ensureConnection(): Promise<void> {
-    if (!this.connected) {
-      await this.client.connect();
-    }
-  }
-
+  // Menyimpan data di Redis
   async setCache(key: string, value: string, ttl: number): Promise<void> {
-    await this.ensureConnection();
-    await this.client.setEx(key, ttl, value);
+    return new Promise((resolve, reject) => {
+      try {
+        client.set(key, value, {
+          EX: ttl,
+        });
+        console.log(`Cache set for key: ${key}`);
+        resolve();
+      } catch (error: any) {
+        reject(error.message);
+      }
+    });
   }
-
+  // Mengambil data dari Redis
   async getCache(key: string): Promise<string | null> {
-    await this.ensureConnection();
-    return await this.client.get(key);
+    return new Promise((resolve, reject) => {
+      try {
+        const result = client.get(key);
+        resolve(result);
+      } catch (error: any) {
+        console.error("Error getting cache in Redis:", error);
+        reject(error.message);
+      }
+    });
   }
 
+  // Menghapus data dari Redis
   async deleteCache(key: string): Promise<void> {
-    await this.ensureConnection();
-    await this.client.del(key);
+    return new Promise((resolve, reject) => {
+      try {
+        client.del(key);
+        console.log(`Cache deleted for key: ${key}`);
+        resolve();
+      } catch (error) {
+        console.error("Error deleting cache in Redis:", error);
+        reject("Failed to delete cache in Redis");
+      }
+    });
   }
 }

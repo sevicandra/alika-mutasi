@@ -11,6 +11,8 @@ import { approveMutasiQueue } from "./queues/ApproveMutasi.queue";
 import { processApproveMutasi } from "./jobs/ApproveMutasi.job";
 import { kirimTagihanQueue } from "./queues/KirimTagihan.queue";
 import { processKirim } from "./jobs/KirimTagihan.job";
+import redisClient from "@/config/redis.config";
+redisClient.connect();
 
 keluargaQueue.process("keluarga", processKeluarga);
 biayaQueue.process("biaya", processBiaya);
