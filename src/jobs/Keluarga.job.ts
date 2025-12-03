@@ -32,7 +32,7 @@ export const processKeluarga = async (job: Job<PegawaiJob>): Promise<void> => {
 
       const dataPasangan = keluarga
         .filter((item) =>
-          pasangan.some((hub) => hub.kode === item.IdrefHubungan)
+          pasangan.some((hub) => hub.kode === item.IdrefHubungan && item.IdrefStatusHidupKeluarga !== '0')
         )
         .map((item) => {
           return {
@@ -52,7 +52,7 @@ export const processKeluarga = async (job: Job<PegawaiJob>): Promise<void> => {
           };
         });
       const dataAnak = keluarga
-        .filter((item) => anak.some((hub) => hub.kode === item.IdrefHubungan))
+        .filter((item) => anak.some((a) => a.kode === item.IdrefHubungan && item.IdrefStatusHidupKeluarga !== '0'))
         .map((item) => {
           const tanggungan = keluarga.filter(
             (kel) => kel.StatusTanggungan === "Tertanggung"

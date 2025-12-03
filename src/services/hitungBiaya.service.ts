@@ -368,7 +368,7 @@ export class BiayaMutasiService {
             const trukBaru = truk + (jenis === "TRUK" ? 1 : 0);
             const kapalBaru = kapal + (jenis === "KAPAL" ? 1 : 0);
             const scoreBaru =
-              trukBaru * 100000 + kapalBaru * 10000 + biayaBobotBaru;
+              trukBaru * 100000 + kapalBaru * 50000 + biayaBobotBaru;
             if (scoreBaru < score[tujuanKota]) {
               biaya[tujuanKota] = biayaBaru;
               biayaBobot[tujuanKota] = biayaBobotBaru;
@@ -579,7 +579,7 @@ export class BiayaMutasiService {
             const pesawatBaru = pesawat + (jenis === "PESAWAT" ? 1 : 0);
             const busBaru = bus + (jenis === "BUS" ? 1 : 0);
             const scoreBaru =
-              busBaru * 100000 + pesawatBaru * 10000 + biayaBobotBaru;
+              busBaru * 100000 + pesawatBaru * 50000 + biayaBobotBaru;
             if (scoreBaru < score[tujuanKota]) {
               biaya[tujuanKota] = biayaBaru;
               biayaBobot[tujuanKota] = biayaBobotBaru;
