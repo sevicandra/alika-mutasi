@@ -176,24 +176,32 @@ export const processTte = async (
     }
     const { id } = req.params;
     const { passphrase, tanggal, confirmation } = await req.body;
-    if (!tanggal) inputValidation.push({
-      field: "tanggal",
-      message: "Tanggal tidak boleh kosong",
-    });
-    if(!passphrase) inputValidation.push({
-      field: "passphrase",
-      message: "passphrase tidak boleh kosong",
-    });
-    if(!confirmation || confirmation !== true) inputValidation.push({
-      field: "confirmation",
-      message: "mohon centang untuk melanjutkan",
-    });
+    if (!tanggal)
+      inputValidation.push({
+        field: "tanggal",
+        message: "Tanggal tidak boleh kosong",
+      });
+    if (!passphrase)
+      inputValidation.push({
+        field: "passphrase",
+        message: "passphrase tidak boleh kosong",
+      });
+    if (!confirmation || confirmation !== true)
+      inputValidation.push({
+        field: "confirmation",
+        message: "mohon centang untuk melanjutkan",
+      });
 
     if (inputValidation.length > 0) {
       t.rollback();
-      return errorResponse(res, "Parameter tidak lengkap", inputValidation, 422);
+      return errorResponse(
+        res,
+        "Parameter tidak lengkap",
+        inputValidation,
+        422
+      );
     }
-    
+
     const data = await TteDokumen.findByPk(id, {
       include: [
         {
@@ -234,7 +242,6 @@ export const processTte = async (
     const TteBlob = await generateQRCodeWithText(
       qrCodeUrl,
       new Date(tanggal).toLocaleDateString("id-ID", {
-        weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -250,11 +257,11 @@ export const processTte = async (
       blob: blob,
       fileName: data.Dokumen.file,
       page: data.koordinat_qr.page,
-      xAxis: data.koordinat_qr.x + 100,
+      xAxis: data.koordinat_qr.x + (TteBlob.width / TteBlob.height) * 100,
       yAxis: data.koordinat_qr.y + 100,
       width: data.koordinat_qr.x,
       height: data.koordinat_qr.y,
-      imageTTD: await fetch(TteBlob).then((res) => res.blob()),
+      imageTTD: await fetch(TteBlob.imageDataUrl).then((res) => res.blob()),
       imageTTDName: "qrcode.png",
     });
     await minioService.uploadFile(tte.buffer, data.Dokumen.file);

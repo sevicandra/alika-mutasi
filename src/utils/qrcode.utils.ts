@@ -14,55 +14,72 @@ export const generateQRCodeWithText = async (
   url: string,
   header: string,
   footer: string
-): Promise<string> => {
+): Promise<{
+  imageDataUrl: string;
+  width: number;
+  height: number;
+}> => {
   return new Promise(async (resolve, reject) => {
     try {
       // --- 1. Konfigurasi QR Code ---
       const qrSize = 220; // Ukuran QR Code
       const padding = 10; // Padding antara elemen
-      const textHeight = 40; // Perkiraan tinggi untuk setiap baris teks
+      const fontSize = Math.floor(qrSize / 5.5); // 100→18px ✅
+      const textHeight = Math.floor(fontSize * 1.5);
 
       const qrCodeBuffer = await QRCode.toBuffer(url, {
         type: "png",
         width: qrSize,
-        margin: 0,
+        margin: 1,
         errorCorrectionLevel: "H",
       });
 
-      // --- 2. Buat Teks sebagai SVG (diubah menjadi Buffer) ---
-      const topTextSvg = Buffer.from(`
-      <svg width="100%" height="${textHeight}" xmlns="http://www.w3.org/2000/svg">
-        <text
-          y="50%"
-          text-anchor="start"
-          dy=".3em"
-          font-family="Arial, sans-serif"
-          font-size="18pt"
-          font-weight="normal"
-          fill="#000">
-          ${header}
-        </text>
-      </svg>
-    `);
-      const bottomTextSvg = Buffer.from(`
-      <svg width="100%" height="${textHeight}" xmlns="http://www.w3.org/2000/svg">
-        <text
-          y="50%"
-          text-anchor="start"
-          dy=".3em"
-          font-family="Arial, sans-serif"
-          font-size="20pt"
-          font-weight="normal"
-          fill="#000">
-          ${footer}
-        </text>
-      </svg>
-    `);
-      const estimatedTextWidth = Math.max(header.length * 10, footer.length * 12);
-      const finalWidth = Math.max(qrSize, estimatedTextWidth) + padding * 2;
-      const finalHeight = textHeight + qrSize + textHeight + padding * 3;
+      const headerWidth = Math.max(
+        Math.floor(header.length * (fontSize * 0.6)),
+        qrSize
+      );
 
-      const finalImageBuffer = await sharp({
+      const footerWidth = Math.max(
+        Math.floor(footer.length * (fontSize * 0.65)),
+        qrSize
+      );
+
+      const textWidth = Math.max(headerWidth, footerWidth);
+
+      // FIX #3: SVG dengan width dan height yang benar
+      const topTextSvg = Buffer.from(`
+      <svg width="${textWidth}" height="${textHeight}" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          .text-label {
+            font-family: Arial, sans-serif;
+            font-size: ${fontSize}px;
+            font-weight: bold;
+            fill: #000000;
+          }
+        </style>
+        <text x="0" y="${textHeight * 0.7}" class="text-label">${header}</text>
+      </svg>
+    `);
+
+      const bottomTextSvg = Buffer.from(`
+      <svg width="${textWidth}" height="${textHeight}" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          .text-label {
+            font-family: Arial, sans-serif;
+            font-size: ${fontSize}px;
+            font-weight: bold;
+            fill: #000000;
+          }
+        </style>
+        <text x="0" y="${textHeight * 0.7}" class="text-label">${footer}</text>
+      </svg>
+    `);
+
+      const finalWidth = Math.max(qrSize, textWidth) + padding * 2;
+      const finalHeight =
+        textHeight + padding + qrSize + padding + textHeight + padding;
+
+      const baseImage = await sharp({
         create: {
           width: finalWidth,
           height: finalHeight,
@@ -70,26 +87,46 @@ export const generateQRCodeWithText = async (
           background: { r: 0, g: 0, b: 0, alpha: 0 },
         },
       })
+        .png()
+        .toBuffer();
+
+      const qrLeft = padding;
+      const textLeft = Math.floor((finalWidth - textWidth) / 2);
+
+      const finalImageBuffer = await sharp(baseImage)
         .composite([
-          // Tempelkan teks atas
-          { input: topTextSvg, top: 10, left: 0 },
-          // Tempelkan QR Code
+          // Top text (centered)
+          {
+            input: topTextSvg,
+            top: padding,
+            left: textLeft,
+          },
+          // QR Code (left)
           {
             input: qrCodeBuffer,
-            top: textHeight + padding,
-            left: 0,
+            top: textHeight + padding * 2,
+            left: qrLeft,
           },
-          // Tempelkan teks bawah
-          { input: bottomTextSvg, top: textHeight + qrSize + padding * 2, left: 0 },
+          // Bottom text (centered)
+          {
+            input: bottomTextSvg,
+            top: textHeight + qrSize + padding * 2,
+            left: textLeft,
+          },
         ])
-        .png() // Tentukan format output
-        .toBuffer(); // Hasilkan sebagai buffer
+        .png()
+        .toBuffer();
 
       const base64String = finalImageBuffer.toString("base64");
 
       // Buat string Data URL lengkap
       const dataUrl = `data:image/png;base64,${base64String}`;
-      resolve(dataUrl);
+
+      resolve({
+        imageDataUrl: dataUrl,
+        width: finalWidth,
+        height: finalHeight,
+      });
     } catch (error) {
       reject(error);
     }
