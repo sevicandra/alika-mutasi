@@ -13,6 +13,7 @@ import {
   publishSuratKeputusan,
   setTimeline,
   getOverview,
+  getOverviewCSV,
   batalSuratKeputusan,
   selesaiSuratKeputusan
 } from "@/controllers/v2/sdm/suratKeputusan.controller";
@@ -45,6 +46,7 @@ router.post("/:SkId/ProcessTermin", processTermin);
 router.post("/:SkId/Publish", publishSuratKeputusan);
 router.post("/:SkId/SetTimeline", setTimeline);
 router.get("/:SkId/Overview", getOverview);
+router.get("/:SkId/OverviewCSV", getOverviewCSV);
 router.post("/:SkId/Batal", batalSuratKeputusan);
 router.post("/:SkId/Selesai", selesaiSuratKeputusan);
 

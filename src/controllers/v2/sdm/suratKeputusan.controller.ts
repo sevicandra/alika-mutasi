@@ -891,6 +891,117 @@ export const getOverview = async (
   }
 };
 
+export const getOverviewCSV = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { SkId } = req.params;
+    const data = await SuratKeputusan.findByPk(SkId, {
+      include: [
+        {
+          association: "Pegawai",
+          include: [
+            {
+              association: "Golongan",
+            },
+            {
+              association: "Keluarga",
+              include: [
+                {
+                  association: "Ref",
+                },
+              ],
+            },
+            {
+              association: "RincianBiaya",
+            },
+            {
+              association: "Termin",
+              include: [
+                {
+                  association: "Ref",
+                },
+              ],
+            },
+            {
+              association: "KantorAsal",
+              include: [
+                {
+                  association: "Kota",
+                },
+              ],
+            },
+            {
+              association: "KantorTujuan",
+              include: [
+                {
+                  association: "Kota",
+                },
+              ],
+            },
+            {
+              association: "MonitoringTagihan",
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!data) {
+      return errorResponse(res, "data tidak ditemukan", null, 404);
+    }
+    const { Pegawai } = data;
+    const csvData = Pegawai.sort((a, b) => {
+      return a.golongan.localeCompare(b.golongan);
+    }).map((pegawai, index) => {
+      return {
+        no: index + 1,
+        nip: pegawai.nip,
+        nama: pegawai.nama,
+        golongan: pegawai.Golongan,
+        jumlah_tanggungan: pegawai.Keluarga.filter(
+          (k) => k.status.toLocaleLowerCase() === "tertanggung"
+        ).length,
+        kantor_asal: pegawai.KantorAsal
+          ? `${pegawai.KantorAsal.kantor} - ${pegawai.KantorAsal.Kota.kota}`
+          : "",
+        kantor_tujuan: pegawai.KantorTujuan
+          ? `${pegawai.KantorTujuan.kantor} - ${pegawai.KantorTujuan.Kota.kota}`
+          : "",
+        total_biaya: pegawai.MonitoringTagihan
+          ? pegawai.MonitoringTagihan.total_tagihan
+          : 0,
+      };
+    });
+
+    const headers = Array.from(
+      new Set(csvData.flatMap((obj) => Object.keys(obj)))
+    );
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map((row) =>
+        headers
+          .map((header) =>
+            JSON.stringify((row as Record<string, any>)[header] || "")
+          )
+          .join(",")
+      ),
+    ].join("\n");
+
+    const csvBuffer = Buffer.from(csvContent, "utf-8");
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${data.nomor.replace(/\//g, "_")}.csv"`
+    );
+    return res.status(200).send(csvBuffer);
+  } catch (error: unknown) {
+    next(error);
+  }
+};
+
 export const batalSuratKeputusan = async (
   req: AuthenticatedRequest,
   res: Response,

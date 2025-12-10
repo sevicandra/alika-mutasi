@@ -9,6 +9,7 @@ import {
   importCsvPegawaiMutasi,
   resetDataPegawaiMutasi,
 } from "@/controllers/v1/pagawaiMutasi.controller";
+import { authenticate } from "@/middlewares/auth.middleware";
 import multer from "multer";
 import Keluarga from "./Keluarga.route";
 import RincianBiaya from "./RincianBiaya.route";
@@ -26,14 +27,14 @@ const upload = multer({
   },
 });
 
-router.get("/", getAllPegawaiMutasi);
-router.get("/Count", countAllPegawaiMutasi);
-router.get("/:id", getPegawaiMutasiById);
-router.post("/", createPegawaiMutasi);
-router.post("/ImportCSV", upload.single("file"), importCsvPegawaiMutasi);
-router.post("/:id/ResetData", resetDataPegawaiMutasi);
-router.patch("/:id", updatePegawaiMutasi);
-router.delete("/:id", deletePegawaiMutasi);
+router.get("/", authenticate(["mutasi.pegawai.read"]), getAllPegawaiMutasi);
+router.get("/Count", authenticate(["mutasi.pegawai.read"]), countAllPegawaiMutasi);
+router.get("/:id", authenticate(["mutasi.pegawai.read"]), getPegawaiMutasiById);
+router.post("/", authenticate(["mutasi.pegawai.write"]), createPegawaiMutasi);
+router.post("/ImportCSV", authenticate(["mutasi.pegawai.write"]), upload.single("file"), importCsvPegawaiMutasi);
+router.post("/:id/ResetData", authenticate(["mutasi.pegawai.revoke"]), resetDataPegawaiMutasi);
+router.patch("/:id", authenticate(["mutasi.pegawai.update"]), updatePegawaiMutasi);
+router.delete("/:id", authenticate(["mutasi.pegawai.delete"]), deletePegawaiMutasi);
 
 router.use("/:PegawaiId/Keluarga", Keluarga);
 router.use("/:PegawaiId/RincianBiaya", RincianBiaya);

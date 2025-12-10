@@ -6,14 +6,14 @@ import {
     updateKeluarga,
     deleteKeluarga,
 } from "@/controllers/v1/Keluarga.controller";
+import { authenticate } from "@/middlewares/auth.middleware";
 
 const router = Router({ mergeParams: true });
 
-router.get("/", getAllKeluarga);
-router.get("/:id", getKeluargaById);
-router.post("/", createKeluarga);
-router.patch("/:id", updateKeluarga);
-router.delete("/:id", deleteKeluarga);
-
+router.get("/", authenticate(["mutasi.keluarga.read"]), getAllKeluarga);
+router.get("/:id", authenticate(["mutasi.keluarga.read"]), getKeluargaById);
+router.post("/", authenticate(["mutasi.keluarga.write"]), createKeluarga);
+router.patch("/:id", authenticate(["mutasi.keluarga.update"]), updateKeluarga);
+router.delete("/:id", authenticate(["mutasi.keluarga.delete"]), deleteKeluarga);
 
 export default router;
