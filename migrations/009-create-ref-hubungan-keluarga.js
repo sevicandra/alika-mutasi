@@ -18,11 +18,11 @@ module.exports = {
         type: Sequelize.STRING(100),
         allowNull: false,
       },
-      jenis:{
+      jenis: {
         type: Sequelize.ENUM("PASANGAN", "ANAK", "LAINNYA"),
         allowNull: false,
-        defaultValue: "LAINNYA"
-      }
+        defaultValue: "LAINNYA",
+      },
     });
   },
   async down(queryInterface, Sequelize) {

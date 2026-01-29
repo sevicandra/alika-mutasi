@@ -1,21 +1,17 @@
-import { SuratKeputusan, Rekening } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { Op } from "sequelize";
-import { MinioService } from "@/services/minio.service";
-import sequelize from "@/config/db.config";
 import { parse } from "csv-parse";
+import { Request, Response } from "express";
+import { Op } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { minioService } from "@/services/minio-service";
 import { PdfService } from "@/services/pdf.service";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
+import sequelize from "@/config/db.config";
+import { fileResponse, successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { Rekening, SuratKeputusan } from "@/repositories";
 
-const minioService = new MinioService();
-
-export const getAllSuratKeputusan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const SuratKeputusanController = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
     const jenjang = (req.query.jenjang as string) || undefined;
@@ -33,11 +29,9 @@ export const getAllSuratKeputusan = async (
       ];
     if (jenjang) where.jenjang = jenjang.toUpperCase();
     if (status) where.status = status.toLocaleUpperCase();
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
-    const data = await SuratKeputusan.findAll({
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
+    const { items: data, pagination } = await SuratKeputusan.findAllWithPagination({
       where,
       limit,
       offset,
@@ -53,10 +47,7 @@ export const getAllSuratKeputusan = async (
         },
       ],
     });
-    const count = await SuratKeputusan.count({
-      where,
-    });
-    return successResponse(
+    successResponse(
       res,
       "Berhasil mengambil data surat keputusan",
       data.map((d) => {
@@ -90,25 +81,16 @@ export const getAllSuratKeputusan = async (
           };
         }
       }),
-      {
-        limit,
-        offset,
-        count,
-        totalPages: limit ? Math.ceil(count / limit) : 1,
-      }
+      pagination
     );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+  }),
 
-export const getSuratKeputusanById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { SkId } = req.params;
+    if (typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
     const data = await SuratKeputusan.findOne({
       where: {
         id: SkId,
@@ -150,27 +132,19 @@ export const getSuratKeputusanById = async (
         ],
       },
     });
-
     if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("data tidak ditemukan");
     }
-    return successResponse(
-      res,
-      "Berhasil mengambil data surat keputusan",
-      data
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    successResponse(res, "Berhasil mengambil data surat keputusan", data);
+  }),
 
-export const getSuratKeputusanFile = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+  getFile: asyncHandler(async (req: Request, res: Response) => {
     const { SkId } = req.params;
+
+    if (typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
     const data = await SuratKeputusan.findOne({
       where: {
         id: SkId,
@@ -180,39 +154,20 @@ export const getSuratKeputusanFile = async (
       },
     });
     if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("data tidak ditemukan");
     }
 
-    const stream = await minioService.downloadFile(`${data.file}`);
-    if (stream) {
-      const chunks: Buffer[] = [];
-      stream.on("data", (chunk) => chunks.push(chunk));
-      stream.on("end", () => {
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader(
-          "Content-Disposition",
-          `inline; filename="${data.nomor.replace(/\//g, "_")}.pdf"`
-        );
-        return res.status(200).send(Buffer.concat(chunks));
-      });
-      stream.on("error", (err: Error) => {
-        return errorResponse(res, "Terjadi kesalahan", err, 500);
-      });
-    } else {
-      return errorResponse(res, "File tidak ditemukan", null, 404);
-    }
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    const stream = await minioService.getFile(`${data.file}`);
+    fileResponse(res, stream, `${data.nomor.replace(/\//g, "_")}.pdf`, "application/pdf");
+  }),
 
-export const getPegawaiSuratKeputusan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+  getPegawais: asyncHandler(async (req: Request, res: Response) => {
     const { SkId } = req.params;
+
+    if (typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
     const data = await SuratKeputusan.findOne({
       where: {
         id: SkId,
@@ -227,53 +182,26 @@ export const getPegawaiSuratKeputusan = async (
       ],
     });
     if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("data tidak ditemukan");
     }
-    return successResponse(res, "data berhasil didapatkan", data, 200);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const importPayroll = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const t = await sequelize.transaction();
-  try {
-    const ValidationError: {
-      field: string;
-      message: string;
-    }[] = [];
+    successResponse(res, "Berhasil mengambil data pegawai", data);
+  }),
 
-    const {
-      file,
-      params: { SkId },
-    } = req;
+  importPayroll: asyncHandler(async (req: Request, res: Response) => {
+    const t = req.transaction;
+    if (!t) {
+      throw new InternalServerError("Transaction not found");
+    }
 
+    const file = req.file;
     if (!file) {
-      ValidationError.push({
-        field: "file",
-        message: "file wajib diisi",
-      });
+      throw new InvalidRequestError("File tidak ditemukan");
     }
-
-    if (ValidationError.length > 0) {
-      await t.rollback();
-      return errorResponse(
-        res,
-        "Parameter tidak lengkap",
-        ValidationError,
-        422
-      );
+    const { SkId } = req.params;
+    if (typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
     }
-
-    if (!file) {
-      await t.rollback();
-      return errorResponse(res, "file wajib diisi", null, 400);
-    }
-
     const csvBuffer = file.buffer;
     const records: {
       pegawai_id: string;
@@ -287,7 +215,13 @@ export const importPayroll = async (
       trim: true,
       delimiter: ";",
     });
-    const sk = await SuratKeputusan.findByPk(SkId, {
+    const data = await SuratKeputusan.findOne({
+      where: {
+        id: SkId,
+        status: {
+          [Op.ne]: "DRAFT",
+        },
+      },
       include: [
         {
           association: "Pegawai",
@@ -300,17 +234,16 @@ export const importPayroll = async (
       ],
       transaction: t,
     });
-    if (!sk || sk.status === "DRAFT") {
-      await t.rollback();
-      return errorResponse(res, "data tidak dapat di proses", null, 409);
+    if (!data) {
+      throw new NotFoundError("data tidak ditemukan");
     }
-    const pegawaiNips = sk.Pegawai.map((p) => p.nip);
+    const pegawaiNips = data.Pegawai.map((p) => p.nip);
     const parserNips: string[] = [];
     for await (const record of parser) {
-      if (sk.Pegawai.find((p) => p.nip === record.nip)) {
+      if (data.Pegawai.find((p) => p.nip === record.nip)) {
         parserNips.push(record.nip);
         records.push({
-          pegawai_id: sk.Pegawai.find((p) => p.nip === record.nip)?.id || "",
+          pegawai_id: data.Pegawai.find((p) => p.nip === record.nip)?.id || "",
           nomor_rekening: record.nomor_rekening,
           nama_rekening: record.nama_rekening,
           nama_bank: record.nama_bank.toUpperCase(),
@@ -318,95 +251,33 @@ export const importPayroll = async (
       }
     }
 
-    const allNipIncluded = pegawaiNips.every((nip: string) =>
-      parserNips.includes(nip)
-    );
+    const allNipIncluded = pegawaiNips.every((nip: string) => parserNips.includes(nip));
     if (!allNipIncluded) {
-      await t.rollback();
-      return errorResponse(
-        res,
-        "Parameter tidak lengkap",
-        [
-          {
-            field: "file",
-            message: "Tidak semua pegawai dalam SK ada di file payroll",
-          },
-        ],
-        422
-      );
+      throw new InvalidRequestError("Tidak semua pegawai dalam SK ada di file payroll");
     }
     for (const record of records) {
-      await Rekening.upsert(
+      await Rekening.CreateOrUpdate(
         {
           pegawai_id: record.pegawai_id,
           nomor_rekening: record.nomor_rekening,
           nama_rekening: record.nama_rekening,
           nama_bank: record.nama_bank,
         },
-        { transaction: t }
+        t
       );
     }
-    await t.commit();
-    return successResponse(res, "Berhasil mengimpor payroll", null);
-  } catch (error: unknown) {
-    await t.rollback();
-    next(error);
-  }
-};
 
-export const getOverview = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Berhasil mengimpor payroll");
+  },{
+    useTransaction: true,
+  }),
+
+  getOverview: asyncHandler(async (req: Request, res: Response) => {
     const { SkId } = req.params;
-    const data = await SuratKeputusan.findOne({
-      include: [
-        {
-          association: "Pegawai",
-          include: [
-            {
-              association: "Golongan",
-            },
-            {
-              association: "Keluarga",
-              include: [
-                {
-                  association: "Ref",
-                },
-              ],
-            },
-            {
-              association: "RincianBiaya",
-            },
-            {
-              association: "Termin",
-              include: [
-                {
-                  association: "Ref",
-                },
-              ],
-            },
-            {
-              association: "KantorAsal",
-              include: [
-                {
-                  association: "Kota",
-                },
-              ],
-            },
-            {
-              association: "KantorTujuan",
-              include: [
-                {
-                  association: "Kota",
-                },
-              ],
-            },
-          ],
-        },
-      ],
+    if (typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+    const { data, summary } = await SuratKeputusan.getOverview({
       where: {
         id: SkId,
         status: {
@@ -415,66 +286,57 @@ export const getOverview = async (
       },
     });
 
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    const { Pegawai } = data;
-    const totalBiaya = Pegawai.reduce((acc, pegawai) => {
-      return acc + pegawai.MonitoringTagihan.total_tagihan;
-    }, 0);
-    const biayaTertinggi = Pegawai.reduce((max, pegawai) => {
-      return pegawai.MonitoringTagihan.total_tagihan > max
-        ? pegawai.MonitoringTagihan.total_tagihan
-        : max;
-    }, 0);
-    const biayaTerendah = Pegawai.reduce((min, pegawai) => {
-      return pegawai.MonitoringTagihan.total_tagihan < min
-        ? pegawai.MonitoringTagihan.total_tagihan
-        : min;
-    }, Number.MAX_VALUE);
-    const rataRataBiaya = Pegawai.length > 0 ? totalBiaya / Pegawai.length : 0;
-
-    const nilaiTermin: {
-      nama: string;
-      nominal: number;
-    }[] = Pegawai.flatMap((pegawai) =>
-      pegawai.Termin.map((termin) => ({
-        nama: termin.Ref.nama,
-        nominal: termin.nominal,
-      }))
-    );
-
-    const aggregatedNilaiTermin: { [key: string]: number } = {};
-    nilaiTermin.forEach((item) => {
-      if (aggregatedNilaiTermin[item.nama]) {
-        aggregatedNilaiTermin[item.nama] += item.nominal;
-      } else {
-        aggregatedNilaiTermin[item.nama] = item.nominal;
-      }
-    });
-
-    const finalNilaiTermin = Object.keys(aggregatedNilaiTermin).map((nama) => ({
-      nama,
-      nominal: aggregatedNilaiTermin[nama],
-    }));
-
-    const summary = {
-      total_pegawai: Pegawai.length,
-      total_biaya: totalBiaya,
-      biaya_tertinggi: biayaTertinggi,
-      biaya_terendah: biayaTerendah === Number.MAX_VALUE ? 0 : biayaTerendah,
-      rata_rata_biaya: rataRataBiaya,
-      nilai_termin: finalNilaiTermin,
-    };
     const pdf = await PdfService.OverviewSK({ data, summary });
     const pdfBuffer = Buffer.from(pdf, "base64");
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `inline; filename="${data.nomor.replace(/\//g, "_")}.pdf"`
-    );
-    return res.status(200).send(pdfBuffer);
-  } catch (error: unknown) {
-    next(error);
-  }
+    fileResponse(res, pdfBuffer, `${data.nomor.replace(/\//g, "_")}.pdf`, "application/pdf");
+  }),
+
+  getOverviewCSV: asyncHandler(async (req: Request, res: Response) => {
+    const { SkId } = req.params;
+    if (typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+    const { data } = await SuratKeputusan.getOverview({
+      where: {
+        id: SkId,
+        status: {
+          [Op.ne]: "DRAFT",
+        },
+      },
+    });
+    const { Pegawai } = data;
+    const csvData = Pegawai.sort((a, b) => {
+      return a.golongan.localeCompare(b.golongan);
+    }).map((pegawai, index) => {
+      return {
+        no: index + 1,
+        nip: pegawai.nip,
+        nama: pegawai.nama,
+        golongan: pegawai.Golongan,
+        jumlah_tanggungan: pegawai.Keluarga.filter(
+          (k) => k.status.toLocaleLowerCase() === "tertanggung"
+        ).length,
+        kantor_asal: pegawai.KantorAsal
+          ? `${pegawai.KantorAsal.kantor} - ${pegawai.KantorAsal.Kota.kota}`
+          : "",
+        kantor_tujuan: pegawai.KantorTujuan
+          ? `${pegawai.KantorTujuan.kantor} - ${pegawai.KantorTujuan.Kota.kota}`
+          : "",
+        total_biaya: pegawai.MonitoringTagihan ? pegawai.MonitoringTagihan.total_tagihan : 0,
+      };
+    });
+
+    const headers = Array.from(new Set(csvData.flatMap((obj) => Object.keys(obj))));
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map((row) =>
+        headers
+          .map((header) => JSON.stringify((row as Record<string, any>)[header] || ""))
+          .join(",")
+      ),
+    ].join("\n");
+
+    const csvBuffer = Buffer.from(csvContent, "utf-8");
+    fileResponse(res, csvBuffer, `${data.nomor.replace(/\//g, "_")}.csv`, "text/csv");
+  }),
 };

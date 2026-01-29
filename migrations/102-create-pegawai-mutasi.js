@@ -78,35 +78,17 @@ module.exports = {
           allowNull: false,
         },
         process_keluarga: {
-          type: Sequelize.ENUM(
-            "IDLE",
-            "PROCESSING",
-            "DONE",
-            "FAILED",
-            "RETRYING"
-          ),
+          type: Sequelize.ENUM("IDLE", "PROCESSING", "DONE", "FAILED", "RETRYING"),
           defaultValue: "IDLE",
           allowNull: false,
         },
         process_biaya: {
-          type: Sequelize.ENUM(
-            "IDLE",
-            "PROCESSING",
-            "DONE",
-            "FAILED",
-            "RETRYING"
-          ),
+          type: Sequelize.ENUM("IDLE", "PROCESSING", "DONE", "FAILED", "RETRYING"),
           defaultValue: "IDLE",
           allowNull: false,
         },
         process_termin: {
-          type: Sequelize.ENUM(
-            "IDLE",
-            "PROCESSING",
-            "DONE",
-            "FAILED",
-            "RETRYING"
-          ),
+          type: Sequelize.ENUM("IDLE", "PROCESSING", "DONE", "FAILED", "RETRYING"),
           defaultValue: "IDLE",
           allowNull: false,
         },
@@ -130,18 +112,18 @@ module.exports = {
           allowNull: false,
           defaultValue: "EKONOMI",
         },
-        nomor_spd:{
+        nomor_spd: {
           type: Sequelize.STRING,
-          allowNull: true
+          allowNull: true,
         },
-        tanggal_spd:{
+        tanggal_spd: {
           type: Sequelize.DATEONLY,
-          allowNull: true
-        }
+          allowNull: true,
+        },
       },
       {
         uniqueKeys: {
-          nip_sk: {
+          nip: {
             fields: ["nip", "sk_id"],
           },
         },

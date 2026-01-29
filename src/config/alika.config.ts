@@ -1,12 +1,10 @@
-import fs from "fs";
 import dotenv from "dotenv";
+import fs from "fs";
+
 dotenv.config();
 
 export const alikaConfig = {
-  BASE_URI:
-    process.env.ALIKA_AUTH_BASE_URI_INTERNAL ||
-    process.env.ALIKA_AUTH_BASE_URI ||
-    "",
+  BASE_URI: process.env.ALIKA_AUTH_BASE_URI_INTERNAL || process.env.ALIKA_AUTH_BASE_URI || "",
   CLIENT_ID: process.env.ALIKA_AUTH_CLIENT_ID_FILE
     ? fs.readFileSync(process.env.ALIKA_AUTH_CLIENT_ID_FILE, "utf8").trim()
     : (process.env.ALIKA_AUTH_CLIENT_ID as string),
@@ -19,5 +17,5 @@ export const alikaConfig = {
     process.env.ALIKA_PUSH_NOTIFICATION_URL_INTERNAL ||
     process.env.ALIKA_PUSH_NOTIFICATION_URL ||
     "",
-  ISSUER: process.env.ALIKA_AUTH_ISSUER
+  ISSUER: process.env.ALIKA_AUTH_ISSUER,
 };

@@ -1,79 +1,74 @@
-import { PembayaranLog } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { Op } from "sequelize";
+import { Request, Response } from "express";
+import { Op, col, where } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { PembayaranLog } from "@/repositories";
 
-export const getAllHistory = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { SkId, PegawaiId } = req.params;
-  try {
+export const riwayatController = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
+    const { SkId, PegawaiId } = req.params;
+
+    if (typeof PegawaiId != "string" || typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
+    const whereClause = {
+      [Op.and]: [
+        where(col("Pegawai.id"), PegawaiId),
+        where(col("Pegawai.SuratKeputusan.id"), SkId),
+        where(col("Pegawai.SuratKeputusan.status"), { [Op.ne]: "DRAFT" }),
+      ],
+    };
+
     const data = await PembayaranLog.findAll({
-      where: {
-        pegawai_id: PegawaiId,
-      },
+      where: whereClause,
       include: [
         {
           association: "Pegawai",
-          where: {
-            sk_id: SkId,
-          },
           include: [
             {
               association: "SuratKeputusan",
-              where: {
-                status: {
-                  [Op.ne]: "DRAFT",
-                },
-              },
               attributes: [],
             },
           ],
           attributes: [],
         },
       ],
+
       attributes: {
         exclude: ["payload", "Pegawai"],
       },
       order: [["created_at", "ASC"]],
     });
+    if (!data) {
+      throw new NotFoundError("Data tidak ditemukan");
+    }
 
-    return successResponse(res, "data berhasil didapatkan", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const getHistoryById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { SkId, PegawaiId, HistoryId } = req.params;
-  try {
+    successResponse(res, "data berhasil didapatkan", data);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const { SkId, PegawaiId, HistoryId } = req.params;
+    if (typeof PegawaiId != "string" || typeof SkId != "string" || typeof HistoryId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+    const whereClause = {
+      id: HistoryId,
+      [Op.and]: [
+        where(col("Pegawai.id"), PegawaiId),
+        where(col("Pegawai.SuratKeputusan.id"), SkId),
+        where(col("Pegawai.SuratKeputusan.status"), { [Op.ne]: "DRAFT" }),
+      ],
+    };
     const data = await PembayaranLog.findOne({
-      where: {
-        id: HistoryId,
-        pegawai_id: PegawaiId,
-      },
+      where: whereClause,
       include: [
         {
           association: "Pegawai",
-          where: {
-            sk_id: SkId,
-          },
           attributes: [],
           include: [
             {
               association: "SuratKeputusan",
-              where: {
-                status: {
-                  [Op.ne]: "DRAFT",
-                },
-              },
               attributes: [],
             },
           ],
@@ -84,10 +79,8 @@ export const getHistoryById = async (
       },
     });
     if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+      throw new NotFoundError("Data tidak ditemukan");
     }
-    return successResponse(res, "data berhasil didapatkan", data);
-  } catch (error: unknown) {
-    next(error);
-  }
+    successResponse(res, "data berhasil didapatkan", data);
+  }),
 };

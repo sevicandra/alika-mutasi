@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { getAllSanggah, getSanggahById, reviewSanggah } from "@/controllers/v2/sdm/sanggah.controller";
+import { SanggahControllerV2 } from "@/controllers/v2/sdm/sanggah.controller";
 import Data from "./Data";
 
 const router = Router({ mergeParams: true });
 
-router.get("/", getAllSanggah);
-router.get("/:SanggahId", getSanggahById);
-router.post("/:SanggahId/Review", reviewSanggah);
+router.get("/", SanggahControllerV2.getAll);
+router.get("/:SanggahId", SanggahControllerV2.getById);
+router.post("/:SanggahId/Review", SanggahControllerV2.review);
 
 router.use("/:SanggahId/Data", Data);
 

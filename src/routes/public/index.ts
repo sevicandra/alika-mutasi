@@ -5,5 +5,4 @@ const router = Router();
 
 router.use("/file", File);
 
-
 export default router;

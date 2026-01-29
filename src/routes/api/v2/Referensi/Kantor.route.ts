@@ -1,11 +1,8 @@
-import {Router } from "express";
-import {
-    getAllKantor,
-} from "@/controllers/v2/referensi/Kantor.controller";
+import { Router } from "express";
+import { KantorControllerV2 } from "@/controllers/v2/admin/referensi/kantor.controller";
 
-const router = Router();    
+const router = Router();
 
-router.get("/", getAllKantor);
-
+router.get("/", KantorControllerV2.getAll);
 
 export default router;

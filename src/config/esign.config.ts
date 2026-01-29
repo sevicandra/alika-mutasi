@@ -1,4 +1,5 @@
 import fs from "fs";
+
 export const eSignConfig = {
   BASE_URI: process.env.ESIGN_URI || "",
   CLIENT_ID: process.env.ESIGN_AUTH_ID_FILE

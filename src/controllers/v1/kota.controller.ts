@@ -1,121 +1,112 @@
-import { RefKota } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { Op } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefKota } from "@/repositories";
 
-export const getAllKota = async (req: AuthenticatedRequest, res: Response, next:NextFunction) => {
-  try {
+export const KotaControllerV1 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const search = (req.query.search as string) || undefined;
     const where: any = {};
     if (search) where.kota = { [Op.like]: `%${search}%` };
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
-    const kota = await RefKota.findAll({
+    const { items: data, pagination } = await RefKota.findAllWithPagination({
       where,
       limit,
       offset,
       order,
     });
-    const count = await RefKota.count({ where });
-    return successResponse(res, "Berhasil mengambil data kota", kota, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error)
-  }
-};
 
-export const getKotaById = async (req: AuthenticatedRequest, res: Response, next:NextFunction) => {
-  try {
+    successResponse(res, "Success get all ref kota", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const kota = await RefKota.findByPk(id);
-    if (!kota) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "Berhasil mengambil data kota", kota);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
 
-export const getKotaByKode = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
+    const data = await RefKota.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
+
+    successResponse(res, "Success get ref kota", data);
+  }),
+  getByKode: asyncHandler(async (req: Request, res: Response) => {
     const { kode } = req.params;
-    const kota = await RefKota.findOne({ where: { kode } });
-    if (!kota) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+    const data = await RefKota.findOne({ where: { kode } });
+    if (!data) {
+      throw new NotFoundError("Data not found");
     }
-    return successResponse(res, "Berhasil mengambil data kota", kota);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
-
-export const createKota = async (req: AuthenticatedRequest, res: Response, next:NextFunction) => {
-  try {
+    successResponse(res, "Success get ref kota", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
     const { kode_provinsi, kode, kota } = req.body;
-    if (!kode_provinsi || !kode || !kota) {
-      return errorResponse(res, "parameter tidak lengkap", null, 400);
-    }
-
     const data = await RefKota.create({
       kode_provinsi,
       kode,
       kota,
     });
-
-    return successResponse(res, "Berhasil membuat data kota", data);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
-
-export const updateKota = async (req: AuthenticatedRequest, res: Response, next:NextFunction) => {
-  try {
-    const { id } = req.params;
-    const { kode_provinsi, kode, kota } = req.body;
-    if (!id || !kode_provinsi || !kode || !kota) {
-      return errorResponse(res, "parameter tidak lengkap", null, 400);
+    successResponse(res, "Success create ref kota", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { kode_provinsi, kode, kota } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefKota.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          kode_provinsi,
+          kode,
+          kota,
+        },
+        t
+      );
+      successResponse(res, "Success update ref kota", data);
+    },
+    {
+      useTransaction: true,
     }
-
-    const data = await RefKota.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefKota.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref kota", data);
+    },
+    {
+      useTransaction: true,
     }
-
-    if (kode_provinsi) data.kode_provinsi = kode_provinsi;
-    if (kode) data.kode = kode;
-    if (kota) data.kota = kota;
-    await data.save();
-    return successResponse(res, "Berhasil mengubah data kota", data);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
-
-export const deleteKota = async (req: AuthenticatedRequest, res: Response, next:NextFunction) => {
-  try {
-    const { id } = req.params;
-    const kota = await RefKota.findByPk(id);
-    if (!kota) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    await kota.destroy();
-    return successResponse(res, "Berhasil menghapus data kota", {
-      id,
-    });
-  } catch (error: unknown) {
-    next(error)
-  }
+  ),
 };

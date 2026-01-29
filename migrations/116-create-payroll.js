@@ -19,7 +19,7 @@ module.exports = {
         allowNull: false,
         unique: true,
       },
-      tanggal:{
+      tanggal: {
         type: Sequelize.DATEONLY,
         allowNull: false,
       },

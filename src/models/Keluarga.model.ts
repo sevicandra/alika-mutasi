@@ -1,5 +1,5 @@
+import { BelongsTo, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, BelongsTo } from "sequelize";
 import PegawaiMutasi from "./PegawaiMutasi.model";
 import RefHubunganKeluarga from "./RefHubunganKeluarga.model";
 
@@ -64,7 +64,7 @@ Keluarga.init(
         model: PegawaiMutasi,
         key: "id",
       },
-      validate:{
+      validate: {
         isUUID: {
           msg: "pegawai_id harus UUID",
           args: 4,

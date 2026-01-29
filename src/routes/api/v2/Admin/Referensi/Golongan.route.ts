@@ -1,17 +1,22 @@
 import { Router } from "express";
-import {
-  getAllGolongan,
-  getGolonganById,
-  createGolongan,
-  updateGolongan,
-  deleteGolongan,
-} from "@/controllers/v2/admin/referensi/golongan.controller";
+import z from "zod";
+import { GolonganControllerV2 } from "@/controllers/v2/admin/referensi/golongan.controller";
+import { validateBody } from "@/middlewares/validate-request.middleware";
+
 const router = Router({ mergeParams: true });
 
-router.get("/", getAllGolongan);
-router.get("/:id", getGolonganById);
-router.post("/", createGolongan);
-router.patch("/:id", updateGolongan);
-router.delete("/:id", deleteGolongan);
+const createGolonganSchema = z.object({
+  kode: z
+    .string("Kode is required")
+    .regex(/^([1-3][A-D]|4[A-E])$/, "Invalid golongan format"),
+  nama: z.string("Nama is required").min(1),
+});
 
+const updateGolonganSchema = createGolonganSchema.partial();
+
+router.get("/", GolonganControllerV2.getAll);
+router.get("/:id", GolonganControllerV2.getById);
+router.post("/", validateBody(createGolonganSchema), GolonganControllerV2.create);
+router.patch("/:id", validateBody(updateGolonganSchema), GolonganControllerV2.update);
+router.delete("/:id", GolonganControllerV2.delete);
 export default router;

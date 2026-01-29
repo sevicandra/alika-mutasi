@@ -1,12 +1,9 @@
 import { Router } from "express";
-import {
-  getAllDokumen,
-  getDokumenFile,
-} from "@/controllers/v2/keuangan/suratKeputusan/dokumen.controller";
+import { DokumenController } from "@/controllers/v2/keuangan/suratKeputusan/dokumen.controller";
 
 const router = Router({ mergeParams: true });
 
-router.get("/", getAllDokumen);
-router.get("/:DokumenId/File", getDokumenFile);
+router.get("/", DokumenController.getAll);
+router.get("/:DokumenId/File", DokumenController.getFile);
 
 export default router;

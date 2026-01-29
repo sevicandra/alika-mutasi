@@ -1,5 +1,5 @@
+import { DataTypes, Model, Op, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, Op } from "sequelize";
 
 type RefHubunganKeluargaAttributes = {
   id: number;
@@ -13,10 +13,7 @@ type RefHubunganKeluargaCreationAttributes = Optional<
   "id" | "jenis"
 >;
 class RefHubunganKeluarga
-  extends Model<
-    RefHubunganKeluargaAttributes,
-    RefHubunganKeluargaCreationAttributes
-  >
+  extends Model<RefHubunganKeluargaAttributes, RefHubunganKeluargaCreationAttributes>
   implements RefHubunganKeluargaAttributes
 {
   public id!: number;

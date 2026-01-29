@@ -1,13 +1,12 @@
 import { Router } from "express";
-import SuratKeputusan from "./SuratKeputusan";
+import Payroll from "./Payroll";
 import PermohonanPembayaran from "./PermohonanPembayaran";
-import  Payroll  from "./Payroll";
+import SuratKeputusan from "./SuratKeputusan";
 
 const router = Router({ mergeParams: true });
 
 router.use("/SuratKeputusan", SuratKeputusan);
 router.use("/PermohonanPembayaran", PermohonanPembayaran);
 router.use("/Payroll", Payroll);
-
 
 export default router;

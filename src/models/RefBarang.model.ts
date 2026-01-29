@@ -1,21 +1,15 @@
+import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes } from "sequelize";
 
 type RefBarangAttributes = {
   id: number;
   golongan: string;
-  status:
-    | "TIDAK_BERKELUARGA"
-    | "BERKELUARGA_TANPA_ANAK"
-    | "BERKELUARGA_DENGAN_ANAK";
+  status: "TIDAK_BERKELUARGA" | "BERKELUARGA_TANPA_ANAK" | "BERKELUARGA_DENGAN_ANAK";
   volume: number;
   createdAt: Date;
 };
 
-type RefBarangCreationAttributes = Optional<
-  RefBarangAttributes,
-  "id" | "createdAt"
->;
+type RefBarangCreationAttributes = Optional<RefBarangAttributes, "id" | "createdAt">;
 
 class RefBarang
   extends Model<RefBarangAttributes, RefBarangCreationAttributes>
@@ -23,10 +17,7 @@ class RefBarang
 {
   public id!: number;
   public golongan!: string;
-  public status!:
-    | "TIDAK_BERKELUARGA"
-    | "BERKELUARGA_TANPA_ANAK"
-    | "BERKELUARGA_DENGAN_ANAK";
+  public status!: "TIDAK_BERKELUARGA" | "BERKELUARGA_TANPA_ANAK" | "BERKELUARGA_DENGAN_ANAK";
   public volume!: number;
   readonly createdAt!: Date;
 }
@@ -59,10 +50,10 @@ RefBarang.init(
         notNull: {
           msg: "status tidak boleh kosong",
         },
-        isIn:{
+        isIn: {
           args: [["TIDAK_BERKELUARGA", "BERKELUARGA_TANPA_ANAK", "BERKELUARGA_DENGAN_ANAK"]],
-          msg: "status tidak valid"
-        }
+          msg: "status tidak valid",
+        },
       },
     },
     volume: {
@@ -72,10 +63,7 @@ RefBarang.init(
         notNull: {
           msg: "volume tidak boleh kosong",
         },
-        isPositive: {
-          msg: "volume harus lebih dari 0",
-        },
-      }
+      },
     },
     createdAt: {
       type: DataTypes.DATE,

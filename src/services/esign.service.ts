@@ -1,4 +1,5 @@
 import { eSignConfig } from "@/config/esign.config";
+
 export class EsignService {
   private static Credentials = Buffer.from(
     `${eSignConfig.CLIENT_ID}:${eSignConfig.CLIENT_PASSWORD}`
@@ -34,7 +35,7 @@ export class EsignService {
     imageTTD: Blob;
     imageTTDName: string;
   }) {
-    try {      
+    try {
       const formdata = new FormData();
       formdata.append("nik", nik);
       formdata.append("passphrase", passphrase);

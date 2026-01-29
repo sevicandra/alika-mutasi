@@ -1,5 +1,5 @@
+import { Association, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, Association } from "sequelize";
 import Kantor from "./RefKantor.model";
 import Provinsi from "./RefProvinsi.model";
 
@@ -11,10 +11,7 @@ type KotaAttributes = {
 };
 type KotaCreationAttributes = Optional<KotaAttributes, "id">;
 
-class Kota
-  extends Model<KotaAttributes, KotaCreationAttributes>
-  implements KotaAttributes
-{
+class Kota extends Model<KotaAttributes, KotaCreationAttributes> implements KotaAttributes {
   public id!: number;
   public kode_provinsi!: string;
   public kode!: string;

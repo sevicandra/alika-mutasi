@@ -1,35 +1,23 @@
-import { DokumenTermin } from "@/models";
-import { errorResponse } from "@/helpers/respose.helper";
+import { Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { minioService } from "@/services/minio-service";
+import { InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { fileResponse } from "@/helpers/respose.helper";
+import { DokumenTermin } from "@/repositories";
 import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { MinioService } from "@/services/minio.service";
-const minioService = new MinioService();
 
-export const pembayaran = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await DokumenTermin.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "file not found", 404);
-    }
-    const stream = await minioService.downloadFile(`${data.file}`);
-    if (stream) {
-      const chunks: Buffer[] = [];
-      stream.on("data", (chunk) => chunks.push(chunk));
-      stream.on("end", () => {
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", "inline; filename=");
-        return res.status(200).send(Buffer.concat(chunks));
-      });
-      stream.on("error", (err: Error) => {
-        return errorResponse(res, "Terjadi kesalahan", err, 500);
-      });
-    }
-  } catch (error: unknown) {
-    next(error);
+export const downlaodFile = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+
+  if (typeof id != "string") {
+    throw new InvalidRequestError("Invalid request");
   }
-};
+
+  const data = await DokumenTermin.findById(id);
+  if (!data) {
+    throw new NotFoundError("File not found");
+  }
+  const stream = await minioService.getFile(`${data.file}`);
+  res.setHeader("Content-Type", "application/pdf");
+  fileResponse(res, stream, `${data.document_type}.pdf`, "application/pdf");
+});

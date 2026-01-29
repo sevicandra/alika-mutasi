@@ -1,8 +1,9 @@
 import { Router } from "express";
-import SuratKeputusan from "./SuratKeputusan.route";
-import PegawaiMutasi from "./PegawaiMutasi.route";
 import Golongan from "./Golongan.route";
 import Kantor from "./Kantor.route";
+import PegawaiMutasi from "./PegawaiMutasi.route";
+import SuratKeputusan from "./SuratKeputusan.route";
+
 const router = Router();
 
 router.use("/SuratKeputusan", SuratKeputusan);

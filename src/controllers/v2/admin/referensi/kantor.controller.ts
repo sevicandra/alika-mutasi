@@ -1,161 +1,115 @@
-import { RefKantor } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { Op, where, col } from "sequelize";
+import { Request, Response } from "express";
+import { Op, col, where } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefKantor } from "@/repositories";
 
-export const getAllKantor = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const KantorControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const search = (req.query.search as string) || undefined;
-    const sortField = (req.query.sortField as string) || "kode_kota";
-    const sortOrder = (req.query.sortOrder as string) || "ASC";
     const whereClause = search
       ? {
           [Op.or]: [
             where(col("kode_satker"), { [Op.like]: `%${search}%` }),
             where(col("kantor"), { [Op.like]: `%${search}%` }),
-            where(col("Kota.kota"), { [Op.like]: `%${search}%` }),
-            where(col("Kota.kode"), { [Op.like]: `%${search}%` }),
-            where(col("Kota.Provinsi.provinsi"), { [Op.like]: `%${search}%` }),
-            where(col("Kota.Provinsi.kode"), { [Op.like]: `%${search}%` }),
           ],
         }
       : {};
-    const { rows: data, count } = await RefKantor.findAndCountAll({
+
+    const { items: data, pagination } = await RefKantor.findAllWithPagination({
       where: whereClause,
       limit,
       offset,
-      order: [[sortField, sortOrder.toUpperCase()]],
-      include: [
-        {
-          association: "Kota",
-          attributes: ["id", "kota", "kode"],
-          include: [
-            {
-              association: "Provinsi",
-              attributes: ["id", "provinsi", "kode"],
-            },
-          ],
-        },
-      ],
+      order,
     });
-    return successResponse(
-      res,
-      "Berhasil mengambil data kantor",
-      data.map((item) => ({
-        kode_satker: item.kode_satker,
-        kantor: item.kantor,
-        kota: item.Kota.kota,
-        provinsi: item.Kota.Provinsi.provinsi,
-      })),
-      {
-        limit,
-        offset,
-        count,
-        totalPages: limit ? Math.ceil(count / limit) : 1,
-      }
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getKantorById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { KodeSatker } = req.params;
-  try {
+    successResponse(res, "Success get all ref kantor", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const { KodeSatker } = req.params;
+
+    if (typeof KodeSatker !== "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
     const data = await RefKantor.findOne({
-      where: { kode_satker: KodeSatker },
-      include: [
-        {
-          association: "Kota",
-          attributes: ["kode_provinsi"],
-        },
-      ],
+      where: {
+        kode_satker: KodeSatker,
+      },
     });
     if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+      throw new NotFoundError("Data not found");
     }
-    return successResponse(res, "Berhasil mengambil data kantor", {
-      kode_satker: data.kode_satker,
-      kantor: data.kantor,
-      kode_kota: data.kode_kota,
-      kode_provinsi: data.Kota.kode_provinsi,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const createKantor = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { kantor, kode_satker, kode_kota } = req.body;
+    successResponse(res, "Success get ref kantor", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
+    const { kode_kota, kode_satker, kantor } = req.body;
     const data = await RefKantor.create({
-      kantor,
-      kode_satker,
       kode_kota,
+      kode_satker,
+      kantor,
     });
-
-    return successResponse(res, "Berhasil menambahkan data kantor", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updateKantor = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { KodeSatker } = req.params;
-  try {
-    const { kantor, kode_satker, kode_kota } = req.body;
-    const data = await RefKantor.findOne({
-      where: { kode_satker: KodeSatker },
-    });
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+    successResponse(res, "Success create ref kantor", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { KodeSatker } = req.params;
+      const { kode_kota, kode_satker, kantor } = req.body;
+      if (typeof KodeSatker !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefKantor.updateOne(
+        {
+          where: {
+            kode_satker: KodeSatker,
+          },
+        },
+        {
+          kode_kota,
+          kode_satker,
+          kantor,
+        },
+        t
+      );
+      successResponse(res, "Success update ref kantor", data);
+    },
+    {
+      useTransaction: true,
     }
-
-    if (kantor) data.kantor = kantor;
-    if (kode_satker) data.kode_satker = kode_satker;
-    if (kode_kota) data.kode_kota = kode_kota;
-    await data.save();
-    return successResponse(res, "Berhasil mengubah data kantor");
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deleteKantor = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { KodeSatker } = req.params;
-  try {
-    const data = await RefKantor.findOne({
-      where: { kode_satker: KodeSatker },
-    });
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { KodeSatker } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof KodeSatker !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefKantor.deleteOne(
+        {
+          where: {
+            kode_satker: KodeSatker,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref kantor", data);
+    },
+    {
+      useTransaction: true,
     }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus data kantor");
-  } catch (error: unknown) {
-    next(error);
-  }
+  ),
 };

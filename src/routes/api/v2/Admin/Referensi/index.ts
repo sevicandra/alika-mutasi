@@ -1,16 +1,16 @@
 import { Router } from "express";
-import Provinsi from "./Provinsi.route";
-import Kantor from "./Kantor.route";
-import Pesawat from "./Pesawat.route";
-import Kapal from "./Kapal.route";
-import Darat from "./Darat.route";
-import Golongan from "./Golongan.route";
 import Barang from "./Barang.route";
+import Darat from "./Darat.route";
+import Faq from "./Faq.route";
+import Golongan from "./Golongan.route";
 import HubunganKeluarga from "./HubunganKeluarga.route";
+import Kantor from "./Kantor.route";
+import Kapal from "./Kapal.route";
+import Pejabat from "./Pejabat.route";
+import Pesawat from "./Pesawat.route";
+import Provinsi from "./Provinsi.route";
 import Tarif from "./Tarif.route";
 import UangHarian from "./UangHarian.route";
-import Pejabat from "./Pejabat.route";
-import Faq from "./Faq.route";
 
 const router = Router({ mergeParams: true });
 

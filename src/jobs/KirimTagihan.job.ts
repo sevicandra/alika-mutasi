@@ -1,15 +1,14 @@
 import { Job } from "bull";
-import { PembayaranJob } from "@/types/Job";
-import { Termin, DokumenTermin } from "@/models";
 import dotenv from "dotenv";
-import sequelize from "@/config/db.config";
-import { Op } from "sequelize";
-import { MinioService } from "@/services/minio.service";
 import QRCode from "qrcode";
-import { appConfig } from "@/config/app.config";
+import { Op } from "sequelize";
 import { EsignService } from "@/services/esign.service";
+import { minioService } from "@/services/minio-service";
+import { appConfig } from "@/config/app.config";
+import sequelize from "@/config/db.config";
+import { DokumenTermin, Termin } from "@/models";
+import { PembayaranJob } from "@/types/Job";
 
-const minioService = new MinioService();
 dotenv.config();
 
 /**
@@ -20,9 +19,7 @@ dotenv.config();
  * @param {string} dokumenId - The ID of a DokumenTermin that was just processed.
  */
 const checkFinalDokumen = async (dokumenId: string) => {
-  console.log(
-    `Checking final status for documents related to Dokumen ID: ${dokumenId}`
-  );
+  console.log(`Checking final status for documents related to Dokumen ID: ${dokumenId}`);
 
   // Start a new, managed transaction for this check to ensure atomicity.
   const t = await sequelize.transaction();
@@ -33,9 +30,7 @@ const checkFinalDokumen = async (dokumenId: string) => {
     });
 
     if (!initialDokumen?.termin_id) {
-      console.log(
-        `Invoice (Termin) not found for document ${dokumenId}. No finalization needed.`
-      );
+      console.log(`Invoice (Termin) not found for document ${dokumenId}. No finalization needed.`);
       await t.commit();
       return;
     }
@@ -94,10 +89,7 @@ const checkFinalDokumen = async (dokumenId: string) => {
         console.log(
           `[FINALIZE-UPDATE] Found failed documents for Termin ${terminId}. Reverting status to DRAFT.`
         );
-        await Termin.update(
-          { status: "DRAFT" },
-          { where: { id: terminId }, transaction: t }
-        );
+        await Termin.update({ status: "DRAFT" }, { where: { id: terminId }, transaction: t });
       } else {
         // If all documents were signed successfully, the invoice is ready for approval.
         console.log(
@@ -130,7 +122,7 @@ const checkFinalDokumen = async (dokumenId: string) => {
 export const processKirim = async (job: Job<PembayaranJob>): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     const { dokumen_id, nik, passphrase } = job.data;
-    const t = await sequelize.transaction();    
+    const t = await sequelize.transaction();
     try {
       const dokumen = await DokumenTermin.findByPk(dokumen_id, {
         include: [{ association: "TtePegawai" }],
@@ -141,18 +133,11 @@ export const processKirim = async (job: Job<PembayaranJob>): Promise<void> => {
         throw new Error("Dokumen not found or file is missing.");
       }
 
-      const stream = await minioService.downloadFile(dokumen.file);
-      if (!stream)
-        throw new Error("File stream could not be downloaded from Minio.");
+      const stream = await minioService.getFile(dokumen.file);
+      if (!stream) throw new Error("File stream could not be downloaded from Minio.");
+      const blob = new Blob([stream], { type: "application/pdf" });
 
-      const chunks: Buffer[] = [];
-      for await (const chunk of stream) {
-        chunks.push(chunk);
-      }
-      const fileBuffer = Buffer.concat(chunks);
-      const blob = new Blob([fileBuffer], { type: "application/pdf" });
-
-      const qrCodeUrl = `${appConfig.url}/public/file/download/pembayaran/${dokumen.id}`;
+      const qrCodeUrl = `${appConfig.URL}/public/file/download/pembayaran/${dokumen.id}`;
       const TteBlob = await QRCode.toDataURL(qrCodeUrl, {
         type: "image/png",
         margin: 0,
@@ -175,7 +160,7 @@ export const processKirim = async (job: Job<PembayaranJob>): Promise<void> => {
         imageTTDName: "qrcode.png",
       });
 
-      await minioService.uploadFile(tte.buffer, dokumen.file);
+      await minioService.uploadFile(tte.buffer, dokumen.file, "application/pdf");
 
       dokumen.process = "IDLE";
       dokumen.processed_by = "";
@@ -191,17 +176,13 @@ export const processKirim = async (job: Job<PembayaranJob>): Promise<void> => {
     } catch (error) {
       await t.rollback(); // Rollback the original transaction on any error.
       console.error(
-        `Job failed for document ${dokumen_id}, attempt: ${
-          job.attemptsMade + 1
-        }. Error:`,
+        `Job failed for document ${dokumen_id}, attempt: ${job.attemptsMade + 1}. Error:`,
         error
       );
 
       if (job.attemptsMade >= 2) {
         // Max retries reached (0, 1, 2)
-        console.log(
-          `Job for document ${dokumen_id} has reached max retries. Marking as FAILED.`
-        );
+        console.log(`Job for document ${dokumen_id} has reached max retries. Marking as FAILED.`);
 
         // Use a NEW, separate transaction to update the status to FAILED.
         // This is critical because the original transaction 't' has already been rolled back.
@@ -222,15 +203,10 @@ export const processKirim = async (job: Job<PembayaranJob>): Promise<void> => {
               transaction: failureTransaction,
             });
             await failureTransaction.commit();
-            console.log(
-              `Successfully marked document ${dokumen_id} as FAILED.`
-            );
+            console.log(`Successfully marked document ${dokumen_id} as FAILED.`);
           }
         } catch (updateError) {
-          console.error(
-            `Could not update document ${dokumen_id} status to FAILED:`,
-            updateError
-          );
+          console.error(`Could not update document ${dokumen_id} status to FAILED:`, updateError);
           await failureTransaction.rollback();
         }
       }

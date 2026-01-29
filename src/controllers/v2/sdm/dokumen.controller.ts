@@ -1,46 +1,23 @@
-import { DokumenTermin } from "@/models";
-import { errorResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { MinioService } from "@/services/minio.service";
-const minioService = new MinioService();
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { minioService } from "@/services/minio-service";
+import { InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { fileResponse } from "@/helpers/respose.helper";
+import { DokumenTermin } from "@/repositories";
 
-export const getDokumenFile = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const DokumenTerminControllerV2 = {
+  getFile: asyncHandler(async (req: Request, res: Response) => {
     const { permohonanId, dokumenId } = req.params;
+    if (typeof permohonanId != "string" || typeof dokumenId != "string") {
+      throw new InvalidRequestError("Invalid permohonan id or dokumen id");
+    }
     const data = await DokumenTermin.findOne({
-      where: {
-        termin_id: permohonanId,
-        id: dokumenId,
-      },
+      where: { termin_id: permohonanId, id: dokumenId },
     });
     if (!data || !data.file) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("Data tidak ditemukan");
     }
-
-    const stream = await minioService.downloadFile(`${data.file}`);
-    if (stream) {
-      const chunks: Buffer[] = [];
-      stream.on("data", (chunk) => chunks.push(chunk));
-      stream.on("end", () => {
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader(
-          "Content-Disposition",
-          `inline; filename="${data.document_type}.pdf"`
-        );
-        return res.status(200).send(Buffer.concat(chunks));
-      });
-      stream.on("error", (err: Error) => {
-        return errorResponse(res, "Terjadi kesalahan", err, 500);
-      });
-    } else {
-      throw new Error("File tidak ditemukan");
-    }
-  } catch (error: unknown) {
-    next(error);
-  }
+    const stream = await minioService.getFile(`${data.file}`);
+    fileResponse(res, stream, `${data.document_type}.pdf`, "application/pdf");
+  }),
 };

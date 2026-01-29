@@ -1,7 +1,7 @@
-import { approveMutasiQueue } from "@/queues/ApproveMutasi.queue";
-import { Logger } from "@/services/log.service";
-import {  SpdCounter, PegawaiMutasi } from "@/models";
 import sequelize from "sequelize";
+import { Logger } from "@/services/log.service";
+import { PegawaiMutasi, SpdCounter } from "@/models";
+import { approveMutasiQueue } from "@/queues/ApproveMutasi.queue";
 
 export class ApproveMutasi {
   static async addJob(pegawai_id: string, t: sequelize.Transaction): Promise<void> {
@@ -56,10 +56,10 @@ export class ApproveMutasi {
           throw new Error("data tidak ditemukan");
         }
         data.status = "CALCULATING";
-        (data.nomor_spd = `${String(counter.last_number).padStart(4, "0")}/${
+        ((data.nomor_spd = `${String(counter.last_number).padStart(4, "0")}/${
           counter.ext
         }/${new Date().getFullYear()}`),
-          (data.tanggal_spd = new Date());
+          (data.tanggal_spd = new Date()));
 
         await data.save({ transaction: t });
         await approveMutasiQueue.add(
@@ -168,10 +168,10 @@ export class ApproveMutasi {
             throw new Error("data tidak ditemukan");
           }
           data.status = "CALCULATING";
-          (data.nomor_spd = `${String(counter.last_number).padStart(4, "0")}/${
+          ((data.nomor_spd = `${String(counter.last_number).padStart(4, "0")}/${
             counter.ext
           }/${new Date().getFullYear()}`),
-            (data.tanggal_spd = new Date());
+            (data.tanggal_spd = new Date()));
 
           await data.save({ transaction: t });
           await approveMutasiQueue.add(

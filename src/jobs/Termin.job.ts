@@ -1,15 +1,15 @@
 import { Job } from "bull";
-import { TerminJob } from "@/types/Job";
-import { Termin, MonitoringTagihan, PegawaiMutasi } from "@/models";
 import dotenv from "dotenv";
 import sequelize from "@/config/db.config";
+import { MonitoringTagihan, PegawaiMutasi, Termin } from "@/models";
+import { TerminJob } from "@/types/Job";
+
 dotenv.config();
 
 export const processTermin = async (job: Job<TerminJob>): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     const t = await sequelize.transaction();
-    const { pegawai_id, nominal, tahun_lunas, tahun_uang_muka, type } =
-      job.data;
+    const { pegawai_id, nominal, tahun_lunas, tahun_uang_muka, type } = job.data;
     try {
       const tagihan = await MonitoringTagihan.findByPk(pegawai_id);
       const pegawai = await PegawaiMutasi.findByPk(pegawai_id);
@@ -68,10 +68,7 @@ export const processTermin = async (job: Job<TerminJob>): Promise<void> => {
       console.error("Job gagal, percobaan ke:", job.attemptsMade + 1);
 
       if (job.attemptsMade >= 2) {
-        await PegawaiMutasi.update(
-          { process_termin: "FAILED" },
-          { where: { id: pegawai_id } }
-        );
+        await PegawaiMutasi.update({ process_termin: "FAILED" }, { where: { id: pegawai_id } });
         console.log("Job gagal maksimal, status diubah ke failed.");
       }
       reject(error);

@@ -1,6 +1,7 @@
+import { BelongsTo, DataTypes, Model } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, DataTypes, BelongsTo } from "sequelize";
 import PegawaiMutasi from "./PegawaiMutasi.model";
+
 type MonitoringTagihanAttributes = {
   pegawai_id: string;
   nama: string;
@@ -25,7 +26,6 @@ class MonitoringTagihan
     Pegawai: BelongsTo<MonitoringTagihan, any>;
   };
 }
-
 
 MonitoringTagihan.init(
   {

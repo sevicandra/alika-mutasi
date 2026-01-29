@@ -1,7 +1,7 @@
+import { BelongsTo, DataTypes, HasMany, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, BelongsTo, HasMany } from "sequelize";
-import PegawaiMutasi from "./PegawaiMutasi.model";
 import DataSanggah from "./DataSanggah.model";
+import PegawaiMutasi from "./PegawaiMutasi.model";
 
 type SanggahAttributes = {
   id: string;
@@ -13,10 +13,7 @@ type SanggahAttributes = {
   reviewed_at?: Date;
 };
 
-type SanggahCreationAttributes = Optional<
-  SanggahAttributes,
-  "id"
->;
+type SanggahCreationAttributes = Optional<SanggahAttributes, "id">;
 
 class Sanggah
   extends Model<SanggahAttributes, SanggahCreationAttributes>

@@ -1,10 +1,7 @@
 import { Router } from "express";
-import {
-    getAllRincianBiaya
-} from "@/controllers/v2/pegawai/biaya.controller";
+import { RincianBiayaControllerV2 } from "@/controllers/v2/pegawai/biaya.controller";
 
 const router = Router({ mergeParams: true });
 
-router.get("/", getAllRincianBiaya);
-
+router.get("/", RincianBiayaControllerV2.getAll);
 export default router;

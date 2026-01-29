@@ -1,24 +1,22 @@
-import { SuratKeputusan } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { Op } from "sequelize";
-import { MinioService } from "@/services/minio.service";
-import { UUID } from "@/utils/uuid.util";
-import sequelize from "@/config/db.config";
-import { KeluargaJobService } from "@/services/keluarga.service";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { terminJobService } from "@/services/createTermin.service";
 import { hitungBiayaJobService } from "@/services/hitungBiaya.service";
+import { KeluargaJobService } from "@/services/keluarga.service";
+import { minioService } from "@/services/minio-service";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
+import sequelize from "@/config/db.config";
+import { fileResponse, successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { SuratKeputusan } from "@/repositories";
 
-const minioService = new MinioService();
-
-export const getAllSuratKeputusan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const SuratKeputusanControllerV1 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const jenjang = (req.query.jenjang as string) || undefined;
     const status = (req.query.status as string) || undefined;
     const search = (req.query.search as string) || undefined;
@@ -34,39 +32,17 @@ export const getAllSuratKeputusan = async (
       ];
     if (jenjang) where.jenjang = jenjang.toUpperCase();
     if (status) where.status = status.toLocaleUpperCase();
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
-    const data = await SuratKeputusan.findAll({
+
+    const { items: data, pagination } = await SuratKeputusan.findAllWithPagination({
       where,
       limit,
       offset,
       order,
     });
-    const count = await SuratKeputusan.count({ where });
-    return successResponse(
-      res,
-      "Berhasil mengambil data surat keputusan",
-      data,
-      {
-        limit,
-        offset,
-        count,
-        totalPages: limit ? Math.ceil(count / limit) : 1,
-      }
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const countAllSuratKeputusan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Success get all surat keputusan", data, pagination);
+  }),
+  count: asyncHandler(async (req: Request, res: Response) => {
     const jenjang = (req.query.jenjang as string) || undefined;
     const status = (req.query.status as string) || undefined;
     const search = (req.query.search as string) || undefined;
@@ -80,27 +56,23 @@ export const countAllSuratKeputusan = async (
           uraian: { [Op.like]: `%${search}%` },
         },
       ];
-    if (jenjang) where.jenjang = jenjang;
-    if (status) where.status = status;
-    const count = await SuratKeputusan.count({ where });
-    return successResponse(
-      res,
-      "Berhasil mengambil data surat keputusan",
-      count
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    if (jenjang) where.jenjang = jenjang.toUpperCase();
+    if (status) where.status = status.toLocaleUpperCase();
 
-export const getSuratKeputusanById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    const count = await SuratKeputusan.count({
+      where,
+    });
+
+    successResponse(res, "Success get all surat keputusan", { count });
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const data = await SuratKeputusan.findByPk(id, {
+
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
+    const data = await SuratKeputusan.findById(id, {
       attributes: {
         include: [
           [
@@ -118,250 +90,188 @@ export const getSuratKeputusanById = async (
         ],
       },
     });
-
     if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("Data not found");
     }
-    return successResponse(
-      res,
-      "Berhasil mengambil data surat keputusan",
-      data
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const createSuratKeputusan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Success get surat keputusan", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
     const { nomor, uraian, tanggal, tmt, jenjang } = req.body;
-    const file = req.file;
-
-    if (!nomor || !uraian || !tanggal || !tmt || !jenjang || !file) {
-      return errorResponse(res, "Parameter tidak lengkap", null, 400);
-    }
-    const fileName = UUID.v4();
-
-    await minioService.uploadFile(
-      file.buffer,
-      `suratKeputusan/${fileName}.pdf`
-    );
-
     const data = await SuratKeputusan.create({
       nomor,
       uraian,
       tanggal,
       tmt,
       jenjang,
-      file: `${fileName}.pdf`,
     });
-
-    return successResponse(res, "Berhasil membuat data surat keputusan", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updateSuratKeputusan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const { nomor, uraian, tanggal, tmt, jenjang, status } = req.body;
-    const file = req.file;
-    const data = await SuratKeputusan.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    if (file) {
-      await minioService.uploadFile(file.buffer, `suratKeputusan/${data.file}`);
-    }
-
-    if (nomor) data.nomor = nomor;
-    if (uraian) data.uraian = uraian;
-    if (tanggal) data.tanggal = tanggal;
-    if (tmt) data.tmt = tmt;
-    if (jenjang) data.jenjang = jenjang;
-    if (status) data.status = status;
-    await data.save();
-
-    return successResponse(
-      res,
-      "Berhasil memperbarui data surat keputusan",
-      data
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deleteSuratKeputusan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await SuratKeputusan.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus data darat", {
-      id,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const getSuratKeputusanFile = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await SuratKeputusan.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-
-    const stream = await minioService.downloadFile(
-      `suratKeputusan/${data.file}`
-    );
-    if (stream) {
-      const chunks: Buffer[] = [];
-      stream.on("data", (chunk) => chunks.push(chunk));
-      stream.on("end", () => {
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", "inline; filename=");
-        return res.status(200).send(Buffer.concat(chunks));
-      });
-      stream.on("error", (err: Error) => {
-        return errorResponse(res, "Terjadi kesalahan", err, 500);
-      });
-    }
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const getPegawaiSuratKeputusan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await SuratKeputusan.findByPk(id, {
-      include: [
+    successResponse(res, "Success create surat keputusan", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { nomor, uraian, tanggal, tmt, jenjang } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await SuratKeputusan.updateOne(
         {
-          association: "Pegawai",
-        },
-      ],
-    });
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "data berhasil didapatkan", data, 200);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const processKeluarga = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await SuratKeputusan.findByPk(id, {
-      include: [
-        {
-          association: "Pegawai",
-          attributes: ["id"],
           where: {
-            process_keluarga: "IDLE",
-            status: "DRAFT",
+            id: id,
           },
         },
-      ],
-    });
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    if (data.status !== "DRAFT") {
-      return errorResponse(
-        res,
-        "Surat Keputusan tidak dalam status DRAFT",
-        null,
-        400
-      );
-    }
-    const ids = data.Pegawai.map((pegawai) => pegawai.id);
-    if (ids.length === 0) {
-      return errorResponse(res, "Tidak ada pegawai yang terkait", null, 404);
-    }
-    await KeluargaJobService.addBatchJob(ids);
-    return successResponse(res, "Berhasil memproses data keluarga", {
-      id,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const processBiaya = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await SuratKeputusan.findByPk(id, {
-      include: [
         {
-          association: "Pegawai",
-          attributes: ["id", "process_keluarga", "process_biaya", "status"],
+          nomor,
+          uraian,
+          tanggal,
+          tmt,
+          jenjang,
+        },
+        t
+      );
+      successResponse(res, "Success update surat keputusan", data);
+    },
+    {
+      useTransaction: true,
+    }
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await SuratKeputusan.deleteOne(
+        {
           where: {
-            process_keluarga: "DONE",
-            process_biaya: "IDLE",
-            status: "DRAFT",
+            id: id,
           },
         },
-      ],
-    });
-    console.log("data", data);
-
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    if (data.status !== "DRAFT") {
-      return errorResponse(
-        res,
-        "Surat Keputusan tidak dalam status DRAFT",
-        null,
-        400
+        t
       );
+      successResponse(res, "Success delete surat keputusan", data);
+    },
+    {
+      useTransaction: true,
+    }
+  ),
+  getFile: asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+    const data = await SuratKeputusan.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
     }
 
-    const ids = data.Pegawai.map((pegawai) => pegawai.id);
-    if (ids.length === 0) {
-      return errorResponse(res, "Tidak ada pegawai yang terkait", null, 404);
+    const stream = await minioService.getFile(`suratKeputusan/${data.file}`);
+    fileResponse(res, stream, `${data.nomor.replace(/\//g, "_")}.pdf`, "application/pdf");
+  }),
+  getPegawai: asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
     }
-    await hitungBiayaJobService.addBatchJob(ids);
-    return successResponse(res, "Berhasil memproses data biaya", {
-      id,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
+
+    const data = await SuratKeputusan.getPegawai(id);
+
+    successResponse(res, "Success get surat keputusan", data);
+  }),
+  processKeluarga: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+
+      const { id } = req.params;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const ids = await SuratKeputusan.processKeluarga(id, t);
+
+      await KeluargaJobService.addBatchJob(ids);
+      successResponse(res, "Berhasil memproses data keluarga", {
+        id,
+      });
+    },
+    {
+      useTransaction: true,
+    }
+  ),
+  hitungBiaya: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+
+      const { id } = req.params;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const ids = await SuratKeputusan.processKeluarga(id, t);
+
+      await hitungBiayaJobService.addBatchJob(ids);
+      successResponse(res, "Berhasil memproses data biaya", {
+        id,
+      });
+    },
+    {
+      useTransaction: true,
+    }
+  ),
+  processTermin: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const { SkId } = req.params;
+      if (typeof SkId !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const { percentage, maximum, tahun_uang_muka, tahun_lunas, type } = req.body;
+      const ids = await SuratKeputusan.processTermin(SkId, t);
+
+      if (type === "UANG_MUKA") {
+        const pegawai = ids.map((id) => {
+          return {
+            id: id,
+            percentage: percentage,
+            maximum: maximum,
+            tahun_uang_muka: tahun_uang_muka,
+            tahun_lunas: tahun_lunas,
+            type: type,
+          };
+        });
+        await terminJobService.addBatchJobs(pegawai);
+      } else {
+        const pegawai = ids.map((id) => {
+          return {
+            id: id,
+            tahun_uang_muka: tahun_lunas,
+            tahun_lunas: tahun_lunas,
+            type: type,
+          };
+        });
+        await terminJobService.addBatchJobs(pegawai);
+      }
+      successResponse(res, "Berhasil memproses data termin", {
+        SkId,
+      });
+    },
+    {
+      useTransaction: true,
+    }
+  ),
 };

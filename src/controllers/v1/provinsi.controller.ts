@@ -1,137 +1,111 @@
-import { RefProvinsi } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { Op } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefProvinsi } from "@/repositories";
 
-export const getAllProvinsi = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
+export const ProvinsiControllerV1 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const search = (req.query.search as string) || undefined;
     const where: any = {};
     if (search) where.provinsi = { [Op.like]: `%${search}%` };
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
-    const provinsi = await RefProvinsi.findAll({
-      where,
+
+    const { items: data, pagination } = await RefProvinsi.findAllWithPagination({
       limit,
       offset,
       order,
+      where,
     });
-    const count = await RefProvinsi.count({ where });
-    return successResponse(res, "Berhasil mengambil data provinsi", provinsi, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error)
-  }
-};
 
-export const getProvinsiById = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
+    successResponse(res, "Success get all ref provinsi", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const provinsi = await RefProvinsi.findByPk(id);
-    if (!provinsi) {
-      return errorResponse(res, "Provinsi tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "Berhasil mengambil data provinsi", provinsi);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
 
-export const getProvinsiByKode = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
+    const data = await RefProvinsi.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
+
+    successResponse(res, "Success get ref provinsi", data);
+  }),
+  getByKode: asyncHandler(async (req: Request, res: Response) => {
     const { kode } = req.params;
-    const provinsi = await RefProvinsi.findOne({
-      where: {
-        kode,
-      },
-    });
-
-    if (!provinsi) {
-      return errorResponse(res, "Provinsi tidak ditemukan", null, 404);
+    const data = await RefProvinsi.findOne({ where: { kode } });
+    if (!data) {
+      throw new NotFoundError("Data not found");
     }
-
-    return successResponse(res, "Berhasil mengambil data provinsi", provinsi);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
-
-export const createProvinsi = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
+    successResponse(res, "Success get ref provinsi", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
     const { kode, provinsi } = req.body;
-    if (!kode || !provinsi) {
-      return errorResponse(res, "parameter tidak lengkap", null, 400);
-    }
     const data = await RefProvinsi.create({
       kode,
       provinsi,
     });
-
-    return successResponse(res, "Berhasil membuat data provinsi", data);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
-
-export const updateProvinsi = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const { kode, provinsi } = req.body;
-    if (!id) {
-      return errorResponse(res, "parameter tidak lengkap", null, 400);
+    successResponse(res, "Success create ref provinsi", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { kode, provinsi } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefProvinsi.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          kode,
+          provinsi,
+        },
+        t
+      );
+      successResponse(res, "Success update ref provinsi", data);
+    },
+    {
+      useTransaction: true,
     }
-    const data = await RefProvinsi.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefProvinsi.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref provinsi", data);
+    },
+    {
+      useTransaction: true,
     }
-    if (kode) data.kode = kode;
-    if (provinsi) data.provinsi = provinsi;
-    await data.save();
-    return successResponse(res, "Berhasil mengubah data provinsi", data);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
-
-export const deleteProvinsi = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await RefProvinsi.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus data provinsi", {
-      id,
-    });
-  } catch (error: unknown) {
-    next(error)
-  }
+  ),
 };

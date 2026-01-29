@@ -1,12 +1,9 @@
 import { Router } from "express";
-import {
-  getAllProvinsi,
-  getKota,
-} from "@/controllers/v2/referensi/Wilayah.controller";
+import { ProvinsiControllerV2 } from "@/controllers/v2/admin/referensi/provinsi.controller";
 
 const router = Router();
 
-router.get("/", getAllProvinsi);
-router.get("/:KodeProvinsi", getKota);
+router.get("/", ProvinsiControllerV2.getAll);
+router.get("/:KodeProv", ProvinsiControllerV2.getKotas);
 
 export default router;

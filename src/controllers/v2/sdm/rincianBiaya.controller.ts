@@ -1,20 +1,27 @@
-import { RincianBiaya, PegawaiMutasi } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import sequelize from "@/config/db.config";
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import {
+  AuthorizationError,
+  InternalServerError,
+  InvalidRequestError,
+  NotFoundError,
+} from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { PegawaiMutasi, RincianBiaya } from "@/repositories";
 
-export const getAllRincianBiaya = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const RincianBiayaControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const { PegawaiId, SkId } = req.params;
-    const where: any = {};
-    if (PegawaiId) where.pegawai_id = PegawaiId;
-    const rincianBiaya = await RincianBiaya.findAll({
-      where,
+    if (typeof PegawaiId != "string" || typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+    const sort = (req.query.sort as string) || "jenis,urutan";
+    const order = sortBuilder(sort);
+
+    const { items: data, pagination } = await RincianBiaya.findAllWithPagination({
+      where: { pegawai_id: PegawaiId },
+      order,
       include: [
         {
           association: "Pegawai",
@@ -33,272 +40,211 @@ export const getAllRincianBiaya = async (
           ],
         },
       ],
-      order: [
-        ["jenis", "ASC"],
-        ["urutan", "ASC"],
-      ],
     });
-    return successResponse(
-      res,
-      "Berhasil mendapatkan rincian biaya",
-      rincianBiaya
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getRincianBiayaById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Berhasil mengambil data pegawai", data, pagination);
+  }),
+
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { PegawaiId, SkId, RincianBiayaId } = req.params;
-    const rincianBiaya = await RincianBiaya.findByPk(RincianBiayaId, {
-      include: [
-        {
-          association: "Pegawai",
-          attributes: ["id", "nama", "nip"],
-          where: {
-            id: PegawaiId,
-          },
-          include: [
-            {
-              association: "SuratKeputusan",
-              attributes: ["id", "nomor", "tanggal"],
-              where: {
-                id: SkId,
-              },
-            },
-          ],
-        },
-      ],
-    });
-    if (!rincianBiaya) {
-      return errorResponse(res, "Rincian biaya tidak ditemukan", null, 404);
-    }
-    return successResponse(
-      res,
-      "Berhasil mendapatkan rincian biaya",
-      rincianBiaya
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const createRincianBiaya = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const ValidationError: {
-      field: string;
-      message: string;
-    }[] = [];
-    const { PegawaiId, SkId } = req.params;
-    const { jenis, sub_jenis, keterangan, volume, harga_satuan, urutan } =
-      req.body;
-
-    if (!jenis)
-      ValidationError.push({ field: "jenis", message: "jenis harus diisi" });
-    if (!sub_jenis)
-      ValidationError.push({
-        field: "sub_jenis",
-        message: "Sub Jenis harus diisi",
-      });
-    if (!keterangan)
-      ValidationError.push({
-        field: "keterangan",
-        message: "Keterangan harus diisi",
-      });
-    if (!volume)
-      ValidationError.push({ field: "volume", message: "volume harus diisi" });
-    if (!harga_satuan)
-      ValidationError.push({
-        field: "harga_satuan",
-        message: "Harga Satuan harus diisi",
-      });
-    if (ValidationError.length > 0)
-      return errorResponse(res, "Data tidak lengkap", ValidationError, 422);
-
-    const pegawai = await PegawaiMutasi.findByPk(PegawaiId, {
-      include: [
-        {
-          association: "SuratKeputusan",
-          attributes: ["id", "nomor", "tanggal", "status"],
-          where: {
-            id: SkId,
-          },
-        },
-      ],
-    });
-
-    if (!pegawai) {
-      return errorResponse(res, "Pegawai tidak ditemukan", null, 404);
-    }
 
     if (
-      pegawai.process_termin !== "IDLE" ||
-      pegawai.SuratKeputusan.status !== "DRAFT"
+      typeof PegawaiId != "string" ||
+      typeof SkId != "string" ||
+      typeof RincianBiayaId != "string"
     ) {
-      return errorResponse(res, "sudah dilakukan proses termin", null, 409);
-    }
-    const rincianBiaya = await RincianBiaya.create({
-      pegawai_id: PegawaiId,
-      jenis,
-      sub_jenis,
-      keterangan,
-      volume,
-      harga_satuan,
-      urutan,
-    });
-    if (!rincianBiaya) {
-      return errorResponse(res, "Gagal membuat rincian biaya", null, 500);
+      throw new InvalidRequestError("Invalid request");
     }
 
-    return successResponse(res, "Berhasil membuat rincian biaya", rincianBiaya);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updateRincianBiaya = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { PegawaiId, SkId, RincianBiayaId } = req.params;
-    const { jenis, sub_jenis, keterangan, volume, harga_satuan, urutan } =
-      req.body;
-    const data = await RincianBiaya.findByPk(RincianBiayaId, {
-      include: {
-        association: "Pegawai",
-        attributes: ["id", "nama", "nip"],
-        where: {
-          id: PegawaiId,
-          process_termin: "IDLE",
-        },
-        include: [
-          {
-            association: "SuratKeputusan",
-            attributes: ["id", "nomor", "tanggal"],
-            where: {
-              id: SkId,
-              status: "DRAFT",
-            },
-          },
-        ],
-      },
-    });
-    if (!data) {
-      return errorResponse(
-        res,
-        "perubahan data tidak dapat di proses",
-        null,
-        409
-      );
-    }
-    if (jenis) data.jenis = jenis;
-    if (sub_jenis) data.sub_jenis = sub_jenis;
-    if (keterangan) data.keterangan = keterangan;
-    if (volume) data.volume = volume;
-    if (harga_satuan) data.harga_satuan = harga_satuan;
-    if (urutan) data.urutan = urutan;
-    await data.save();
-    return successResponse(res, "Berhasil memperbarui rincian biaya", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deleteRincianBiaya = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { PegawaiId, SkId, RincianBiayaId } = req.params;
-
-    const data = await RincianBiaya.findByPk(RincianBiayaId, {
-      include: {
-        association: "Pegawai",
-        attributes: ["id", "nama", "nip"],
-        where: {
-          id: PegawaiId,
-          process_termin: "IDLE",
-        },
-        include: [
-          {
-            association: "SuratKeputusan",
-            attributes: ["id", "nomor", "tanggal"],
-            where: {
-              id: SkId,
-              status: "DRAFT",
-            },
-          },
-        ],
-      },
-    });
-    if (!data) {
-      return errorResponse(res, "hapus data tidak dapat di proses", null, 409);
-    }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus rincian biaya", {
-      id: RincianBiayaId,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const resetRincianBiaya = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const t = await sequelize.transaction();
-  try {
-    const { PegawaiId, SkId } = req.params;
-
-    const data = await PegawaiMutasi.findOne({
-      where: {
-        id: PegawaiId,
-        process_termin: "IDLE",
-      },
+    const data = await RincianBiaya.findById(RincianBiayaId, {
       include: [
         {
-          association: "SuratKeputusan",
-          attributes: ["id", "nomor", "tanggal"],
+          association: "Pegawai",
+          attributes: ["id", "nama", "nip"],
           where: {
-            id: SkId,
-            status: "DRAFT",
+            id: PegawaiId,
+            sk_id: SkId,
           },
+          include: [
+            {
+              association: "SuratKeputusan",
+              attributes: ["id", "nomor", "tanggal"],
+            },
+          ],
         },
       ],
     });
-
     if (!data) {
-      return errorResponse(res, "reset data tidak dapat di proses", null, 409);
+      throw new NotFoundError("Data not found");
     }
+    successResponse(res, "Berhasil mengambil data rincian biaya", data);
+  }),
 
-    await RincianBiaya.destroy({
-      where: {
+  create: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { PegawaiId, SkId } = req.params;
+
+      if (typeof PegawaiId != "string" || typeof SkId != "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+
+      const { jenis, sub_jenis, keterangan, volume, harga_satuan, urutan } = req.body;
+
+      const pegawai = await PegawaiMutasi.getPegawaiWithStatus(PegawaiId, SkId);
+      if (!pegawai) {
+        throw new NotFoundError("Pegawai not found");
+      }
+      if (pegawai.process_termin !== "IDLE" || pegawai.SuratKeputusan.status !== "DRAFT") {
+        throw new AuthorizationError("rincian biaya tidak dapat ditambahkan, data sudah diproses");
+      }
+
+      const data = await RincianBiaya.create({
         pegawai_id: PegawaiId,
-      },
-      transaction: t,
-    });
+        jenis,
+        sub_jenis,
+        keterangan,
+        volume,
+        harga_satuan,
+        urutan,
+      });
 
-    data.process_biaya = "IDLE";
-    await data.save({ transaction: t });
+      successResponse(res, "Berhasil membuat rincian biaya", data);
+    },
+    {
+      useTransaction: true,
+    }
+  ),
 
-    await t.commit();
-    return successResponse(res, "Berhasil reset rincian biaya", null);
-  } catch (error: unknown) {
-    await t.rollback();
-    next(error);
-  }
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+
+      const { PegawaiId, SkId, RincianBiayaId } = req.params;
+
+      if (
+        typeof PegawaiId != "string" ||
+        typeof SkId != "string" ||
+        typeof RincianBiayaId != "string"
+      ) {
+        throw new InvalidRequestError("Invalid request");
+      }
+
+      const { jenis, sub_jenis, keterangan, volume, harga_satuan, urutan } = req.body;
+      const pegawai = await PegawaiMutasi.getPegawaiWithStatus(PegawaiId, SkId);
+      if (!pegawai) {
+        throw new NotFoundError("Pegawai not found");
+      }
+      if (pegawai.process_termin !== "IDLE" || pegawai.SuratKeputusan.status !== "DRAFT") {
+        throw new AuthorizationError("rincian biaya tidak dapat ditambahkan, data sudah diproses");
+      }
+
+      const data = await RincianBiaya.updateOne(
+        {
+          where: {
+            pegawai_id: PegawaiId,
+            id: RincianBiayaId,
+          },
+        },
+        {
+          jenis,
+          sub_jenis,
+          keterangan,
+          volume,
+          harga_satuan,
+          urutan,
+        },
+        t
+      );
+
+      successResponse(res, "Berhasil mengubah rincian biaya", data);
+    },
+    {
+      useTransaction: true,
+    }
+  ),
+
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+
+      const { PegawaiId, SkId, RincianBiayaId } = req.params;
+
+      if (
+        typeof PegawaiId != "string" ||
+        typeof SkId != "string" ||
+        typeof RincianBiayaId != "string"
+      ) {
+        throw new InvalidRequestError("Invalid request");
+      }
+
+      const pegawai = await PegawaiMutasi.getPegawaiWithStatus(PegawaiId, SkId);
+      if (!pegawai) {
+        throw new NotFoundError("Pegawai not found");
+      }
+      if (pegawai.process_termin !== "IDLE" || pegawai.SuratKeputusan.status !== "DRAFT") {
+        throw new AuthorizationError("rincian biaya tidak dapat dihapus, data sudah diproses");
+      }
+
+      const data = await RincianBiaya.deleteOne(
+        {
+          where: {
+            pegawai_id: PegawaiId,
+            id: RincianBiayaId,
+          },
+        },
+        t
+      );
+
+      successResponse(res, "Berhasil menghapus rincian biaya", data);
+    },
+    {
+      useTransaction: true,
+    }
+  ),
+
+  reset: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+
+      const { PegawaiId, SkId } = req.params;
+
+      if (typeof PegawaiId != "string" || typeof SkId != "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+
+      const pegawai = await PegawaiMutasi.getPegawaiWithStatus(PegawaiId, SkId);
+      if (!pegawai) {
+        throw new NotFoundError("Pegawai not found");
+      }
+      if (pegawai.process_termin !== "IDLE" || pegawai.SuratKeputusan.status !== "DRAFT") {
+        throw new AuthorizationError("rincian biaya tidak dapat direset, data sudah diproses");
+      }
+
+      const data = await RincianBiaya.delete(
+        {
+          where: {
+            pegawai_id: PegawaiId,
+          },
+        },
+        t
+      );
+
+      pegawai.process_biaya = "IDLE";
+      await pegawai.save({ transaction: t });
+
+      successResponse(res, "Berhasil reset rincian biaya", data);
+    },
+    {
+      useTransaction: true,
+    }
+  ),
 };

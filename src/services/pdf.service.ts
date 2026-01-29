@@ -1,10 +1,11 @@
 import fs from "fs";
+import path from "path";
 import { Content } from "pdfmake/interfaces";
 import generatePdf from "@/config/pdf.config";
-import path from "path";
-import { PegawaiMutasi, RefPejabat, SuratKeputusan, Termin } from "@/models";
 import { numberToWords } from "@/helpers/numberToWord.helper";
-import { toTitleCase, snackToTitleCase } from "@/helpers/string.helper";
+import { snackToTitleCase, toTitleCase } from "@/helpers/string.helper";
+import { PegawaiMutasi, RefPejabat, SuratKeputusan, Termin } from "@/models";
+
 export class PdfService {
   static async Header() {
     const imageData = fs
@@ -108,21 +109,15 @@ export class PdfService {
         const biaya_angkut_barang = pegawai.RincianBiaya.filter(
           (rb) => rb.jenis === "BIAYA_ANGKUT_BARANG"
         );
-        const uang_harian = pegawai.RincianBiaya.filter(
-          (rb) => rb.jenis === "UANG_HARIAN"
-        );
+        const uang_harian = pegawai.RincianBiaya.filter((rb) => rb.jenis === "UANG_HARIAN");
         const biaya_angkut_orang_art = pegawai.RincianBiaya.filter(
           (rb) => rb.jenis === "BIAYA_ANGKUT_ORANG_ART"
         );
         const biaya_angkut_barang_art = pegawai.RincianBiaya.filter(
           (rb) => rb.jenis === "BIAYA_ANGKUT_BARANG_ART"
         );
-        const uang_harian_art = pegawai.RincianBiaya.filter(
-          (rb) => rb.jenis === "UANG_HARIAN_ART"
-        );
-        const prev_termin = pegawai.Termin.filter(
-          (t) => t.Ref.urutan < termin.Ref.urutan
-        );
+        const uang_harian_art = pegawai.RincianBiaya.filter((rb) => rb.jenis === "UANG_HARIAN_ART");
+        const prev_termin = pegawai.Termin.filter((t) => t.Ref.urutan < termin.Ref.urutan);
         let i = 1;
         const body = [
           {
@@ -197,22 +192,16 @@ export class PdfService {
                             {
                               text: `- ${toTitleCase(b.sub_jenis)} (${
                                 b.volume
-                              } orang @ ${b.harga_satuan.toLocaleString(
-                                "id-ID",
-                                {
-                                  currency: "IDR",
-                                }
-                              )})`,
+                              } orang @ ${b.harga_satuan.toLocaleString("id-ID", {
+                                currency: "IDR",
+                              })})`,
                               alignment: "left",
                               border: [true, false, true, false],
                             },
                             {
-                              text: (b.volume * b.harga_satuan).toLocaleString(
-                                "id-ID",
-                                {
-                                  currency: "IDR",
-                                }
-                              ),
+                              text: (b.volume * b.harga_satuan).toLocaleString("id-ID", {
+                                currency: "IDR",
+                              }),
                               alignment: "right",
                               border: [true, false, true, false],
                             },
@@ -274,12 +263,9 @@ export class PdfService {
                               border: [true, false, true, false],
                             },
                             {
-                              text: (b.volume * b.harga_satuan).toLocaleString(
-                                "id-ID",
-                                {
-                                  currency: "IDR",
-                                }
-                              ),
+                              text: (b.volume * b.harga_satuan).toLocaleString("id-ID", {
+                                currency: "IDR",
+                              }),
                               alignment: "right",
                               border: [true, false, true, false],
                             },
@@ -334,22 +320,16 @@ export class PdfService {
                             {
                               text: `- ${toTitleCase(b.sub_jenis)} (${
                                 b.volume
-                              } orang @ ${b.harga_satuan.toLocaleString(
-                                "id-ID",
-                                {
-                                  currency: "IDR",
-                                }
-                              )})`,
+                              } orang @ ${b.harga_satuan.toLocaleString("id-ID", {
+                                currency: "IDR",
+                              })})`,
                               alignment: "left",
                               border: [true, false, true, false],
                             },
                             {
-                              text: (b.volume * b.harga_satuan).toLocaleString(
-                                "id-ID",
-                                {
-                                  currency: "IDR",
-                                }
-                              ),
+                              text: (b.volume * b.harga_satuan).toLocaleString("id-ID", {
+                                currency: "IDR",
+                              }),
                               alignment: "right",
                               border: [true, false, true, false],
                             },
@@ -404,22 +384,16 @@ export class PdfService {
                             {
                               text: `- ${toTitleCase(b.sub_jenis)} (${
                                 b.volume
-                              } orang @ ${b.harga_satuan.toLocaleString(
-                                "id-ID",
-                                {
-                                  currency: "IDR",
-                                }
-                              )})`,
+                              } orang @ ${b.harga_satuan.toLocaleString("id-ID", {
+                                currency: "IDR",
+                              })})`,
                               alignment: "left",
                               border: [true, false, true, false],
                             },
                             {
-                              text: (b.volume * b.harga_satuan).toLocaleString(
-                                "id-ID",
-                                {
-                                  currency: "IDR",
-                                }
-                              ),
+                              text: (b.volume * b.harga_satuan).toLocaleString("id-ID", {
+                                currency: "IDR",
+                              }),
                               alignment: "right",
                               border: [true, false, true, false],
                             },
@@ -481,12 +455,9 @@ export class PdfService {
                               border: [true, false, true, false],
                             },
                             {
-                              text: (b.volume * b.harga_satuan).toLocaleString(
-                                "id-ID",
-                                {
-                                  currency: "IDR",
-                                }
-                              ),
+                              text: (b.volume * b.harga_satuan).toLocaleString("id-ID", {
+                                currency: "IDR",
+                              }),
                               alignment: "right",
                               border: [true, false, true, false],
                             },
@@ -541,22 +512,16 @@ export class PdfService {
                             {
                               text: `- ${toTitleCase(b.sub_jenis)} (${
                                 b.volume
-                              } orang @ ${b.harga_satuan.toLocaleString(
-                                "id-ID",
-                                {
-                                  currency: "IDR",
-                                }
-                              )})`,
+                              } orang @ ${b.harga_satuan.toLocaleString("id-ID", {
+                                currency: "IDR",
+                              })})`,
                               alignment: "left",
                               border: [true, false, true, false],
                             },
                             {
-                              text: (b.volume * b.harga_satuan).toLocaleString(
-                                "id-ID",
-                                {
-                                  currency: "IDR",
-                                }
-                              ),
+                              text: (b.volume * b.harga_satuan).toLocaleString("id-ID", {
+                                currency: "IDR",
+                              }),
                               alignment: "right",
                               border: [true, false, true, false],
                             },
@@ -584,9 +549,7 @@ export class PdfService {
                   },
                   {},
                   {
-                    text: pegawai.RincianBiaya.map(
-                      (rb) => rb.harga_satuan * rb.volume
-                    )
+                    text: pegawai.RincianBiaya.map((rb) => rb.harga_satuan * rb.volume)
                       .reduce((rb, total) => rb + total, 0)
                       .toLocaleString("id-ID", {
                         currency: "IDR",
@@ -639,9 +602,7 @@ export class PdfService {
                 ],
                 [
                   {
-                    text: `${toTitleCase(
-                      numberToWords(termin.nominal)
-                    )} Rupiah`,
+                    text: `${toTitleCase(numberToWords(termin.nominal))} Rupiah`,
                     alignment: "center",
                     colSpan: "4",
                   },
@@ -771,9 +732,7 @@ export class PdfService {
                           { text: "Ditetapkan Sejumlah", alignment: "left" },
                           { text: ":", alignment: "center" },
                           {
-                            text: pegawai.RincianBiaya.map(
-                              (rb) => rb.harga_satuan * rb.volume
-                            )
+                            text: pegawai.RincianBiaya.map((rb) => rb.harga_satuan * rb.volume)
                               .reduce((rb, total) => rb + total, 0)
                               .toLocaleString("id-ID", {
                                 currency: "IDR",
@@ -788,8 +747,7 @@ export class PdfService {
                             text: (
                               prev_termin
                                 .map((pt) => pt.nominal)
-                                .reduce((n, total) => n + total, 0) +
-                              termin.nominal
+                                .reduce((n, total) => n + total, 0) + termin.nominal
                             ).toLocaleString("id-ID", {
                               currency: "IDR",
                             }),
@@ -801,9 +759,10 @@ export class PdfService {
                           { text: ":", alignment: "center" },
                           {
                             text: (
-                              pegawai.RincianBiaya.map(
-                                (rb) => rb.harga_satuan * rb.volume
-                              ).reduce((rb, total) => rb + total, 0) -
+                              pegawai.RincianBiaya.map((rb) => rb.harga_satuan * rb.volume).reduce(
+                                (rb, total) => rb + total,
+                                0
+                              ) -
                               (prev_termin
                                 .map((pt) => pt.nominal)
                                 .reduce((n, total) => n + total, 0) +
@@ -1079,12 +1038,9 @@ export class PdfService {
                               { text: "Keterangan", alignment: "left" },
                             ],
                             ...(pegawai.Keluarga &&
-                            pegawai.Keluarga.filter(
-                              (k) => k.status !== "TIDAK_TERTANGGUNG"
-                            ).length > 0
-                              ? pegawai.Keluarga.filter(
-                                  (k) => k.status !== "TIDAK_TERTANGGUNG"
-                                )
+                            pegawai.Keluarga.filter((k) => k.status !== "TIDAK_TERTANGGUNG")
+                              .length > 0
+                              ? pegawai.Keluarga.filter((k) => k.status !== "TIDAK_TERTANGGUNG")
                                   .sort((a, b) => {
                                     const getPriority = (d: any) => {
                                       if (d.Ref.jenis === "PASANGAN") return 0;
@@ -1099,13 +1055,14 @@ export class PdfService {
                                       { text: i + 1, alignment: "center" },
                                       { text: k.nama, alignment: "left" },
                                       {
-                                        text: new Date(
-                                          k.tanggal_lahir
-                                        ).toLocaleDateString("id-ID", {
-                                          day: "2-digit",
-                                          month: "long",
-                                          year: "numeric",
-                                        }),
+                                        text: new Date(k.tanggal_lahir).toLocaleDateString(
+                                          "id-ID",
+                                          {
+                                            day: "2-digit",
+                                            month: "long",
+                                            year: "numeric",
+                                          }
+                                        ),
                                         alignment: "left",
                                       },
                                       { text: k.Ref.nama, alignment: "left" },
@@ -1179,13 +1136,14 @@ export class PdfService {
                   {
                     text: `Berdasarkan Surat Keputusan Nomor ${
                       pegawai.SuratKeputusan.nomor
-                    } tanggal ${new Date(
-                      pegawai.SuratKeputusan.tanggal
-                    ).toLocaleDateString("id-ID", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}`,
+                    } tanggal ${new Date(pegawai.SuratKeputusan.tanggal).toLocaleDateString(
+                      "id-ID",
+                      {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      }
+                    )}`,
                     alignment: "left",
                   },
                 ],
@@ -1266,11 +1224,7 @@ export class PdfService {
                     alignment: "center",
                   },
                   {
-                    stack: [
-                      `Nomor: ${agenda.nomor}`,
-                      pegawai.nama,
-                      `NIP ${pegawai.nip}`,
-                    ],
+                    stack: [`Nomor: ${agenda.nomor}`, pegawai.nama, `NIP ${pegawai.nip}`],
                   },
                   {
                     table: {
@@ -1498,13 +1452,10 @@ export class PdfService {
                 summary.total_pegawai
               } pegawai berdasarkan Surat Keputusan Nomor ${
                 data.nomor
-              } dengan total anggaran ${summary.total_biaya.toLocaleString(
-                "id-ID",
-                {
-                  currency: "IDR",
-                  style: "currency",
-                }
-              )}. Pembayaran dilaksanakan dalam ${
+              } dengan total anggaran ${summary.total_biaya.toLocaleString("id-ID", {
+                currency: "IDR",
+                style: "currency",
+              })}. Pembayaran dilaksanakan dalam ${
                 summary.nilai_termin.length
               } termin dengan rincian sebagai berikut:`,
               ...summary.nilai_termin.map((t) => {
@@ -1689,14 +1640,11 @@ export class PdfService {
                           return {
                             stack: [
                               `${k.nama} (${k.Ref.nama})`,
-                              `${new Date(k.tanggal_lahir).toLocaleDateString(
-                                "id-ID",
-                                {
-                                  day: "2-digit",
-                                  month: "long",
-                                  year: "numeric",
-                                }
-                              )} ${k.is_invant ? "(Invan)" : ""}`,
+                              `${new Date(k.tanggal_lahir).toLocaleDateString("id-ID", {
+                                day: "2-digit",
+                                month: "long",
+                                year: "numeric",
+                              })} ${k.is_invant ? "(Invan)" : ""}`,
                               k.pekerjaan ? `${k.pekerjaan}` : "-",
                               k.status,
                             ],
@@ -1704,9 +1652,7 @@ export class PdfService {
                             margin: [0, 0, 0, 5],
                           };
                         }),
-                        ...(pegawai.Keluarga.length === 0
-                          ? ["Tidak ada keluarga"]
-                          : []),
+                        ...(pegawai.Keluarga.length === 0 ? ["Tidak ada keluarga"] : []),
                       ],
                       alignment: "left",
                     },
@@ -1723,8 +1669,7 @@ export class PdfService {
                             return 6;
                           };
                           return (
-                            getPriority(a) - getPriority(b) ||
-                            (a.urutan || 99) - (b.urutan || 99)
+                            getPriority(a) - getPriority(b) || (a.urutan || 99) - (b.urutan || 99)
                           );
                         }).map((rb) => {
                           return {
@@ -1733,19 +1678,18 @@ export class PdfService {
                               rb.keterangan,
                               `${rb.harga_satuan.toLocaleString("id-ID", {
                                 currency: "IDR",
-                              })} x ${rb.volume} = ${(
-                                rb.harga_satuan * rb.volume
-                              ).toLocaleString("id-ID", {
-                                currency: "IDR",
-                              })}`,
+                              })} x ${rb.volume} = ${(rb.harga_satuan * rb.volume).toLocaleString(
+                                "id-ID",
+                                {
+                                  currency: "IDR",
+                                }
+                              )}`,
                             ],
                             alignment: "left",
                             margin: [0, 0, 0, 5],
                           };
                         }),
-                        ...(pegawai.RincianBiaya.length === 0
-                          ? ["Tidak ada rincian biaya"]
-                          : []),
+                        ...(pegawai.RincianBiaya.length === 0 ? ["Tidak ada rincian biaya"] : []),
                       ],
                     },
                     {
@@ -1762,9 +1706,7 @@ export class PdfService {
                             margin: [0, 0, 0, 5],
                           };
                         }),
-                        ...(pegawai.Termin.length === 0
-                          ? ["Tidak ada termin"]
-                          : []),
+                        ...(pegawai.Termin.length === 0 ? ["Tidak ada termin"] : []),
                       ],
                     },
                   ];

@@ -1,20 +1,18 @@
-import { RefGolongan } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { Op, where, col } from "sequelize";
+import { Request, Response } from "express";
+import { Op, col, where } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefGolongan } from "@/repositories";
 
-export const getAllGolongan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const GolonganControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const search = (req.query.search as string) || undefined;
-    const sortField = (req.query.sortField as string) || "kode";
-    const sortOrder = (req.query.sortOrder as string) || "ASC";
     const whereClause = search
       ? {
           [Op.or]: [
@@ -23,94 +21,88 @@ export const getAllGolongan = async (
           ],
         }
       : {};
-    const { rows: data, count } = await RefGolongan.findAndCountAll({
+    const { items: data, pagination } = await RefGolongan.findAllWithPagination({
       where: whereClause,
       limit,
       offset,
-      order: [[sortField, sortOrder.toUpperCase()]],
+      order,
     });
-    return successResponse(res, "Berhasil mengambil data golongan", data, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getGolonganById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  try {
-    const data = await RefGolongan.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+    successResponse(res, "Success get all ref golongan", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
     }
-    return successResponse(res, "Berhasil mengambil data golongan", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const createGolongan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    const data = await RefGolongan.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
+
+    successResponse(res, "Success get ref golongan", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
     const { kode, nama } = req.body;
     const data = await RefGolongan.create({
       kode,
       nama,
     });
-
-    return successResponse(res, "Berhasil menambahkan data golongan", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updateGolongan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  try {
-    const { kode, nama } = req.body;
-    const data = await RefGolongan.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+    successResponse(res, "Success create ref golongan", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { kode, nama } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefGolongan.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          kode,
+          nama,
+        },
+        t
+      );
+      successResponse(res, "Success update ref golongan", data);
+    },
+    {
+      useTransaction: true,
     }
-
-    if (kode) data.kode = kode;
-    if (nama) data.nama = nama;
-    await data.save();
-    return successResponse(res, "Berhasil mengubah data golongan");
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deleteGolongan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  try {
-    const data = await RefGolongan.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefGolongan.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref golongan", data);
+    },
+    {
+      useTransaction: true,
     }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus data golongan");
-  } catch (error: unknown) {
-    next(error);
-  }
+  ),
 };

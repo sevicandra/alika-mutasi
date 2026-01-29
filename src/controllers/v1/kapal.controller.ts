@@ -1,13 +1,17 @@
-import { RefKapal } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { Op } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefKapal } from "@/repositories";
 
-export const getAllKapal = async (req: AuthenticatedRequest, res: Response, next:NextFunction) => {
-  try {
+export const KapalControllerV1 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const search = (req.query.search as string) || undefined;
     const kota_asal = req.query.kota_asal || undefined;
     const kota_tujuan = req.query.kota_tujuan || undefined;
@@ -17,99 +21,95 @@ export const getAllKapal = async (req: AuthenticatedRequest, res: Response, next
     if (kota_asal) where.kota_asal = kota_asal;
     if (kota_tujuan) where.kota_tujuan = kota_tujuan;
     if (kapal) where.kapal = kapal;
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
-    const data = await RefKapal.findAll({
+
+    const { items: data, pagination } = await RefKapal.findAllWithPagination({
       where,
       limit,
       offset,
       order,
     });
-    const count = await RefKapal.count({ where });
-    return successResponse(res, "Berhasil mengambil data kapal", data, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error)
-  }
-};
 
-export const getKapalById = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
+    successResponse(res, "Success get all ref kapal", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const kapal = await RefKapal.findByPk(id);
-    if (!kapal) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
     }
 
-    return successResponse(res, "Berhasil mengambil data kapal", kapal);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
+    const data = await RefKapal.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
 
-export const createKapal = async (req: AuthenticatedRequest, res: Response, next:NextFunction) => {
-  try {
+    successResponse(res, "Success get ref kapal", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
     const { kapal, rute, kota_asal, kota_tujuan, tarif } = req.body;
-    if (!kapal || !kota_asal || !kota_tujuan || !tarif || !rute) {
-      return errorResponse(res, "parameter tidak lengkap", null, 400);
-    }
-
     const data = await RefKapal.create({
       kapal,
+      rute,
       kota_asal,
       kota_tujuan,
       tarif,
-      rute,
     });
-
-    return successResponse(res, "Berhasil membuat data kapal", data);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
-
-export const updateKapal = async (req: AuthenticatedRequest, res: Response, next:NextFunction) => {
-  try {
-    const { id } = req.params;
-    const { kapal, rute, kota_asal, kota_tujuan, tarif } = req.body;
-    const data = await RefKapal.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+    successResponse(res, "Success create ref kapal", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { kapal, rute, kota_asal, kota_tujuan, tarif } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefKapal.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          kapal,
+          rute,
+          kota_asal,
+          kota_tujuan,
+          tarif,
+        },
+        t
+      );
+      successResponse(res, "Success update ref kapal", data);
+    },
+    {
+      useTransaction: true,
     }
-
-    if (kapal) data.kapal = kapal;
-    if (rute) data.rute = rute;
-    if (kota_asal) data.kota_asal = kota_asal;
-    if (kota_tujuan) data.kota_tujuan = kota_tujuan;
-    if (tarif) data.tarif = tarif;
-
-    await data.save();
-
-    return successResponse(res, "Berhasil memperbarui data kapal", data);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
-
-export const deleteKapal = async (req: AuthenticatedRequest, res: Response, next:NextFunction) => {
-  try {
-    const { id } = req.params;
-    const data = await RefKapal.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefKapal.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref kapal", data);
+    },
+    {
+      useTransaction: true,
     }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus data kapal", data);
-  } catch (error: unknown) {
-    next(error)
-  }
+  ),
 };

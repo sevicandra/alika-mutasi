@@ -31,11 +31,7 @@ module.exports = {
         allowNull: false,
       },
       action_type: {
-        type: Sequelize.ENUM(
-          "GENERAL_ACTION",
-          "SANGGAHAN_DIAJUKAN",
-          "SANGGAHAN_DIREVIEW",
-        ),
+        type: Sequelize.ENUM("GENERAL_ACTION", "SANGGAHAN_DIAJUKAN", "SANGGAHAN_DIREVIEW"),
         allowNull: false,
       },
       payload: {

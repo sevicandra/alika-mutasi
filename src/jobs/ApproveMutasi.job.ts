@@ -1,26 +1,19 @@
 import { Job } from "bull";
-import { BiayaJob } from "@/types/Job";
-import sequelize from "@/config/db.config";
-import {
-  PegawaiMutasi,
-  MonitoringTagihan,
-  Termin,
-  DokumenTermin,
-  TteDokumen,
-} from "@/models";
-import { BiayaMutasiService } from "@/services/hitungBiaya.service";
-import { RincianBiaya } from "@/models";
-import { GenerateFileService } from "@/services/generateFile.service";
 import dotenv from "dotenv";
-import { MinioService } from "@/services/minio.service";
-import { AlikaService } from "@/services/alika.service";
 import { Op } from "sequelize";
+import { AlikaService } from "@/services/alika.service";
+import { GenerateFileService } from "@/services/generateFile.service";
+import { BiayaMutasiService } from "@/services/hitungBiaya.service";
 import { Logger } from "@/services/log.service";
+import { minioService } from "@/services/minio-service";
+import sequelize from "@/config/db.config";
+import { DokumenTermin, MonitoringTagihan, PegawaiMutasi, Termin, TteDokumen } from "@/models";
+import { RincianBiaya } from "@/models";
+import { BiayaJob } from "@/types/Job";
+
 dotenv.config();
-const minioService = new MinioService();
-export const processApproveMutasi = async (
-  job: Job<BiayaJob>
-): Promise<void> => {
+
+export const processApproveMutasi = async (job: Job<BiayaJob>): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     const uploadedFiles: string[] = [];
     const t = await sequelize.transaction();
@@ -36,21 +29,14 @@ export const processApproveMutasi = async (
       golongan,
     } = job.data;
 
-    let statusBarang:
-      | "TIDAK_BERKELUARGA"
-      | "BERKELUARGA_TANPA_ANAK"
-      | "BERKELUARGA_DENGAN_ANAK";
+    let statusBarang: "TIDAK_BERKELUARGA" | "BERKELUARGA_TANPA_ANAK" | "BERKELUARGA_DENGAN_ANAK";
 
     try {
       RincianBiaya.destroy({
         where: {
           pegawai_id: pegawai_id,
           jenis: {
-            [Op.or]: [
-              "BIAYA_ANGKUT_ORANG_ART",
-              "BIAYA_ANGKUT_BARANG_ART",
-              "UANG_HARIAN_ART",
-            ],
+            [Op.or]: ["BIAYA_ANGKUT_ORANG_ART", "BIAYA_ANGKUT_BARANG_ART", "UANG_HARIAN_ART"],
           },
         },
         transaction: t,
@@ -73,12 +59,7 @@ export const processApproveMutasi = async (
       const uangHarian = await RincianBiaya.findAll({
         where: { pegawai_id: pegawai_id, jenis: "UANG_HARIAN" },
       });
-      if (
-        ruteOrang.length === 0 ||
-        ruteBarang.length === 0 ||
-        uangHarian.length === 0 ||
-        !agenda
-      ) {
+      if (ruteOrang.length === 0 || ruteBarang.length === 0 || uangHarian.length === 0 || !agenda) {
         throw new Error("Rute tidak ditemukan");
       }
       switch (1 + jumlah_tanggungan_dewasa + jumlah_tanggungan_invant) {
@@ -105,8 +86,7 @@ export const processApproveMutasi = async (
       }
 
       for (const r of ruteOrang) {
-        r.volume =
-          1 + jumlah_tanggungan_dewasa + jumlah_tanggungan_invant * 0.1;
+        r.volume = 1 + jumlah_tanggungan_dewasa + jumlah_tanggungan_invant * 0.1;
         await r.save({ transaction: t });
       }
       for (const r of ruteBarang) {
@@ -279,8 +259,7 @@ export const processApproveMutasi = async (
         actor_nip: null,
         actor_role: "System",
         action: "Hitung Biaya Mutasi",
-        description:
-          "mutasi berhasil dihitung dan dokumen pendukung berhasil dibuat",
+        description: "mutasi berhasil dihitung dan dokumen pendukung berhasil dibuat",
         transaction: t,
       });
       await t.commit();
@@ -290,20 +269,14 @@ export const processApproveMutasi = async (
         try {
           await minioService.deleteFile(filePath);
         } catch (deleteError) {
-          console.warn(
-            `Gagal menghapus file rollback: ${filePath}`,
-            deleteError
-          );
+          console.warn(`Gagal menghapus file rollback: ${filePath}`, deleteError);
         }
       }
       await t.rollback();
       console.error("Job gagal, percobaan ke:", job.attemptsMade + 1);
 
       if (job.attemptsMade >= 2) {
-        await PegawaiMutasi.update(
-          { status: "PENDING_APROVAL" },
-          { where: { id: pegawai_id } }
-        );
+        await PegawaiMutasi.update({ status: "PENDING_APROVAL" }, { where: { id: pegawai_id } });
         await AlikaService.sendPushNotification({
           nip: nip,
           message: `gagal melakukan perhitungan biaya mutasi, mohon hubungi admin`,

@@ -1,6 +1,7 @@
-import { Sequelize } from "sequelize";
 import dotenv from "dotenv";
 import fs from "fs";
+import { Sequelize } from "sequelize";
+
 dotenv.config();
 
 const DB_LOGGING = process.env.DB_LOGGING || "false";
@@ -18,7 +19,6 @@ const sequelize = new Sequelize(DB_CONNECTION || "", {
     timestamps: false,
   },
   logging: DB_LOGGING === "true" ? (msg) => console.log(msg) : false,
-  timezone: "+07:00",
 });
 
 export default sequelize;

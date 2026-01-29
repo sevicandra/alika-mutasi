@@ -1,97 +1,71 @@
-import { DataSanggah } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { MinioService } from "@/services/minio.service";
-const minioService = new MinioService();
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { minioService } from "@/services/minio-service";
+import { InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { fileResponse, successResponse } from "@/helpers/respose.helper";
+import { DataSanggah } from "@/repositories";
 
-export const getAllDataSanggah = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const DataSanggahControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const { SanggahId } = req.params;
+    if (typeof SanggahId != "string") {
+      throw new InvalidRequestError("Invalid sanggah id");
+    }
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
-
-    const { rows: data, count } = await DataSanggah.findAndCountAll({
+    const { items: data, pagination } = await DataSanggah.findAllWithPagination({
       where: { sanggah_id: SanggahId },
+      limit,
+      offset,
+    });
+
+    successResponse(res, "Berhasil mengambil data sanggah", data, pagination);
+  }),
+
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const { SanggahId, DataId } = req.params;
+    if (typeof SanggahId != "string" || typeof DataId != "string") {
+      throw new InvalidRequestError("Invalid sanggah id or data id");
+    }
+    const data = await DataSanggah.findOne({
+      where: { sanggah_id: SanggahId, id: DataId },
+    });
+    if (!data) {
+      throw new NotFoundError("Data tidak ditemukan");
+    }
+    successResponse(res, "Berhasil mengambil data sanggah", data);
+  }),
+
+  getFile: asyncHandler(async (req: Request, res: Response) => {
+    const { SanggahId, DataId } = req.params;
+    if (typeof SanggahId != "string" || typeof DataId != "string") {
+      throw new InvalidRequestError("Invalid sanggah id or data id");
+    }
+    const data = await DataSanggah.findOne({
+      where: { sanggah_id: SanggahId, id: DataId },
       include: [
         {
-          association: "Ref",
-        },
-        {
           association: "Sanggah",
+          attributes: ["ticket_number"],
+          include: [
+            {
+              association: "Pegawai",
+              attributes: ["nama"],
+            },
+          ],
         },
       ],
-      limit,
-      offset,
-    });
-    return successResponse(res, "Berhasil mengambil data sanggah", data, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const getDataSanggahById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { SanggahId, DataId } = req.params;
-    const data = await DataSanggah.findOne({
-      where: {
-        sanggah_id: SanggahId,
-        id: DataId,
-      },
     });
     if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "data berhasil didapatkan", data, 200);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const getSuratKeputusanFile = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { SanggahId, DataId } = req.params;
-    const data = await DataSanggah.findOne({
-      where: {
-        sanggah_id: SanggahId,
-        id: DataId,
-      },
-    });
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("Data tidak ditemukan");
     }
 
-    const stream = await minioService.downloadFile(`${data.file}`);
-    if (stream) {
-      const chunks: Buffer[] = [];
-      stream.on("data", (chunk) => chunks.push(chunk));
-      stream.on("end", () => {
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", "inline; filename=");
-        return res.status(200).send(Buffer.concat(chunks));
-      });
-      stream.on("error", (err: Error) => {
-        return errorResponse(res, "Terjadi kesalahan", err, 500);
-      });
-    }
-  } catch (error: unknown) {
-    next(error);
-  }
+    const stream = await minioService.getFile(data.file);
+    fileResponse(
+      res,
+      stream,
+      `${data.Sanggah.ticket_number}_${data.Sanggah.Pegawai.nama}.pdf`,
+      "application/pdf"
+    );
+  }),
 };

@@ -1,19 +1,19 @@
-import { Keluarga } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { Op } from "sequelize";
-import { MinioService } from "@/services/minio.service";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { minioService } from "@/services/minio-service";
+import { InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { fileResponse, successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { Keluarga } from "@/repositories";
 
-const minioService = new MinioService();
-
-export const getAllKeluarga = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const KeluargaController = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const { PegawaiId, SkId } = req.params;
+    if (typeof PegawaiId != "string" || typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
     const status = (req.query.status as string) || undefined;
@@ -21,11 +21,9 @@ export const getAllKeluarga = async (
     const where: any = {};
     if (status) where.status = status;
     if (search) where.nama = { [Op.like]: `%${search}%` };
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
-    const { rows: data, count } = await Keluarga.findAndCountAll({
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
+    const { items: data, pagination } = await Keluarga.findAllWithPagination({
       where,
       limit,
       offset,
@@ -45,25 +43,16 @@ export const getAllKeluarga = async (
         },
       ],
     });
-    return successResponse(res, "Berhasil mengambil data keluarga", data, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getKeluargaById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Berhasil mendapatkan dokumen", data, pagination);
+  }),
+
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { KeluargaId, PegawaiId, SkId } = req.params;
-    const keluarga = await Keluarga.findByPk(KeluargaId, {
+    if (typeof PegawaiId != "string" || typeof SkId != "string" || typeof KeluargaId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+    const data = await Keluarga.findById(KeluargaId, {
       include: [
         {
           association: "Ref",
@@ -79,22 +68,17 @@ export const getKeluargaById = async (
         },
       ],
     });
-    if (!keluarga) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+    if (!data) {
+      throw new NotFoundError("data tidak ditemukan");
     }
-    return successResponse(res, "Berhasil mengambil data keluarga", keluarga);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    successResponse(res, "Berhasil mendapatkan dokumen", data);
+  }),
 
-export const getFileKeluarga = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { KeluargaId, PegawaiId } = req.params;
-  try {
+  getFile: asyncHandler(async (req: Request, res: Response) => {
+    const { KeluargaId, PegawaiId } = req.params;
+    if (typeof PegawaiId != "string" || typeof KeluargaId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
     const data = await Keluarga.findOne({
       where: {
         id: KeluargaId,
@@ -102,25 +86,9 @@ export const getFileKeluarga = async (
       },
     });
     if (!data || !data.file) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("data tidak ditemukan");
     }
-    const stream = await minioService.downloadFile(`${data.file}`);
-    if (stream) {
-      const chunks: Buffer[] = [];
-      stream.on("data", (chunk) => chunks.push(chunk));
-      stream.on("end", () => {
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader(
-          "Content-Disposition",
-          `inline; filename=${data.nama}.pdf`
-        );
-        return res.status(200).send(Buffer.concat(chunks));
-      });
-      stream.on("error", (err: Error) => {
-        return errorResponse(res, "Terjadi kesalahan", err, 500);
-      });
-    }
-  } catch (error: unknown) {
-    next(error);
-  }
+    const stream = await minioService.getFile(`${data.file}`);
+    fileResponse(res, stream, `${data.nama}.pdf`, "application/pdf");
+  }),
 };

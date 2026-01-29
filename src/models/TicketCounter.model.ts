@@ -1,15 +1,12 @@
+import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes } from "sequelize";
 
 type TicketCounterAttributes = {
   year_month: string;
   last_number: number;
 };
 
-type TicketCounterCreationAttributes = Optional<
-  TicketCounterAttributes,
-  "last_number"
->;
+type TicketCounterCreationAttributes = Optional<TicketCounterAttributes, "last_number">;
 
 class TicketCounter
   extends Model<TicketCounterAttributes | TicketCounterCreationAttributes>

@@ -1,133 +1,109 @@
-import { RefHubunganKeluarga } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { Op } from "sequelize";
+import { Request, Response } from "express";
+import { Op, col, where } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefHubunganKeluarga } from "@/repositories";
 
-export const getAllHubunganKeluarga = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const HubunganKeluargaControllerV1 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const search = (req.query.search as string) || undefined;
-    const where: any = {};
-    if (search) where.nama = { [Op.like]: `%${search}%` };
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
-    const hubunganKeluarga = await RefHubunganKeluarga.findAll({
-      where,
+    const whereClause = search
+      ? {
+          [Op.or]: [
+            where(col("kode"), { [Op.like]: `%${search}%` }),
+            where(col("nama"), { [Op.like]: `%${search}%` }),
+          ],
+        }
+      : {};
+
+    const { items: data, pagination } = await RefHubunganKeluarga.findAllWithPagination({
+      where: whereClause,
       limit,
       offset,
       order,
     });
-    const count = await RefHubunganKeluarga.count({ where });
-    return successResponse(
-      res,
-      "Berhasil mengambil data hubungan keluarga",
-      hubunganKeluarga,
-      {
-        limit,
-        offset,
-        count,
-        totalPages: limit ? Math.ceil(count / limit) : 1,
+
+    successResponse(res, "Success get all ref hubungan keluarga", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
+    const data = await RefHubunganKeluarga.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
+
+    successResponse(res, "Success get ref hubungan keluarga", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
+    const { kode, nama } = req.body;
+    const data = await RefHubunganKeluarga.create({
+      kode,
+      nama,
+    });
+    successResponse(res, "Success create ref hubungan keluarga", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { kode, nama } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
       }
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const getHubunganKeluargaById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const hubunganKeluarga = await RefHubunganKeluarga.findByPk(id);
-    if (!hubunganKeluarga) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefHubunganKeluarga.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          kode,
+          nama,
+        },
+        t
+      );
+      successResponse(res, "Success update ref hubungan keluarga", data);
+    },
+    {
+      useTransaction: true,
     }
-    return successResponse(
-      res,
-      "Berhasil mengambil data hubungan keluarga",
-      hubunganKeluarga
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const createHubunganKeluarga = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { kode, nama } = req.body;
-    if (!kode || !nama) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefHubunganKeluarga.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref hubungan keluarga", data);
+    },
+    {
+      useTransaction: true,
     }
-    const hubunganKeluarga = await RefHubunganKeluarga.create({
-      kode: kode,
-      nama: nama,
-    });
-    return successResponse(
-      res,
-      "Berhasil membuat data hubungan keluarga",
-      hubunganKeluarga
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updateHubunganKeluarga = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const { kode, nama } = req.body;
-    const data = await RefHubunganKeluarga.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    if (kode) data.kode = kode;
-    if (nama) data.nama = nama;
-    await data.save();
-    return successResponse(
-      res,
-      "Berhasil mengubah data hubungan keluarga",
-      data
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deleteHubunganKeluarga = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await RefHubunganKeluarga.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
-    }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus data hubungan keluarga", {
-      id,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
+  ),
 };

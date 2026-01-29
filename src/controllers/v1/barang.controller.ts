@@ -1,114 +1,100 @@
-import { RefBarang } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefBarang } from "@/repositories";
 
-export const getAllBarang = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const BarangControllerV1 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
-    const barang = await RefBarang.findAll({
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
+
+    const { items: data, pagination } = await RefBarang.findAllWithPagination({
       limit,
       offset,
       order,
     });
-    const count = await RefBarang.count();
-    return successResponse(res, "Berhasil mengambil data barang", barang, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getBarangById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Success get all ref barang", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const barang = await RefBarang.findByPk(id);
-    if (!barang) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
     }
 
-    return successResponse(res, "Berhasil mengambil data barang", barang);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    const data = await RefBarang.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
 
-export const createBarang = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Success get ref barang", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
     const { golongan, status, volume } = req.body;
-    if (!golongan || !status || !volume) {
-      return errorResponse(res, "parameter tidak lengkap", null, 400);
-    }
     const data = await RefBarang.create({
       golongan,
       status,
       volume,
     });
-    return successResponse(res, "Berhasil membuat data darat", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updateBarang = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const { golongan, status, volume } = req.body;
-    const data = await RefBarang.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+    successResponse(res, "Success create ref barang", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { golongan, status, volume } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefBarang.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          golongan,
+          status,
+          volume,
+        },
+        t
+      );
+      successResponse(res, "Success update ref barang", data);
+    },
+    {
+      useTransaction: true,
     }
-    if (golongan) data.golongan = golongan;
-    if (status) data.status = status;
-    if (volume) data.volume = volume;
-    await data.save();
-    return successResponse(res, "Berhasil mengubah data darat", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deleteBarang = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await RefBarang.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefBarang.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref barang", data);
+    },
+    {
+      useTransaction: true,
     }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus data darat", {
-      id,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
+  ),
 };

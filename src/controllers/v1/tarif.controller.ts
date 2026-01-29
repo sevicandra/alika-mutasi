@@ -1,112 +1,98 @@
-import { RefTarif } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefTarif } from "@/repositories";
 
-export const getAllTarif = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const TarifgControllerV1 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
 
-    const data = await RefTarif.findAll({
+    const { items: data, pagination } = await RefTarif.findAllWithPagination({
       limit,
       offset,
       order,
     });
-    const count = await RefTarif.count();
-    return successResponse(res, "Berhasil mengambil data darat", data, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getTarifById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Success get all tarif", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const data = await RefTarif.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "Berhasil mengambil data darat", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const createTarif = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { jenis, tarif } = req.body;
-    if (!jenis || !tarif) {
-      return errorResponse(res, "Data tidak lengkap", null, 400);
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
     }
+
+    const data = await RefTarif.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
+
+    successResponse(res, "Success get tarif", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
+    const { jenis, tarif } = req.body;
     const data = await RefTarif.create({
       jenis,
       tarif,
     });
-    return successResponse(res, "Berhasil menambahkan data darat", {
-      id: data.id,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updateTarif = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const { jenis, tarif } = req.body;
-    const data = await RefTarif.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+    successResponse(res, "Success create tarif", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { jenis, tarif } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefTarif.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          jenis,
+          tarif,
+        },
+        t
+      );
+      successResponse(res, "Success update tarif", data);
+    },
+    {
+      useTransaction: true,
     }
-    if (jenis) data.jenis = jenis;
-    if (tarif) data.tarif = tarif;
-    await data.save();
-    return successResponse(res, "Berhasil mengubah data darat", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deleteTarif = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await RefTarif.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefTarif.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete tarif", data);
+    },
+    {
+      useTransaction: true,
     }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus data darat", data);
-  } catch (error: unknown) {
-    next(error);
-  }
+  ),
 };

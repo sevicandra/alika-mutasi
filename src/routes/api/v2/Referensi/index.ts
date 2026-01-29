@@ -1,9 +1,9 @@
 import { Router } from "express";
-import Golongan from "./Golongan.route";
-import Kantor from "./Kantor.route";
-import HubunganKeluarga from "./HubunganKeluarga.route";
-import Termin from "./Termin.route";
 import DaftarPegawai from "./DaftarPegawai.route";
+import Golongan from "./Golongan.route";
+import HubunganKeluarga from "./HubunganKeluarga.route";
+import Kantor from "./Kantor.route";
+import Termin from "./Termin.route";
 import Wilayah from "./Wilayah.route";
 
 const router = Router();

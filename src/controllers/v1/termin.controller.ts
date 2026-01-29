@@ -1,56 +1,45 @@
-import { Termin } from "@/models";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { Termin } from "@/repositories";
 
-export const getAllTermin = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const TerminControllerV1 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const { PegawaiId } = req.params;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseInt(req.query.limit as string) || undefined;
+    const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const where: any = {};
     if (PegawaiId) where.pegawai_id = PegawaiId;
-    const data = await Termin.findAll({
-      where: where,
-      limit: limit,
-      offset: offset,
-      order: [["urutan", "DESC"]],
-    });
-    const count = await Termin.count({
-      where: where,
-    });
-
-    return successResponse(res, "Berhasil mengambil data termin", data, {
+    const { items: data, pagination } = await Termin.findAllWithPagination({
+      where,
       limit,
       offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
+      order,
     });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getTerminById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Success get all termin", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { id, PegawaiId } = req.params;
-    const data = await Termin.findByPk(id);
+
+    if (typeof id !== "string" || (PegawaiId && typeof PegawaiId !== "string")) {
+      throw new InvalidRequestError("Invalid request");
+    }
+
+    const data = await Termin.findOne({
+      where: {
+        id: id,
+        pegawai_id: PegawaiId,
+      },
+    });
     if (!data) {
-      return errorResponse(res, "Termin tidak ditemukan", null, 404);
+      throw new NotFoundError("Data not found");
     }
-    if (data.pegawai_id !== PegawaiId) {
-      return errorResponse(res, "Termin tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "Berhasil mengambil data termin", data);
-  } catch (error: unknown) {
-    next(error);
-  }
+
+    successResponse(res, "Success get termin", data);
+  }),
 };

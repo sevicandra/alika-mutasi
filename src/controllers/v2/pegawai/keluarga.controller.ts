@@ -1,28 +1,27 @@
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { Op } from "sequelize";
-import { Keluarga } from "@/models";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { AuthorizationError, InvalidRequestError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { Keluarga } from "@/repositories";
 
-export const getAllKeluarga = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { nip } = req.user;
+export const KeluargaControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const { mutasiId } = req.params;
-    const data = await Keluarga.findAll({
+    if (typeof mutasiId != "string") {
+      throw new InvalidRequestError("Parameter tidak valid");
+    }
+
+    const { items: data, pagination } = await Keluarga.findAllWithPagination({
       where: {
         pegawai_id: mutasiId,
       },
@@ -42,35 +41,11 @@ export const getAllKeluarga = async (
           },
         },
       ],
-    });
-    const count = await Keluarga.count({
-      where: {
-        pegawai_id: mutasiId,
-      },
-      include: [
-        {
-          association: "Ref",
-          attributes: ["nama"],
-        },
-        {
-          association: "Pegawai",
-          attributes: ["id", "nama", "nip"],
-          where: {
-            nip,
-            status: {
-              [Op.ne]: "DRAFT",
-            },
-          },
-        },
-      ],
-    });
-    return successResponse(res, "Berhasil mengambil data keluarga", data, {
       limit,
       offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
+      order,
     });
-  } catch (error: unknown) {
-    next(error);
-  }
+
+    successResponse(res, "Success get all keluarga", data, pagination);
+  }),
 };

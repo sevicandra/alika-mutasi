@@ -1,17 +1,17 @@
-import { RefPesawat } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { Op } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefPesawat } from "@/repositories";
 
-export const getAllPesawat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const PesawatControllerV1 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const kota_asal = req.query.kota_asal || undefined;
     const kota_tujuan = req.query.kota_tujuan || undefined;
     const search = (req.query.search as string) || undefined;
@@ -19,67 +19,33 @@ export const getAllPesawat = async (
     if (search) where.rute = { [Op.like]: `%${search}%` };
     if (kota_asal) where.kota_asal = kota_asal;
     if (kota_tujuan) where.kota_tujuan = kota_tujuan;
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
-    const pesawat = await RefPesawat.findAll({
-      where,
+
+    const { items: data, pagination } = await RefPesawat.findAllWithPagination({
       limit,
       offset,
       order,
-    });
-    const count = await RefPesawat.count({
       where,
     });
-    return successResponse(res, "Berhasil mengambil data pesawat", pesawat, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getPesawatById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Success get all ref pesawat", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const pesawat = await RefPesawat.findByPk(id);
-    if (!pesawat) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "Berhasil mengambil data pesawat", pesawat);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const createPesawat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { rute, kota_asal, kota_tujuan, ekonomi, bisnis, jenis_tarif } =
-      req.body;
-    if (
-      !rute ||
-      !kota_asal ||
-      !kota_tujuan ||
-      !ekonomi ||
-      !bisnis ||
-      !jenis_tarif
-    ) {
-      return errorResponse(res, "Data tidak lengkap", null, 400);
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
     }
 
-    const pesawat = await RefPesawat.create({
+    const data = await RefPesawat.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
+
+    successResponse(res, "Success get ref pesawat", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
+    const { rute, kota_asal, kota_tujuan, ekonomi, bisnis, jenis_tarif } = req.body;
+    const data = await RefPesawat.create({
       rute,
       kota_asal,
       kota_tujuan,
@@ -87,58 +53,63 @@ export const createPesawat = async (
       bisnis,
       jenis_tarif,
     });
-    return successResponse(res, "Berhasil menambahkan data pesawat", pesawat);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updatePesawat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const { rute, kota_asal, kota_tujuan, ekonomi, bisnis, jenis_tarif } =
-      req.body;
-    const data = await RefPesawat.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+    successResponse(res, "Success create ref pesawat", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { rute, kota_asal, kota_tujuan, ekonomi, bisnis, jenis_tarif } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefPesawat.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          rute,
+          kota_asal,
+          kota_tujuan,
+          ekonomi,
+          bisnis,
+          jenis_tarif,
+        },
+        t
+      );
+      successResponse(res, "Success update ref pesawat", data);
+    },
+    {
+      useTransaction: true,
     }
-
-    if (rute) data.rute = rute;
-    if (kota_asal) data.kota_asal = kota_asal;
-    if (kota_tujuan) data.kota_tujuan = kota_tujuan;
-    if (ekonomi) data.ekonomi = ekonomi;
-    if (bisnis) data.bisnis = bisnis;
-    if (jenis_tarif) data.jenis_tarif = jenis_tarif;
-
-    await data.save();
-
-    return successResponse(res, "Berhasil memperbarui data pesawat", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deletePegawat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await RefPesawat.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefPesawat.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref pesawat", data);
+    },
+    {
+      useTransaction: true,
     }
-    await data.destroy();
-
-    return successResponse(res, "Berhasil menghapus data pesawat", {
-      id,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
+  ),
 };

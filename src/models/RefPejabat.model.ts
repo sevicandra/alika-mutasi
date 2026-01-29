@@ -1,5 +1,5 @@
+import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes } from "sequelize";
 
 type RefPejabatAttributes = {
   id: number;
@@ -38,7 +38,7 @@ RefPejabat.init(
         notNull: {
           msg: "Jenis jabatan tidak boleh kosong",
         },
-      }
+      },
     },
     nama: {
       type: DataTypes.STRING(100),

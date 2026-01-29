@@ -1,16 +1,12 @@
 import { Router } from "express";
-import {
-  getAllMutasi,
-  getTimeline,
-  getMutasiById,
-  approve,
-} from "@/controllers/v2/pegawai/mutasi.controller";
+import { MutasiControllerV2 } from "@/controllers/v2/pegawai/mutasi.controller";
 
 const router = Router({ mergeParams: true });
 
-router.get("/", getAllMutasi);
-router.get("/:mutasiId", getMutasiById);
-router.get("/:mutasiId/Timeline", getTimeline);
-router.post("/:mutasiId/Approve", approve);
+router.get("/", MutasiControllerV2.getAll);
+router.get("/:mutasiId", MutasiControllerV2.getById);
+router.get("/:mutasiId/Timeline", MutasiControllerV2.getTimeline);
+router.post("/:mutasiId/Approve", MutasiControllerV2.approve);
+
 
 export default router;

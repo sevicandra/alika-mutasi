@@ -1,327 +1,77 @@
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { col } from "sequelize";
+import { Request, Response } from "express";
 import { Op } from "sequelize";
-import { PegawaiMutasi, Termin, PembayaranLog, RefKantor, Faq } from "@/models";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { BiayaMutasiService } from "@/services/hitungBiaya.service";
+import { AuthorizationError, InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { Faq, PegawaiMutasi, RefKantor } from "@/repositories";
 
-export const getStatus = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { nip } = req.user;
+export const DashboardController = {
+  getStatus: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
-    const data = await PegawaiMutasi.findOne({
-      where: {
-        nip,
-        status: {
-          [Op.ne]: "DRAFT",
-        },
-      },
-      include: [
-        {
-          association: "KantorAsal",
-          attributes: [],
-        },
-        {
-          association: "KantorTujuan",
-          attributes: [],
-        },
-        {
-          association: "SuratKeputusan",
-          where: {
-            status: "PUBLISH",
-          },
-          attributes: [],
-        },
-      ],
-      order: [["SuratKeputusan", "tanggal", "DESC"]],
-      attributes: [
-        "id",
-        [col("SuratKeputusan.tanggal"), "tanggal"],
-        [col("SuratKeputusan.nomor"), "nomor"],
-        [col("KantorAsal.kantor"), "kantor_asal"],
-        [col("KantorTujuan.kantor"), "kantor_tujuan"],
-        "status",
-      ],
-    });
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "data berhasil didapatkan", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    const data = await PegawaiMutasi.getStatus(nip);
+    successResponse(res, "Success get status", data);
+  }),
 
-export const getStatusDokumen = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { nip } = req.user;
+  getStatusDokumen: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
-    const mutasi = await PegawaiMutasi.findOne({
-      where: {
-        nip,
-        status: {
-          [Op.not]: ["DRAFT", "PENDING_APROVAL"],
-        },
-      },
-      include: [
-        {
-          association: "SuratKeputusan",
-          where: {
-            status: "PUBLISH",
-          },
-          attributes: [],
-        },
-      ],
-      order: [["SuratKeputusan", "tanggal", "DESC"]],
-      attributes: [
-        "id",
-        [col("SuratKeputusan.tanggal"), "tanggal"],
-        [col("SuratKeputusan.nomor"), "nomor"],
-        "status",
-      ],
-    });
-    if (!mutasi) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-
-    const data = await Termin.findAll({
-      where: {
-        pegawai_id: mutasi.id,
-      },
-      include: [
-        {
-          association: "DokumenTermin",
-        },
-        {
-          association: "Ref",
-        },
-      ],
-    });
-    if (!data || data.length === 0) {
-      return errorResponse(res, "data dokumen tidak ditemukan", null, 404);
-    }
-
-    return successResponse(
+    const data = await PegawaiMutasi.getStatusDokumen(nip);
+    successResponse(
       res,
       "data berhasil didapatkan",
-      data
-        .sort((a, b) => {
-          return a.Ref.urutan - b.Ref.urutan;
-        })
-        .map((termin, index) => {
-          return {
-            termin: index + 1,
-            nama: termin.Ref.nama,
-            req_dokumen: termin.DokumenTermin.filter(
-              (dokumen) => dokumen.required
-            ).length,
-            uploaded_dokumen: termin.DokumenTermin.filter(
-              (dokumen) => dokumen.required && dokumen.file
-            ).length,
-            status: termin.status,
-          };
-        })
+      data &&
+        data
+          .sort((a, b) => {
+            return a.Ref.urutan - b.Ref.urutan;
+          })
+          .map((termin, index) => {
+            return {
+              termin: index + 1,
+              nama: termin.Ref.nama,
+              req_dokumen: termin.DokumenTermin.filter((dokumen) => dokumen.required).length,
+              uploaded_dokumen: termin.DokumenTermin.filter(
+                (dokumen) => dokumen.required && dokumen.file
+              ).length,
+              status: termin.status,
+            };
+          })
     );
-  } catch (error: unknown) {
-    console.log(error);
-    next(error);
-  }
-};
+  }),
 
-export const getBiaya = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { nip } = req.user;
+  getBiaya: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
-    const data = await PegawaiMutasi.findOne({
-      where: {
-        nip,
-        status: {
-          [Op.not]: ["DRAFT", "PENDING_APROVAL"],
-        },
-      },
-      include: [
-        {
-          association: "SuratKeputusan",
-          where: {
-            status: "PUBLISH",
-          },
-          attributes: [],
-        },
-        {
-          association: "MonitoringTagihan",
-          attributes: [],
-        },
-      ],
-      order: [["SuratKeputusan", "tanggal", "DESC"]],
-      attributes: [
-        "id",
-        [col("SuratKeputusan.tanggal"), "tanggal"],
-        [col("SuratKeputusan.nomor"), "nomor"],
-        "status",
-        [col("MonitoringTagihan.total_tagihan"), "biaya"],
-      ],
-    });
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "data berhasil didapatkan", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    const data = await PegawaiMutasi.getBiaya(nip);
 
-export const getHistory = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { nip } = req.user;
+    successResponse(res, "Success get biaya", data);
+  }),
+
+  getHistory: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
-    const mutasi = await PegawaiMutasi.findOne({
-      where: {
-        nip,
-        status: {
-          [Op.ne]: "DRAFT",
-        },
-      },
-      include: [
-        {
-          association: "SuratKeputusan",
-          where: {
-            status: "PUBLISH",
-          },
-          attributes: [],
-        },
-      ],
-      order: [["SuratKeputusan", "tanggal", "DESC"]],
-      attributes: [
-        "id",
-        [col("SuratKeputusan.tanggal"), "tanggal"],
-        [col("SuratKeputusan.nomor"), "nomor"],
-        "status",
-      ],
-    });
-    if (!mutasi) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    const data = await PembayaranLog.findAll({
-      where: {
-        pegawai_id: mutasi.id,
-      },
-      attributes: {
-        exclude: ["payload", "pegawai_id"],
-      },
-      order: [["created_at", "DESC"]],
-    });
-    if (!data || data.length === 0) {
-      return errorResponse(res, "data history tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "data berhasil didapatkan", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    const data = await PegawaiMutasi.getHistory(nip);
 
-export const getEstimasi = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  let statusBarang:
-    | "TIDAK_BERKELUARGA"
-    | "BERKELUARGA_TANPA_ANAK"
-    | "BERKELUARGA_DENGAN_ANAK";
+    successResponse(res, "Success get history", data);
+  }),
 
-  try {
-    const { nip } = req.user;
+  getEstimasi: asyncHandler(async (req: Request, res: Response) => {
+    let statusBarang: "TIDAK_BERKELUARGA" | "BERKELUARGA_TANPA_ANAK" | "BERKELUARGA_DENGAN_ANAK";
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
-    const ValidationError: { field: string; message: string }[] = [];
-    const {
-      kantor_asal,
-      kantor_tujuan,
-      tanggungan,
-      tanggungan_invant,
-      golongan,
-      pasangan,
-    } = req.body;
-
-    if (!kantor_asal)
-      ValidationError.push({
-        field: "kantor_asal",
-        message: "Kantor asal tidak boleh kosong",
-      });
-    if (!kantor_tujuan)
-      ValidationError.push({
-        field: "kantor_tujuan",
-        message: "Kantor tujuan tidak boleh kosong",
-      });
-    if (!tanggungan)
-      ValidationError.push({
-        field: "tanggungan",
-        message: "Tanggungan tidak boleh kosong",
-      });
-    if (!tanggungan_invant)
-      ValidationError.push({
-        field: "tanggungan_invant",
-        message: "Tanggungan invant tidak boleh kosong",
-      });
-    if (!golongan)
-      ValidationError.push({
-        field: "golongan",
-        message: "Golongan tidak boleh kosong",
-      });
-    if (ValidationError.length > 0) {
-      return errorResponse(res, "Validation gagal", ValidationError, 422);
-    }
+    const { kantor_asal, kantor_tujuan, tanggungan, tanggungan_invant, golongan, pasangan } =
+      req.body;
 
     const kota_asal = await RefKantor.findOne({
       where: {
@@ -348,26 +98,16 @@ export const getEstimasi = async (
     });
 
     if (!kota_asal || !kota_tujuan) {
-      return errorResponse(
-        res,
-        "Kota asal atau tujuan tidak ditemukan",
-        null,
-        404
-      );
+      throw new NotFoundError("Kota asal atau tujuan tidak ditemukan");
     }
 
     if (kota_asal?.kode_kota === kota_tujuan?.kode_kota) {
-      return errorResponse(
-        res,
-        "Kantor asal dan tujuan tidak boleh pada kota yang sama",
-        null,
-        400
-      );
+      throw new InvalidRequestError("Kantor asal dan tujuan tidak boleh pada kota yang sama");
     }
 
     switch (
       1 +
-      (pasangan ? 1 : 0) +
+      (pasangan.toUpperCase() === "TERTANGGUNG" ? 1 : 0) +
       parseInt(tanggungan) +
       parseInt(tanggungan_invant)
     ) {
@@ -398,12 +138,7 @@ export const getEstimasi = async (
     const tarif_uang_harian = await BiayaMutasiService.getTarif({
       jenis: "UANG_HARIAN",
     });
-    if (
-      !volume_barang_keluarga ||
-      !uang_harian ||
-      !tarif_packing_darat ||
-      !tarif_packing_laut
-    ) {
+    if (!volume_barang_keluarga || !uang_harian || !tarif_packing_darat || !tarif_packing_laut) {
       throw new Error("Barang tidak ditemukan");
     }
     const rute_orang = await BiayaMutasiService.RuteOrang({
@@ -445,7 +180,7 @@ export const getEstimasi = async (
       rute.push({
         volume:
           1 +
-          (pasangan ? 1 : 0) +
+          (pasangan.toUpperCase() === "TERTANGGUNG" ? 1 : 0) +
           parseInt(tanggungan) +
           parseInt(tanggungan_invant) * 0.1,
         harga_satuan: current.biaya || 0,
@@ -498,7 +233,7 @@ export const getEstimasi = async (
     rute.push({
       volume:
         1 +
-        (pasangan ? 1 : 0) +
+        (pasangan.toUpperCase() === "TERTANGGUNG" ? 1 : 0) +
         parseInt(tanggungan) +
         parseInt(tanggungan_invant),
       harga_satuan: uang_harian.tarif * (tarif_uang_harian / 100) * 3 || 0,
@@ -525,26 +260,13 @@ export const getEstimasi = async (
         total: number;
       }[]
     );
-    return successResponse(res, "Estimasi biaya berhasil didapatkan", biaya);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    successResponse(res, "Estimasi biaya berhasil didapatkan", biaya);
+  }),
 
-export const getFaq = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { nip } = req.user;
+  getFaqs: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
@@ -553,18 +275,12 @@ export const getFaq = async (
       status: "PUBLISH",
     };
     if (search) where.question = { [Op.like]: `%${search}%` };
-    const { rows: data, count } = await Faq.findAndCountAll({
+    const { items: data, pagination } = await Faq.findAllWithPagination({
       where,
       limit,
       offset,
     });
-    return successResponse(res, "Berhasil mengambil data faq", data, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
+
+    successResponse(res, "Berhasil mengambil data faq", data, pagination);
+  }),
 };

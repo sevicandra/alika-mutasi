@@ -1,39 +1,63 @@
 import { Router } from "express";
-import multer from "multer";
-import {
-  getAllDokumen,
-  tteDokumen,
-  getDokumenFile,
-  uploadDokumen,
-  deleteDokumen,
-  setTtePejabatKantorAsal,
-  setTtePejabatKantorTujuan,
-  cekStatusSPD2,
-  resetTtePejabatKantorAsal,
-  resetTtePejabatKantorTujuan,
-} from "@/controllers/v2/pegawai/dokumen.controller";
+import z from "zod";
+import { DokumenControllerV2 } from "@/controllers/v2/pegawai/dokumen.controller";
+import { uploadPdfMemory } from "@/middlewares/multer.middleware";
+import { validateBodyWithFile, validateBody } from "@/middlewares/validate-request.middleware";
+
 const router = Router({ mergeParams: true });
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (!file.originalname.endsWith(".pdf")) {
-      return cb(new Error("Only PDF files are allowed"));
-    }
-    cb(null, true);
-  },
+
+const setPejabatSchema = z.object({
+  nama: z.string("Nama is required"),
+  nip: z
+    .string("NIP is required")
+    .regex(
+      /^(19[6-9]\d|20\d{2})(0[1-9]|1[0-2])(0[1-9]|[1-2]\d|3[0-1])(19[8-9]\d|20\d{2})(0[1-9]|1[0-2])([1-2])(\d{3})$/,
+      "Invalid NIP"
+    ),
 });
 
-router.get("/", getAllDokumen);
-router.post("/:dokumenId", tteDokumen);
-router.get("/:dokumenId/File", getDokumenFile);
-router.post("/:dokumenId/File", upload.single("file"), uploadDokumen);
-router.delete("/:dokumenId/File", deleteDokumen);
-router.get("/:dokumenId/SPD2/Status", cekStatusSPD2);
-router.post("/:dokumenId/SPD2/KantorAsal", setTtePejabatKantorAsal);
-router.post("/:dokumenId/SPD2/KantorTujuan", setTtePejabatKantorTujuan);
-router.delete("/:dokumenId/SPD2/KantorAsal", resetTtePejabatKantorAsal);
-router.delete("/:dokumenId/SPD2/KantorTujuan", resetTtePejabatKantorTujuan);
+const tteSchema = z.object({
+  passphrase: z.string("Passphrase is required"),
+});
+
+const uploadSchema = z.object({
+  file: z
+    .object({
+      fieldname: z.string(),
+      originalname: z.string(),
+      encoding: z.string(),
+      mimetype: z.enum(["application/pdf"], "Format file tidak didukung. Harap upload PDF."),
+      size: z.number().max(50 * 1024 * 1024, {
+        message: `Ukuran file maksimal adalah 50MB.`,
+      }),
+      buffer: z.instanceof(Buffer),
+    },{
+      message: "File is required",
+    })
+});
+
+router.get("/", DokumenControllerV2.getAll);
+router.post("/:dokumenId", validateBody(tteSchema), DokumenControllerV2.Tte);
+router.get("/:dokumenId/File", DokumenControllerV2.getFile);
+router.post(
+  "/:dokumenId/File",
+  uploadPdfMemory,
+  validateBodyWithFile(uploadSchema),
+  DokumenControllerV2.uploadFile
+);
+router.delete("/:dokumenId/File", DokumenControllerV2.deleteFile);
+router.get("/:dokumenId/SPD2/Status", DokumenControllerV2.getStatusSPD2);
+router.post(
+  "/:dokumenId/SPD2/KantorAsal",
+  validateBody(setPejabatSchema),
+  DokumenControllerV2.setPejabatKantorAsal
+);
+router.post(
+  "/:dokumenId/SPD2/KantorTujuan",
+  validateBody(setPejabatSchema),
+  DokumenControllerV2.setPejabatKantorTujuan
+);
+router.delete("/:dokumenId/SPD2/KantorAsal", DokumenControllerV2.removePejabatKantorAsal);
+router.delete("/:dokumenId/SPD2/KantorTujuan", DokumenControllerV2.removePejabatKantorTujuan);
 
 export default router;

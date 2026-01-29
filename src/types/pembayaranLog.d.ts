@@ -1,6 +1,7 @@
 interface PengajuanSanggahAdd {
   action: "ADD";
-  data: { // This 'data' structure is specific to 'add' action
+  data: {
+    // This 'data' structure is specific to 'add' action
     nama: {
       new: string;
     };
@@ -22,13 +23,14 @@ interface PengajuanSanggahAdd {
   };
   catatan: string;
   file: string;
-};
+}
 
 interface PengajuanSanggahEdit {
   id: string;
   action: "EDIT";
   nama: string;
-  data: { // This 'data' structure is specific to 'edit' action
+  data: {
+    // This 'data' structure is specific to 'edit' action
     nama?: {
       old: string | undefined;
       new: string;
@@ -56,14 +58,14 @@ interface PengajuanSanggahEdit {
   };
   catatan: string;
   file?: string;
-};
+}
 
 interface PengajuanSanggahRemove {
   id: string;
   nama: string;
   action: "REMOVE";
   catatan: string;
-};
+}
 
 interface ReviewSanggahAdd {
   action: "ADD";
@@ -90,13 +92,14 @@ interface ReviewSanggahAdd {
   catatan: string;
   file: string;
   confrimation: boolean;
-};
+}
 
 interface ReviewSanggahEdit {
   id: string;
   action: "EDIT";
   nama: string;
-  data: { // This 'data' structure is specific to 'edit' action
+  data: {
+    // This 'data' structure is specific to 'edit' action
     nama?: {
       old: string | undefined;
       new: string;
@@ -125,7 +128,7 @@ interface ReviewSanggahEdit {
   catatan: string;
   file?: string;
   confrimation: boolean;
-};
+}
 
 interface ReviewSanggahRemove {
   id: string;
@@ -133,26 +136,24 @@ interface ReviewSanggahRemove {
   action: "REMOVE";
   catatan: string;
   confrimation: boolean;
-};
+}
 
 export type PengajuanSanggah = // Union type for different PengajuanSanggah actions
-  | PengajuanSanggahAdd
-  | PengajuanSanggahEdit
-  | PengajuanSanggahRemove;
+  PengajuanSanggahAdd | PengajuanSanggahEdit | PengajuanSanggahRemove;
 export type ReviewSanggah = ReviewSanggahAdd | ReviewSanggahEdit | ReviewSanggahRemove; // Union type for different ReviewSanggah actions
 
 interface GeneralActionAttributes {
   action_type: "GENERAL_ACTION";
   payload: null;
-};
+}
 interface SanggahanDiajukanAttributes {
   action_type: "SANGGAHAN_DIAJUKAN";
   payload: PengajuanSanggah[];
-};
+}
 interface SanggahanDireviewAttributes {
   action_type: "SANGGAHAN_DIREVIEW";
   payload: ReviewSanggah[];
-};
+}
 
 interface PembayaranLogBase {
   id: string;
@@ -162,8 +163,7 @@ interface PembayaranLogBase {
   action: string;
   description: string | null;
   created_at: Date;
-};
+}
 
-export type PembayaranLogAttributes = PembayaranLogBase & ( // Intersection type to combine base attributes with specific action types
-  GeneralActionAttributes | SanggahanDiajukanAttributes | SanggahanDireviewAttributes
-);
+export type PembayaranLogAttributes = PembayaranLogBase & // Intersection type to combine base attributes with specific action types
+  (GeneralActionAttributes | SanggahanDiajukanAttributes | SanggahanDireviewAttributes);

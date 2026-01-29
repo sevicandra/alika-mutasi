@@ -1,24 +1,18 @@
-import { PembayaranLog } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { AuthorizationError, NotFoundError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { PembayaranLog } from "@/repositories";
 
-export const getAllHistory = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
-    const { mutasiId } = req.params;
-    const { nip } = req.user;
+export const RiwayatControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
-    const data = await PembayaranLog.findAll({
+    const { mutasiId } = req.params;
+
+    const { items: data, pagination } = await PembayaranLog.findAllWithPagination({
       where: {
         pegawai_id: mutasiId,
       },
@@ -36,27 +30,16 @@ export const getAllHistory = async (
       order: [["created_at", "ASC"]],
     });
 
-    return successResponse(res, "data berhasil didapatkan", data);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
+    successResponse(res, "Success get all rincian biaya", data, pagination);
+  }),
 
-export const getHistoryById = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
-    const { mutasiId, historyId } = req.params;
-    const { nip } = req.user;
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
+    const { mutasiId, historyId } = req.params;
+
     const data = await PembayaranLog.findOne({
       where: {
         id: historyId,
@@ -75,10 +58,8 @@ export const getHistoryById = async (
       },
     });
     if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+      throw new NotFoundError("Data tidak ditemukan");
     }
-    return successResponse(res, "data berhasil didapatkan", data);
-  } catch (error: unknown) {
-    next(error)
-  }
+    successResponse(res, "Success get all rincian biaya", data);
+  }),
 };

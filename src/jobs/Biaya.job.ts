@@ -1,10 +1,11 @@
 import { Job } from "bull";
-import { BiayaJob } from "@/types/Job";
+import dotenv from "dotenv";
+import { BiayaMutasiService } from "@/services/hitungBiaya.service";
 import sequelize from "@/config/db.config";
 import { PegawaiMutasi } from "@/models";
-import { BiayaMutasiService } from "@/services/hitungBiaya.service";
 import { RincianBiaya } from "@/models";
-import dotenv from "dotenv";
+import { BiayaJob } from "@/types/Job";
+
 dotenv.config();
 
 export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
@@ -26,10 +27,7 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
       provinsi_tujuan,
     } = job.data;
 
-    let statusBarang:
-      | "TIDAK_BERKELUARGA"
-      | "BERKELUARGA_TANPA_ANAK"
-      | "BERKELUARGA_DENGAN_ANAK";
+    let statusBarang: "TIDAK_BERKELUARGA" | "BERKELUARGA_TANPA_ANAK" | "BERKELUARGA_DENGAN_ANAK";
 
     try {
       if (asal === tujuan) {
@@ -150,9 +148,7 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
       const index_kapal = rute_barang.rute.findIndex((r) => r.moda === "KAPAL");
       const jarak_darat_awal =
         index_kapal > 0
-          ? rute_barang.rute
-              .slice(0, index_kapal)
-              .reduce((a, b) => a + b.jarak, 0)
+          ? rute_barang.rute.slice(0, index_kapal).reduce((a, b) => a + b.jarak, 0)
           : 0;
 
       const jarak_darat_jawa = rute_barang.rute
@@ -175,15 +171,13 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
           if (!packingDarat && !packingLaut) {
             const coefisien_packing_darat =
               pulau_awal === "JAWA"
-                ? (jarak_darat_awal >= 100
+                ? jarak_darat_awal >= 100
                   ? 1
-                  : 0.5)
-                : (jarak_darat_awal >= 50
-                ? 1
-                : 0.5);
+                  : 0.5
+                : jarak_darat_awal >= 50
+                  ? 1
+                  : 0.5;
 
-
-            
             rute.push({
               pegawai_id: pegawai_id,
               volume: volume_barang_keluarga,
@@ -239,8 +233,7 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
         rute.push({
           pegawai_id: pegawai_id,
           volume: volume_barang_keluarga,
-          harga_satuan:
-            (current.moda === "TRUK" ? harga_satuan : current.biaya) || 0,
+          harga_satuan: (current.moda === "TRUK" ? harga_satuan : current.biaya) || 0,
           jenis: "BIAYA_ANGKUT_BARANG",
           sub_jenis: current.moda || "TRUK",
           keterangan: `${prev.kota} - ${current.kota}`,
@@ -250,8 +243,7 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
           rute.push({
             pegawai_id: pegawai_id,
             volume: volume_barang_art,
-            harga_satuan:
-              (current.moda === "TRUK" ? harga_satuan : current.biaya) || 0,
+            harga_satuan: (current.moda === "TRUK" ? harga_satuan : current.biaya) || 0,
             jenis: "BIAYA_ANGKUT_BARANG_ART",
             sub_jenis: current.moda || "TRUK",
             keterangan: `${prev.kota} - ${current.kota}`,
@@ -262,8 +254,7 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
       rute.push({
         pegawai_id: pegawai_id,
         volume: 1 + jumlah_tanggungan_dewasa + jumlah_tanggungan_invant,
-        harga_satuan:
-          uang_harian.tarif * (tarif_uang_harian / 100) * jumlah_hari || 0,
+        harga_satuan: uang_harian.tarif * (tarif_uang_harian / 100) * jumlah_hari || 0,
         jenis: "UANG_HARIAN",
         sub_jenis: `UANG HARIAN ${jumlah_hari} HARI`,
         keterangan: `UANG HARIAN ${uang_harian.provinsi}`,
@@ -290,10 +281,7 @@ export const processBiaya = async (job: Job<BiayaJob>): Promise<void> => {
       console.error("Job gagal, percobaan ke:", job.attemptsMade + 1);
 
       if (job.attemptsMade >= 2) {
-        await PegawaiMutasi.update(
-          { process_biaya: "FAILED" },
-          { where: { id: pegawai_id } }
-        );
+        await PegawaiMutasi.update({ process_biaya: "FAILED" }, { where: { id: pegawai_id } });
         console.log("Job gagal maksimal, status diubah ke failed.");
       }
       reject(error);

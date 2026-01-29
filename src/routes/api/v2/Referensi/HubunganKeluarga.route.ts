@@ -1,10 +1,7 @@
-import { Router } from "express"
-import {
-getAllRefHubunganKeluarga
-} from "@/controllers/v2/referensi/HubunganKeluarga.controller"
+import { Router } from "express";
+import { HubunganKeluargaControllerV2 } from "@/controllers/v2/admin/referensi/hubunganKeluarga.controller";
 
 const router = Router();
 
-router.get("/", getAllRefHubunganKeluarga);
-
+router.get("/", HubunganKeluargaControllerV2.getAll);
 export default router;

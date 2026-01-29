@@ -1,11 +1,5 @@
+import { BelongsTo, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import {
-  Model,
-  Optional,
-  DataTypes,
-  BelongsTo,
-} from "sequelize";
-
 import PegawaiMutasi from "./PegawaiMutasi.model";
 
 type PerubahanKeluargaAttributes = {
@@ -23,10 +17,7 @@ type PerubahanKeluargaCreationAttributes = Optional<
 >;
 
 class PerubahanKeluarga
-  extends Model<
-    PerubahanKeluargaAttributes,
-    PerubahanKeluargaCreationAttributes
-  >
+  extends Model<PerubahanKeluargaAttributes, PerubahanKeluargaCreationAttributes>
   implements PerubahanKeluargaAttributes
 {
   public id!: string;
@@ -77,6 +68,5 @@ PerubahanKeluarga.init(
     modelName: "PerubahanKeluarga",
   }
 );
-
 
 export default PerubahanKeluarga;

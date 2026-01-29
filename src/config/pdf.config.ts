@@ -21,10 +21,7 @@ export default function generatePdf({
           normal: path.join(__dirname, "../../assets/fonts/arial/ARIAL.TTF"),
           bold: path.join(__dirname, "../../assets/fonts/arial/ARIALBD.TTF"),
           italics: path.join(__dirname, "../../assets/fonts/arial/ARIALI.TTF"),
-          bolditalics: path.join(
-            __dirname,
-            "../../assets/fonts/arial/ARIALBI.TTF"
-          ),
+          bolditalics: path.join(__dirname, "../../assets/fonts/arial/ARIALBI.TTF"),
         },
       };
       const printer = new PdfPrinter(fonts);

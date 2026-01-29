@@ -1,23 +1,15 @@
+import { BelongsTo, DataTypes, HasMany, HasOne, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import {
-  Model,
-  Optional,
-  DataTypes,
-  BelongsTo,
-  HasMany,
-  HasOne,
-} from "sequelize";
-import RefKantor from "./RefKantor.model";
 import Keluarga from "./Keluarga.model";
-import SuratKeputusan from "./SuratKeputusan.model";
-import Art from "./Art.model";
-import RincianBiaya from "./RincianBiaya.model";
-import RefGolongan from "./RefGolongan.model";
 import MonitoringTagihan from "./MonitoringTagihan.model";
-import Sanggah from "./Sanggah.model";
-import Termin from "./Termin.model";
-import Rekening from "./Rekening.model";
 import PembayaranLog from "./PembayaranLog.model";
+import RefGolongan from "./RefGolongan.model";
+import RefKantor from "./RefKantor.model";
+import Rekening from "./Rekening.model";
+import RincianBiaya from "./RincianBiaya.model";
+import Sanggah from "./Sanggah.model";
+import SuratKeputusan from "./SuratKeputusan.model";
+import Termin from "./Termin.model";
 
 type PegawaiMutasiAttributes = {
   id: string;
@@ -27,13 +19,7 @@ type PegawaiMutasiAttributes = {
   nip: string;
   nama: string;
   golongan: string;
-  status:
-    | "DRAFT"
-    | "PENDING_APROVAL"
-    | "APPROVED"
-    | "CALCULATING"
-    | "DISPUTED"
-    | "REVISED";
+  status: "DRAFT" | "PENDING_APROVAL" | "APPROVED" | "CALCULATING" | "DISPUTED" | "REVISED";
   jumlah_hari: number;
   process_keluarga: "IDLE" | "PROCESSING" | "DONE" | "FAILED" | "RETRYING";
   process_biaya: "IDLE" | "PROCESSING" | "DONE" | "FAILED" | "RETRYING";
@@ -73,27 +59,11 @@ class PegawaiMutasi
   public nip!: string;
   public nama!: string;
   public golongan!: string;
-  public status!:
-    | "DRAFT"
-    | "PENDING_APROVAL"
-    | "APPROVED"
-    | "CALCULATING"
-    | "DISPUTED"
-    | "REVISED";
+  public status!: "DRAFT" | "PENDING_APROVAL" | "APPROVED" | "CALCULATING" | "DISPUTED" | "REVISED";
   public jumlah_hari!: number;
-  public process_keluarga!:
-    | "IDLE"
-    | "PROCESSING"
-    | "DONE"
-    | "FAILED"
-    | "RETRYING";
+  public process_keluarga!: "IDLE" | "PROCESSING" | "DONE" | "FAILED" | "RETRYING";
   public process_biaya!: "IDLE" | "PROCESSING" | "DONE" | "FAILED" | "RETRYING";
-  public process_termin!:
-    | "IDLE"
-    | "PROCESSING"
-    | "DONE"
-    | "FAILED"
-    | "RETRYING";
+  public process_termin!: "IDLE" | "PROCESSING" | "DONE" | "FAILED" | "RETRYING";
   public faktor_darat!: number;
   public faktor_laut!: number;
   public faktor_udara!: number;
@@ -128,7 +98,6 @@ class PegawaiMutasi
     KeluargaDewasa: HasMany<PegawaiMutasi, Keluarga>;
     KeluargaInvant: HasMany<PegawaiMutasi, Keluarga>;
     SuratKeputusan: BelongsTo<PegawaiMutasi, SuratKeputusan>;
-    Art: HasOne<PegawaiMutasi, Art>;
     RincianBiaya: HasMany<PegawaiMutasi, RincianBiaya>;
     Golongan: BelongsTo<PegawaiMutasi, RefGolongan>;
     MonitoringTagihan: HasOne<PegawaiMutasi, MonitoringTagihan>;
@@ -166,14 +135,6 @@ class PegawaiMutasi
       status: status,
     });
   }
-
-  async addArt({ nik, nama }: { nik: string; nama: string }) {
-    return await Art.create({
-      pegawai_id: this.id,
-      nik: nik,
-      nama: nama,
-    });
-  }
 }
 
 PegawaiMutasi.init(
@@ -187,7 +148,7 @@ PegawaiMutasi.init(
       type: DataTypes.STRING,
       allowNull: false,
       unique: {
-        name: "nip_sk",
+        name: "nip",
         msg: "NIP Pegawai sudah ada di SK ini",
       },
       references: {
@@ -242,6 +203,10 @@ PegawaiMutasi.init(
     nip: {
       type: DataTypes.STRING(18),
       allowNull: false,
+      unique: {
+        name: "nip",
+        msg: "NIP sudah ada di SK ini",
+      },
       validate: {
         is: {
           args: "^(19[6-9]\\d|20\\d{2})(0[1-9]|1[0-2])(0[1-9]|[1-2]\\d|3[0-1])(19[8-9]\\d|20\\d{2})(0[1-9]|1[0-2])([1-2])(\\d{3})$",
@@ -322,7 +287,7 @@ PegawaiMutasi.init(
       {
         type: "UNIQUE",
         fields: ["nip", "sk_id"],
-        name: "nip_sk",
+        name: "nip",
       },
     ],
     defaultScope: {

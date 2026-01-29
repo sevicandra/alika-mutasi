@@ -14,7 +14,6 @@ export const Invant = (birthDate: Date, referenceDate: Date) => {
   return ageInYears < 2;
 };
 
-
 export const Adult = (birthDate: Date, referenceDate: Date) => {
   const birth = new Date(birthDate);
   const ref = new Date(referenceDate);
@@ -29,4 +28,4 @@ export const Adult = (birthDate: Date, referenceDate: Date) => {
   }
 
   return ageInYears >= 21;
-}
+};

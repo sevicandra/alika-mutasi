@@ -1,7 +1,7 @@
+import { BelongsTo, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, BelongsTo } from "sequelize";
-import RevisiKeluarga from "./Sanggah.model";
 import Keluarga from "./Keluarga.model";
+import Sanggah from "./Sanggah.model";
 
 type DataSanggahAttributes = {
   id: string;
@@ -35,11 +35,11 @@ class DataSanggah
   public is_approved!: boolean;
   public file!: string;
 
-  public Sanggah!: RevisiKeluarga;
+  public Sanggah!: Sanggah;
   public Ref!: Keluarga;
 
   public static associations: {
-    Sanggah: BelongsTo<DataSanggah, RevisiKeluarga>;
+    Sanggah: BelongsTo<DataSanggah, Sanggah>;
     Ref: BelongsTo<DataSanggah, Keluarga>;
   };
 }
@@ -54,6 +54,10 @@ DataSanggah.init(
     sanggah_id: {
       type: DataTypes.STRING,
       allowNull: false,
+      unique: {
+        name: "sanggah_keluarga",
+        msg: "keluarga_id sudah ada",
+      },
       validate: {
         isUUID: {
           msg: "sanggah_id harus UUID",
@@ -64,7 +68,7 @@ DataSanggah.init(
         },
       },
       references: {
-        model: RevisiKeluarga,
+        model: Sanggah,
         key: "id",
       },
       onUpdate: "CASCADE",
@@ -96,6 +100,10 @@ DataSanggah.init(
           args: 4,
         },
       },
+      unique: {
+        name: "sanggah_keluarga",
+        msg: "keluarga_id sudah ada",
+      },
       onUpdate: "CASCADE",
       onDelete: "SET NULL",
     },
@@ -124,6 +132,13 @@ DataSanggah.init(
     sequelize,
     modelName: "DataSanggah",
     tableName: "data_sanggah",
+    indexes: [
+      {
+        type: "UNIQUE",
+        fields: ["sanggah_id", "keluarga_id"],
+        name: "sanggah_keluarga",
+      },
+    ],
   }
 );
 

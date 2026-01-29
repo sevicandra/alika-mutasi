@@ -1,6 +1,6 @@
-import { keluargaQueue } from "@/queues/Keluarga.queue";
-import { PegawaiMutasi } from "@/models";
 import sequelize from "@/config/db.config";
+import { PegawaiMutasi } from "@/models";
+import { keluargaQueue } from "@/queues/Keluarga.queue";
 
 export class KeluargaJobService {
   static async addJob(id: string): Promise<void> {
@@ -10,10 +10,7 @@ export class KeluargaJobService {
       if (!Pegawai) {
         throw new Error("Pegawai not found");
       }
-      await Pegawai.update(
-        { process_keluarga: "PROCESSING" },
-        { transaction: t }
-      );
+      await Pegawai.update({ process_keluarga: "PROCESSING" }, { transaction: t });
       await keluargaQueue.add(
         "keluarga",
         { id: Pegawai.id },
@@ -43,10 +40,7 @@ export class KeluargaJobService {
         throw new Error("Pegawai not found");
       }
       for (const item of Pegawai) {
-        await item.update(
-          { process_keluarga: "PROCESSING" },
-          { transaction: t }
-        );
+        await item.update({ process_keluarga: "PROCESSING" }, { transaction: t });
         await keluargaQueue.add(
           "keluarga",
           { id: item.id },

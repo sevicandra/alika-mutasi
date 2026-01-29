@@ -1,7 +1,8 @@
-import { redisConfig } from "./redis.config";
-import { appConfig } from "./app.config";
 import { QueueOptions } from "bull";
 import dotenv from "dotenv";
+import { appConfig } from "./app.config";
+import { redisConfig } from "./redis.config";
+
 dotenv.config();
 export const queueOptions: QueueOptions = {
   redis: {
@@ -11,11 +12,11 @@ export const queueOptions: QueueOptions = {
     password: redisConfig.password,
     db: redisConfig.db,
   },
-  prefix: appConfig.name,
+  prefix: appConfig.NAME,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
-      type: 'exponential',
+      type: "exponential",
       delay: 1000,
     },
     removeOnComplete: true,

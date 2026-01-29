@@ -44,10 +44,10 @@ module.exports = {
         type: Sequelize.DATEONLY,
         allowNull: false,
       },
-      is_invant:{
+      is_invant: {
         type: Sequelize.BOOLEAN,
         allowNull: false,
-        defaultValue: false
+        defaultValue: false,
       },
       pekerjaan: {
         type: Sequelize.STRING(50),
@@ -58,10 +58,10 @@ module.exports = {
         allowNull: false,
         defaultValue: "TIDAK_TERTANGGUNG",
       },
-      file:{
+      file: {
         type: Sequelize.STRING,
-        allowNull: true
-      }
+        allowNull: true,
+      },
     });
   },
   async down(queryInterface, Sequelize) {

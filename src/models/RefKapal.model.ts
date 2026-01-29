@@ -1,5 +1,5 @@
+import { BelongsTo, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, BelongsTo } from "sequelize";
 import Kota from "./RefKota.model";
 
 type RefKapalAttributes = {
@@ -96,9 +96,6 @@ RefKapal.init(
       }),
       allowNull: false,
       validate: {
-        isPositive: {
-          msg: "Tarif harus lebih dari 0",
-        },
         notNull: {
           msg: "Tarif tidak boleh kosong",
         },
@@ -112,6 +109,5 @@ RefKapal.init(
     timestamps: false,
   }
 );
-
 
 export default RefKapal;

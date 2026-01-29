@@ -1,5 +1,5 @@
+import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes } from "sequelize";
 import DokumenTermin from "@/models/DokumenTermin.model";
 
 type TteDokumenAttributes = {
@@ -7,12 +7,7 @@ type TteDokumenAttributes = {
   dokumen_id: string;
   nip: string | null;
   nama: string | null;
-  jabatan:
-    | "PEGAWAI"
-    | "PEJABAT_KANTOR_ASAL"
-    | "PEJABAT_KANTOR_TUJUAN"
-    | "BENDAHARA"
-    | "PPK";
+  jabatan: "PEGAWAI" | "PEJABAT_KANTOR_ASAL" | "PEJABAT_KANTOR_TUJUAN" | "BENDAHARA" | "PPK";
   koordinat_qr: {
     page: number;
     x: number;
@@ -33,8 +28,8 @@ class TteDokumen
 {
   public id!: string;
   public dokumen_id!: string;
-  public nip!: string| null;
-  public nama!: string| null;
+  public nip!: string | null;
+  public nama!: string | null;
   public jabatan!:
     | "PEGAWAI"
     | "PEJABAT_KANTOR_ASAL"

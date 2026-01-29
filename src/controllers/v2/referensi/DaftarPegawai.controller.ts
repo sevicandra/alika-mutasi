@@ -1,29 +1,21 @@
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { KemenkeuService } from "@/services/kemenkeu.service";
+import { AuthenticationError, InvalidRequestError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
 
-export const getAllPegawai = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { nip } = req.user;
+export const DaftarPegawaiControllerV2 = {
+  hrisv1: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthenticationError("Pengguna tidak dapat di verifikasi");
     }
-    const kdSatker = req.query.kdSatker as string;
-    if (!kdSatker) {
-      return errorResponse(res, "Kode satker tidak ditemukan", null, 400);
+    const { kdSatker } = req.query;
+    if (typeof kdSatker !== "string") {
+      throw new InvalidRequestError("Kode satker tidak ditemukan");
     }
     const data = await KemenkeuService.getDaftarPegawai({ kdsatker: kdSatker });
-    return successResponse(
+    successResponse(
       res,
       "Berhasil mengambil data pegawai",
       data
@@ -35,7 +27,5 @@ export const getAllPegawai = async (
         }))
         .sort((a, b) => a.nama.localeCompare(b.nama))
     );
-  } catch (error: unknown) {
-    next(error);
-  }
+  }),
 };

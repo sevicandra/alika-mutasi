@@ -1,5 +1,5 @@
+import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes } from "sequelize";
 
 type RefGolonganAttributes = {
   id: number;
@@ -30,26 +30,26 @@ RefGolongan.init(
       allowNull: false,
       unique: {
         name: "kode",
-        msg: "Kode golongan sudah ada"
+        msg: "Kode golongan sudah ada",
       },
       validate: {
-        is:{
+        is: {
           args: "^([1-3][A-D]|4[A-E])$",
-          msg: "Kode golongan harus berupa angka dan huruf yang valid"
+          msg: "Kode golongan harus berupa angka dan huruf yang valid",
         },
-        notNull:{
-          msg: "Kode golongan tidak boleh kosong"
-        }
+        notNull: {
+          msg: "Kode golongan tidak boleh kosong",
+        },
       },
     },
     nama: {
       type: DataTypes.STRING,
       allowNull: false,
-      validate:{
-        notNull:{
-          msg: "Nama golongan tidak boleh kosong"
-        }
-      }
+      validate: {
+        notNull: {
+          msg: "Nama golongan tidak boleh kosong",
+        },
+      },
     },
   },
   {
@@ -59,6 +59,5 @@ RefGolongan.init(
     timestamps: false,
   }
 );
-
 
 export default RefGolongan;

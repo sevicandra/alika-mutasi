@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { getAllPegawai } from "@/controllers/v2/referensi/DaftarPegawai.controller";
+import { DaftarPegawaiControllerV2 } from "@/controllers/v2/referensi/DaftarPegawai.controller";
 
 const router = Router();
 
-router.get("/", getAllPegawai);
+router.get("/", DaftarPegawaiControllerV2.hrisv1);
 
 export default router;

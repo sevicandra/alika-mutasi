@@ -1,34 +1,31 @@
-import { Termin, sequelize } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { Op } from "sequelize";
-import { EsignService } from "@/services/esign.service";
-import { MinioService } from "@/services/minio.service";
-import { appConfig } from "@/config/app.config";
+import { Request, Response } from "express";
 import QRCode from "qrcode";
-import { Logger } from "@/services/log.service";
+import { Op } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { AlikaService } from "@/services/alika.service";
+import { EsignService } from "@/services/esign.service";
+import { Logger } from "@/services/log.service";
+import { minioService } from "@/services/minio-service";
+import {
+  AuthorizationError,
+  InternalServerError,
+  InvalidRequestError,
+  NotFoundError,
+} from "@/utils/errors";
+import { appConfig } from "@/config/app.config";
+import { successResponse } from "@/helpers/respose.helper";
+import { Termin } from "@/repositories";
 
-const minioService = new MinioService();
-
-export const getAllTermin = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { mutasiId } = req.params;
-    const { nip } = req.user;
+export const PembayaranControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
-
+    const { mutasiId } = req.params;
+    if (typeof mutasiId != "string") {
+      throw new InvalidRequestError("Parameter tidak valid");
+    }
     const data = await Termin.findAll({
       where: {
         pegawai_id: mutasiId,
@@ -50,29 +47,18 @@ export const getAllTermin = async (
       ],
       order: [["Ref", "urutan", "ASC"]],
     });
+    successResponse(res, "data berhasil didapatkan", data);
+  }),
 
-    return successResponse(res, "data berhasil didapatkan", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const getTerminById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { nip } = req.user;
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
     const { mutasiId, terminId } = req.params;
+    if (typeof mutasiId != "string" || typeof terminId != "string") {
+      throw new InvalidRequestError("Parameter tidak valid");
+    }
     const data = await Termin.findOne({
       where: {
         id: terminId,
@@ -95,195 +81,155 @@ export const getTerminById = async (
         {
           association: "Ref",
           attributes: ["nama"],
-        }
+        },
       ],
     });
+
     if (!data) {
-      return errorResponse(res, "Termin tidak ditemukan", null, 404);
+      throw new NotFoundError("data tidak ditemukan");
     }
 
-    return successResponse(res, "Data berhasil didapatkan", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    successResponse(res, "data berhasil didapatkan", data);
+  }),
 
-export const kirimTermin = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const t = await sequelize.transaction();
-  try {
-    const { nip, nik, nama } = req.user;
-    const inputValidation: {
-      field: string;
-      message: string;
-    }[] = [];
-    if (!nip) {
-      await t.rollback();
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
-    }
-    const { mutasiId, terminId } = req.params;
-    const { passphrase, confirmation } = await req.body;
-    if (!passphrase)
-      inputValidation.push({
-        field: "passphrase",
-        message: "passphrase tidak boleh kosong",
-      });
-    if (!confirmation || confirmation !== true)
-      inputValidation.push({
-        field: "confirmation",
-        message: "mohon centang untuk melanjutkan",
-      });
-      if (inputValidation.length > 0) {
-        await t.rollback();
-        return errorResponse(res, "Parameter tidak lengkap", inputValidation, 422);
+  kirim: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
       }
-    const data = await Termin.findOne({
-      where: {
-        id: terminId,
-        pegawai_id: mutasiId,
-        status: {
-          [Op.or]: ["DRAFT", "REJECTED"],
-        },
-      },
-      include: [
-        {
-          association: "Pegawai",
-          attributes: ["id", "nama", "nip"],
-          where: {
-            nip,
-            status: {
-              [Op.ne]: "DRAFT",
-            },
+      const nip = req.user?.nip;
+      const name = req.user?.name;
+      const nik = req.user?.nik;
+      if (!nip || !nik || !name) {
+        throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
+      }
+      const { mutasiId, terminId } = req.params;
+      if (typeof mutasiId != "string" || typeof terminId != "string") {
+        throw new InvalidRequestError("Parameter tidak valid");
+      }
+      const { passphrase } = await req.body;
+      const data = await Termin.findOne({
+        where: {
+          id: terminId,
+          pegawai_id: mutasiId,
+          status: {
+            [Op.or]: ["DRAFT", "REJECTED"],
           },
         },
-        {
-          association: "DokumenTermin",
-          include: [
-            {
-              association: "Tte",
+        include: [
+          {
+            association: "Pegawai",
+            attributes: ["id", "nama", "nip"],
+            where: {
+              nip,
+              status: {
+                [Op.ne]: "DRAFT",
+              },
             },
-          ],
-        },
-        {
-          association: "Ref",
-        },
-      ],
-    });
-    if (!data) {
-      return errorResponse(res, "Termin tidak ditemukan", null, 404);
-    }
+          },
+          {
+            association: "DokumenTermin",
+            include: [
+              {
+                association: "Tte",
+              },
+            ],
+          },
+          {
+            association: "Ref",
+          },
+        ],
+      });
+      if (!data) {
+        throw new NotFoundError("Termin tidak ditemukan");
+      }
 
-    data.status = "PENDING";
-    await data.save({ transaction: t });
+      data.status = "PENDING";
+      await data.save({ transaction: t });
 
-    if (
-      data.DokumenTermin.filter((doc) => doc.required === true && !doc.file)
-        .length > 0
-    ) {
-      await t.rollback();
-      return errorResponse(
-        res,
-        "dokumen belum lengkap mohon upload seluruh dokumen yg dibutuhkan",
-        null,
-        400
-      );
-    }
-    const spd2 = data.DokumenTermin.find((doc) => doc.document_type === "SPD2");
-    if (spd2) {
-      for (const tte of spd2.Tte.filter((t) => t.jabatan !== "PPK")) {
-        if (tte.status !== "SIGNED") {
-          await t.rollback();
-          return errorResponse(
-            res,
-            "Dokumen SPD Lembar 2 belum ditandatangani pejabat kantor asal/tujuan",
-            null,
-            400
-          );
+      if (data.DokumenTermin.filter((doc) => doc.required === true && !doc.file).length > 0) {
+        throw new InvalidRequestError("Dokumen belum lengkap");
+      }
+      const spd2 = data.DokumenTermin.find((doc) => doc.document_type === "SPD2");
+      if (spd2) {
+        for (const tte of spd2.Tte.filter((t) => t.jabatan !== "PPK")) {
+          if (tte.status !== "SIGNED") {
+            throw new InvalidRequestError(
+              "Dokumen SPD Lembar 2 belum ditandatangani pejabat kantor asal/tujuan"
+            );
+          }
         }
       }
-    }
 
-    for (const doc of data.DokumenTermin.filter(
-      (doc) => doc.file && doc.Tte.find((t) => t.jabatan === "PEGAWAI")
-    )) {
-      const tteMeta = doc.Tte.find((t) => t.jabatan === "PEGAWAI");
-      if (!doc.file || !tteMeta) {
-        throw new Error("Dokumen not found or file is missing.");
+      for (const doc of data.DokumenTermin.filter(
+        (doc) => doc.file && doc.Tte.find((t) => t.jabatan === "PEGAWAI")
+      )) {
+        const tteMeta = doc.Tte.find((t) => t.jabatan === "PEGAWAI");
+        if (!doc.file || !tteMeta) {
+          throw new Error("Dokumen not found or file is missing.");
+        }
+
+        doc.process = "PROCESSING";
+        doc.processed_by = name;
+        await doc.save({ transaction: t });
+
+        const stream = await minioService.getFile(doc.file);
+        if (!stream) throw new Error("File stream could not be downloaded from Minio.");
+
+        const blob = new Blob([stream], { type: "application/pdf" });
+
+        const qrCodeUrl = `${appConfig.URL}/public/file/download/pembayaran/${doc.id}`;
+        const TteBlob = await QRCode.toDataURL(qrCodeUrl, {
+          type: "image/png",
+          margin: 0,
+        });
+        const tte = await EsignService.processEsign({
+          nik: nik,
+          passphrase: passphrase,
+          jenis: doc.document_type,
+          tujuan: "PPK Bagian SDM",
+          perihal: "Dokumen Pembayaran Mutasi",
+          blob: blob,
+          fileName: doc.file,
+          page: tteMeta.koordinat_qr.page,
+          xAxis: tteMeta.koordinat_qr.x + 50,
+          yAxis: tteMeta.koordinat_qr.y + 50,
+          width: tteMeta.koordinat_qr.x,
+          height: tteMeta.koordinat_qr.y,
+          imageTTD: await fetch(TteBlob).then((res) => res.blob()),
+          imageTTDName: "qrcode.png",
+        });
+        await minioService.uploadFile(tte.buffer, doc.file, "application/pdf");
+
+        doc.process = "IDLE";
+        doc.processed_by = "";
+        tteMeta.date = new Date(tte.date || "");
+        tteMeta.status = "SIGNED";
+        await doc.save({ transaction: t });
+        await tteMeta.save({ transaction: t });
       }
-
-      doc.process = "PROCESSING";
-      doc.processed_by = nama;
-      await doc.save({ transaction: t });
-
-      const stream = await minioService.downloadFile(doc.file);
-      if (!stream)
-        throw new Error("File stream could not be downloaded from Minio.");
-
-      const chunks: Buffer[] = [];
-      for await (const chunk of stream) {
-        chunks.push(chunk);
-      }
-      const fileBuffer = Buffer.concat(chunks);
-      const blob = new Blob([fileBuffer], { type: "application/pdf" });
-
-      const qrCodeUrl = `${appConfig.url}/public/file/download/pembayaran/${doc.id}`;
-      const TteBlob = await QRCode.toDataURL(qrCodeUrl, {
-        type: "image/png",
-        margin: 0,
+      data.status = "WAITING_APPROVAL_SDM";
+      await data.save({ transaction: t });
+      await Logger.GeneralAction({
+        pegawai_id: mutasiId,
+        actor_nip: nip,
+        actor_role: "PEGAWAI",
+        action: `Kirim Dokumen Permohonan Pembayaran Mutasi (${data.Ref.nama})`,
+        description: null,
+        transaction: t,
       });
-      const tte = await EsignService.processEsign({
-        nik: nik,
-        passphrase: passphrase,
-        jenis: doc.document_type,
-        tujuan: "PPK Bagian SDM",
-        perihal: "Dokumen Pembayaran Mutasi",
-        blob: blob,
-        fileName: doc.file,
-        page: tteMeta.koordinat_qr.page,
-        xAxis: tteMeta.koordinat_qr.x + 50,
-        yAxis: tteMeta.koordinat_qr.y + 50,
-        width: tteMeta.koordinat_qr.x,
-        height: tteMeta.koordinat_qr.y,
-        imageTTD: await fetch(TteBlob).then((res) => res.blob()),
-        imageTTDName: "qrcode.png",
+      const userSDM = await AlikaService.getUserSDM();
+      await AlikaService.sendBulkPushNotification({
+        nip: userSDM.map((user) => user.nip),
+        message: `${data.Pegawai.nama} mengajukan pembayaran mutasi`,
+        title: "Pengajuan Pembayaran Mutasi",
       });
-      await minioService.uploadFile(tte.buffer, doc.file);
 
-      doc.process = "IDLE";
-      doc.processed_by = "";
-      tteMeta.date = new Date(tte.date || "");
-      tteMeta.status = "SIGNED";
-      await doc.save({ transaction: t });
-      await tteMeta.save({ transaction: t });
+      successResponse(res, "data berhasil dikirim");
+    },
+    {
+      useTransaction: true,
     }
-    data.status = "WAITING_APPROVAL_SDM";
-    await data.save({ transaction: t });
-    await Logger.GeneralAction({
-      pegawai_id: mutasiId,
-      actor_nip: nip,
-      actor_role: "PEGAWAI",
-      action: `Kirim Dokumen Permohonan Pembayaran Mutasi (${data.Ref.nama})`,
-      description: null,
-      transaction: t,
-    });
-    const userSDM = await AlikaService.getUserSDM();
-    await AlikaService.sendBulkPushNotification({
-      nip: userSDM.map((user) => user.nip),
-      message: `${data.Pegawai.nama} mengajukan pembayaran mutasi`,
-      title: "Pengajuan Pembayaran Mutasi",
-    });
-    await t.commit();
-    return successResponse(res, "Termin berhasil di proses");
-  } catch (error: unknown) {
-    await t.rollback();
-    next(error);
-  }
+  ),
 };

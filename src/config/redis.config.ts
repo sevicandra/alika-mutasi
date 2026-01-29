@@ -1,6 +1,7 @@
-import { createClient } from "redis";
-import fs from "fs";
 import dotenv from "dotenv";
+import fs from "fs";
+import { createClient } from "redis";
+
 dotenv.config();
 
 export const redisConfig = {

@@ -1,6 +1,6 @@
-import { terminQueue } from "@/queues/Termin.queue";
-import { PegawaiMutasi } from "@/models";
 import sequelize from "@/config/db.config";
+import { PegawaiMutasi } from "@/models";
+import { terminQueue } from "@/queues/Termin.queue";
 
 export class terminJobService {
   static async addJob({
@@ -43,9 +43,7 @@ export class terminJobService {
       await Pegawai.save({ transaction: t });
       let nominal: number;
       if (type === "UANG_MUKA") {
-        nominal = Math.floor(
-          Pegawai.MonitoringTagihan.total_tagihan * (percentage / 100)
-        );
+        nominal = Math.floor(Pegawai.MonitoringTagihan.total_tagihan * (percentage / 100));
 
         if (maximum) {
           nominal = Math.min(nominal, maximum);

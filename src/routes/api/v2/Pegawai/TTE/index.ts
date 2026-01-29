@@ -1,19 +1,18 @@
 import { Router } from "express";
-import {
-  getAllTte,
-  getFileTte,
-  getTteById,
-  processTte,
-  tolakTte,
-} from "@/controllers/v2/pegawai/tte.controller";
-
+import z from "zod";
+import { TteControllerV2 } from "@/controllers/v2/pegawai/tte.controller";
+import { validateBody } from "@/middlewares/validate-request.middleware";
 
 const router = Router({ mergeParams: true });
 
-router.get("/", getAllTte);
-router.get("/:id", getTteById);
-router.get("/:id/File", getFileTte);
-router.post("/:id/Process", processTte);
-router.post("/:id/Tolak", tolakTte);
+const tteSchema = z.object({
+  passphrase: z.string("Passphrase is required"),
+  tanggal: z.string().optional(),
+});
 
+router.get("/", TteControllerV2.getAll);
+router.get("/:id", TteControllerV2.getById);
+router.get("/:id/File", TteControllerV2.getFile);
+router.post("/:id/Process", validateBody(tteSchema), TteControllerV2.process);
+router.post("/:id/Tolak", TteControllerV2.reject);
 export default router;

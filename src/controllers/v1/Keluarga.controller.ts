@@ -1,17 +1,18 @@
-import { Keluarga } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { Op } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { Keluarga } from "@/repositories";
 
-export const getAllKeluarga = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
+export const KeluargaControllerV1 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const { PegawaiId } = req.params;
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const pegawai_id = req.params.pegawai_id || undefined;
     const status = (req.query.status as string) || undefined;
     const search = (req.query.search as string) || undefined;
@@ -21,10 +22,6 @@ export const getAllKeluarga = async (
     if (status) where.status = status;
     if (search) where.nama = { [Op.like]: `%${search}%` };
     if (PegawaiId) where.pegawai_id = PegawaiId;
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
     const include: any[] = [];
     if (associations) {
       const associationsArray = associations.split(",");
@@ -34,63 +31,37 @@ export const getAllKeluarga = async (
         });
       }
     }
-    const keluarga = await Keluarga.findAll({
+
+    const { items: data, pagination } = await Keluarga.findAllWithPagination({
       where,
       limit,
       offset,
       order,
       include,
     });
-    return successResponse(res, "Berhasil mengambil data keluarga", keluarga);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
 
-export const getKeluargaById = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
+    successResponse(res, "Success get all keluarga", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { id, PegawaiId } = req.params;
-    const keluarga = await Keluarga.findByPk(id);
-    if (!keluarga || keluarga.pegawai_id !== PegawaiId) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "Berhasil mengambil data keluarga", keluarga);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
 
-export const createKeluarga = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  const { PegawaiId } = req.params;
-  try {
-    const {
-      pegawai_id,
-      nik,
-      nama,
-      hubungan,
-      tanggal_lahir,
-      is_invant,
-      pekerjaan,
-      status,
-    } = req.body;
-    if (
-      (!pegawai_id && PegawaiId) ||
-      !nama ||
-      !hubungan ||
-      !tanggal_lahir ||
-      !is_invant ||
-      !status
-    ) {
-      return errorResponse(res, "Data tidak lengkap", null, 400);
+    if (typeof id !== "string" || (PegawaiId && typeof PegawaiId !== "string")) {
+      throw new InvalidRequestError("Invalid request");
     }
 
-    const keluarga = await Keluarga.create({
+    const data = await Keluarga.findById(id);
+
+    if (!data || data.pegawai_id !== PegawaiId) {
+      throw new NotFoundError("Data not found");
+    }
+
+    successResponse(res, "Success get keluarga", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
+    const { PegawaiId } = req.params;
+    const { pegawai_id, nik, nama, hubungan, tanggal_lahir, is_invant, pekerjaan, status } =
+      req.body;
+    const data = await Keluarga.create({
       pegawai_id: PegawaiId || pegawai_id,
       nik,
       nama,
@@ -100,63 +71,66 @@ export const createKeluarga = async (
       pekerjaan,
       status,
     });
-    return successResponse(res, "Berhasil menambahkan data keluarga", keluarga);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
-
-export const updateKeluarga = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
-    const { id, PegawaiId } = req.params;
-    const {
-      pegawai_id,
-      nik,
-      nama,
-      hubungan,
-      tanggal_lahir,
-      invant,
-      pekerjaan,
-      status,
-    } = req.body;
-
-    const data = await Keluarga.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+    successResponse(res, "Success create keluarga", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id, PegawaiId } = req.params;
+      const { nik, nama, hubungan, tanggal_lahir, is_invant, pekerjaan, status } = req.body;
+      if (typeof id !== "string" || (PegawaiId && typeof PegawaiId !== "string")) {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await Keluarga.updateOne(
+        {
+          where: {
+            id: id,
+            pegawai_id: PegawaiId,
+          },
+        },
+        {
+          nik,
+          nama,
+          hubungan,
+          tanggal_lahir,
+          is_invant,
+          pekerjaan,
+          status,
+        },
+        t
+      );
+      successResponse(res, "Success update keluarga", data);
+    },
+    {
+      useTransaction: true,
     }
-    if (pegawai_id || PegawaiId) data.pegawai_id = pegawai_id || PegawaiId;
-    if (nik) data.nik = nik;
-    if (nama) data.nama = nama;
-    if (hubungan) data.hubungan = hubungan;
-    if (tanggal_lahir) data.tanggal_lahir = tanggal_lahir;
-    if (invant) data.is_invant = invant;
-    if (pekerjaan) data.pekerjaan = pekerjaan;
-    if (status) data.status = status;
-    await data.save();
-    return successResponse(res, "Berhasil mengubah data keluarga", data);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
-
-export const deleteKeluarga = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
-    const { id, PegawaiId } = req.params;
-    const data = await Keluarga.findByPk(id);
-    if (!data || data.pegawai_id !== PegawaiId) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id, PegawaiId } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string" || (PegawaiId && typeof PegawaiId !== "string")) {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await Keluarga.deleteOne(
+        {
+          where: {
+            id: id,
+            pegawai_id: PegawaiId,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete keluarga", data);
+    },
+    {
+      useTransaction: true,
     }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus data keluarga", {
-      id,
-    });
-  } catch (error: unknown) {
-    next(error)
-  }
+  ),
 };

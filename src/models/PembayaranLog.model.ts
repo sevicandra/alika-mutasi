@@ -1,18 +1,11 @@
+import { BelongsTo, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, BelongsTo } from "sequelize";
-import PegawaiMutasi from "./PegawaiMutasi.model";
 import { PembayaranLogAttributes } from "@/types/pembayaranLog";
+import PegawaiMutasi from "./PegawaiMutasi.model";
 
+type PembayaranLogCreationAttributes = Optional<PembayaranLogAttributes, "id" | "created_at">;
 
-type PembayaranLogCreationAttributes = Optional<
-  PembayaranLogAttributes,
-  "id" | "created_at"
->;
-
-class PembayaranLog extends Model<
-  PembayaranLogAttributes,
-  PembayaranLogCreationAttributes
-> {
+class PembayaranLog extends Model<PembayaranLogAttributes, PembayaranLogCreationAttributes> {
   public id!: string;
   public pegawai_id!: string;
   public actor_nip!: string | null;
@@ -20,10 +13,7 @@ class PembayaranLog extends Model<
   public action!: string;
   public description!: string | null;
   public created_at!: Date;
-  public action_type!:
-    | "GENERAL_ACTION"
-    | "SANGGAHAN_DIAJUKAN"
-    | "SANGGAHAN_DIREVIEW";
+  public action_type!: "GENERAL_ACTION" | "SANGGAHAN_DIAJUKAN" | "SANGGAHAN_DIREVIEW";
   public payload!: any; // This will be refined by the union type in PembayaranLogAttributes
 
   public Pegawai!: PegawaiMutasi;
@@ -65,11 +55,7 @@ PembayaranLog.init(
       defaultValue: DataTypes.NOW,
     },
     action_type: {
-      type: DataTypes.ENUM(
-        "GENERAL_ACTION",
-        "SANGGAHAN_DIAJUKAN",
-        "SANGGAHAN_DIREVIEW"
-      ),
+      type: DataTypes.ENUM("GENERAL_ACTION", "SANGGAHAN_DIAJUKAN", "SANGGAHAN_DIREVIEW"),
       allowNull: false,
     },
     payload: {

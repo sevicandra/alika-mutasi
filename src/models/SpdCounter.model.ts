@@ -1,5 +1,5 @@
+import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes } from "sequelize";
 
 type SpdCounterAttributes = {
   year: string;
@@ -7,10 +7,7 @@ type SpdCounterAttributes = {
   last_number: number;
 };
 
-type SpdCounterCreationAttributes = Optional<
-  SpdCounterAttributes,
-  "last_number" | "year"
->;
+type SpdCounterCreationAttributes = Optional<SpdCounterAttributes, "last_number" | "year">;
 
 class SpdCounter
   extends Model<SpdCounterAttributes | SpdCounterCreationAttributes>

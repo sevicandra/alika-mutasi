@@ -1,114 +1,108 @@
-import { RefPejabat } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { Op, where, col } from "sequelize";
+import { Request, Response } from "express";
+import { Op, col, where } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefPejabat } from "@/repositories";
 
-export const getAllPejabat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const pejabatControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const search = (req.query.search as string) || undefined;
-    const sortField = (req.query.sortField as string) || "jenis";
-    const sortOrder = (req.query.sortOrder as string) || "ASC";
     const whereClause = search
       ? {
           [Op.or]: [where(col("jenis"), { [Op.like]: `%${search}%` })],
         }
       : {};
-    const { rows: data, count } = await RefPejabat.findAndCountAll({
+
+    const { items: data, pagination } = await RefPejabat.findAllWithPagination({
       where: whereClause,
       limit,
       offset,
-      order: [[sortField, sortOrder.toUpperCase()]],
+      order,
     });
-    return successResponse(res, "Berhasil mengambil referensi pejabat", data, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getPejabatById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  try {
-    const data = await RefPejabat.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+    successResponse(res, "Success get all ref pejabat", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
     }
-    return successResponse(res, "Berhasil mengambil referensi pejabat", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const createPejabat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    const data = await RefPejabat.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
+
+    successResponse(res, "Success get ref pejabat", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
     const { jenis, nama, nip } = req.body;
     const data = await RefPejabat.create({
       jenis,
       nama,
       nip,
     });
-
-    return successResponse(res, "Berhasil menambahkan referensi pejabat", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updatePejabat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  try {
-    const { jenis, nama, nip } = req.body;
-    const data = await RefPejabat.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+    successResponse(res, "Success create ref pejabat", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { jenis, nama, nip } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefPejabat.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          jenis,
+          nama,
+          nip,
+        },
+        t
+      );
+      successResponse(res, "Success update ref pejabat", data);
+    },
+    {
+      useTransaction: true,
     }
-    if (jenis) data.jenis = jenis;
-    if (nama) data.nama = nama;
-    if (nip) data.nip = nip;
-    await data.save();
-    return successResponse(res, "Berhasil mengubah referensi pejabat");
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deletePejabat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  try {
-    const data = await RefPejabat.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefPejabat.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref pejabat", data);
+    },
+    {
+      useTransaction: true,
     }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus referensi pejabat");
-  } catch (error: unknown) {
-    next(error);
-  }
+  ),
 };

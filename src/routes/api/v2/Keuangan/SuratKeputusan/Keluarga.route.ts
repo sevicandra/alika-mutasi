@@ -1,16 +1,10 @@
 import { Router } from "express";
-import {
-  getAllKeluarga,
-  getKeluargaById,
-
-  getFileKeluarga
-} from "@/controllers/v2/keuangan/suratKeputusan/keluarga.controller";
+import { KeluargaController } from "@/controllers/v2/keuangan/suratKeputusan/keluarga.controller";
 
 const router = Router({ mergeParams: true });
 
-router.get("/", getAllKeluarga);
-router.get("/:KeluargaId", getKeluargaById);
-router.get("/:KeluargaId/File", getFileKeluarga);
-
+router.get("/", KeluargaController.getAll);
+router.get("/:KeluargaId", KeluargaController.getById);
+router.get("/:KeluargaId/File", KeluargaController.getFile);
 
 export default router;

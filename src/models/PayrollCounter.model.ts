@@ -1,16 +1,12 @@
+import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes } from "sequelize";
 
 type PayrollCounterAttributes = {
   sk_id: string;
   last_number: number;
 };
 
-
-type PayrollCounterCreationAttributes = Optional<
-  PayrollCounterAttributes,
-  "last_number"
->;
+type PayrollCounterCreationAttributes = Optional<PayrollCounterAttributes, "last_number">;
 
 class PayrollCounter
   extends Model<PayrollCounterAttributes, PayrollCounterCreationAttributes>
@@ -19,7 +15,6 @@ class PayrollCounter
   public sk_id!: string;
   public last_number!: number;
 }
-
 
 PayrollCounter.init(
   {

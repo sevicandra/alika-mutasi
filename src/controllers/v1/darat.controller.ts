@@ -1,129 +1,110 @@
-import { RefDarat } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { Op } from "sequelize";
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefDarat } from "@/repositories";
 
-export const getAllDarat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const DaratControllerV1 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
-    const search = (req.query.search as string) || undefined;
     const kota_asal = req.query.kota_asal || undefined;
     const kota_tujuan = req.query.kota_tujuan || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const where: any = {};
-    if (search) where.kantor = { [Op.like]: `%${search}%` };
     if (kota_asal) where.kota_asal = kota_asal;
     if (kota_tujuan) where.kota_tujuan = kota_tujuan;
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
-    const darat = await RefDarat.findAll({
-      where,
+
+    const { items: data, pagination } = await RefDarat.findAllWithPagination({
       limit,
       offset,
       order,
+      where,
     });
-    const count = await RefDarat.count({ where });
-    return successResponse(res, "Berhasil mengambil data darat", darat, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getDaratById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Success get all ref darat", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const darat = await RefDarat.findByPk(id);
-    if (!darat) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
     }
 
-    return successResponse(res, "Berhasil mengambil data darat", darat);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    const data = await RefDarat.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
 
-export const createDarat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Success get ref darat", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
     const { rute, kota_asal, kota_tujuan, jarak, pulau } = req.body;
-    if (!rute || !kota_asal || !kota_tujuan || !jarak || !pulau) {
-      return errorResponse(res, "parameter tidak lengkap", null, 400);
-    }
-    const darat = await RefDarat.create({
+    const data = await RefDarat.create({
       rute,
       kota_asal,
       kota_tujuan,
       jarak,
       pulau,
     });
-    return successResponse(res, "Berhasil menambahkan data darat", darat);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updateDarat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const { rute, kota_asal, kota_tujuan, jarak, pulau } = req.body;
-    const data = await RefDarat.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+    successResponse(res, "Success create ref darat", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { rute, kota_asal, kota_tujuan, jarak, pulau } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefDarat.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          rute,
+          kota_asal,
+          kota_tujuan,
+          jarak,
+          pulau,
+        },
+        t
+      );
+      successResponse(res, "Success update ref darat", data);
+    },
+    {
+      useTransaction: true,
     }
-
-    if (rute) data.rute = rute;
-    if (kota_asal) data.kota_asal = kota_asal;
-    if (kota_tujuan) data.kota_tujuan = kota_tujuan;
-    if (jarak) data.jarak = jarak;
-    if (pulau) data.pulau = pulau;
-
-    await data.save();
-
-    return successResponse(res, "Berhasil memperbarui data darat", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deleteDarat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await RefDarat.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefDarat.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref darat", data);
+    },
+    {
+      useTransaction: true,
     }
-    await data.destroy();
-
-    return successResponse(res, "Berhasil menghapus data darat", { id });
-  } catch (error: unknown) {
-    next(error);
-  }
+  ),
 };

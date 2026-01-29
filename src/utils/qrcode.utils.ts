@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import sharp from "sharp";
+
 export const generateQRCode = async (url: string) => {
   const qrBlob = await QRCode.toDataURL(url, {
     type: "image/png",
@@ -34,15 +35,9 @@ export const generateQRCodeWithText = async (
         errorCorrectionLevel: "H",
       });
 
-      const headerWidth = Math.max(
-        Math.floor(header.length * (fontSize * 0.6)),
-        qrSize
-      );
+      const headerWidth = Math.max(Math.floor(header.length * (fontSize * 0.6)), qrSize);
 
-      const footerWidth = Math.max(
-        Math.floor(footer.length * (fontSize * 0.65)),
-        qrSize
-      );
+      const footerWidth = Math.max(Math.floor(footer.length * (fontSize * 0.65)), qrSize);
 
       const textWidth = Math.max(headerWidth, footerWidth);
 
@@ -76,8 +71,7 @@ export const generateQRCodeWithText = async (
     `);
 
       const finalWidth = Math.max(qrSize, textWidth) + padding * 2;
-      const finalHeight =
-        textHeight + padding + qrSize + padding + textHeight + padding;
+      const finalHeight = textHeight + padding + qrSize + padding + textHeight + padding;
 
       const baseImage = await sharp({
         create: {

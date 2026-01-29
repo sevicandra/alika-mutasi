@@ -1,6 +1,6 @@
+import { Transaction } from "sequelize";
 import { PembayaranLog } from "@/models";
 import { PengajuanSanggah, ReviewSanggah } from "@/types/pembayaranLog";
-import { Transaction } from "sequelize";
 
 export class Logger {
   static async GeneralAction({
@@ -141,7 +141,10 @@ export class Logger {
             actor_role,
             action,
             description,
-            action_type: "GENERAL_ACTION" as "GENERAL_ACTION" | "SANGGAHAN_DIAJUKAN" | "SANGGAHAN_DIREVIEW",
+            action_type: "GENERAL_ACTION" as
+              | "GENERAL_ACTION"
+              | "SANGGAHAN_DIAJUKAN"
+              | "SANGGAHAN_DIREVIEW",
             payload: null,
           })),
           {

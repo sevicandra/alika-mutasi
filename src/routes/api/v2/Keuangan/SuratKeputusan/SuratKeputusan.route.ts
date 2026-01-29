@@ -1,30 +1,11 @@
 import { Router } from "express";
-import {
-  getAllSuratKeputusan,
-  getSuratKeputusanById,
-  getSuratKeputusanFile,
-  importPayroll,
-  getOverview,
-} from "@/controllers/v2/keuangan/suratKeputusan/suratKeputusan.controller";
-import multer from "multer";
-
+import { SuratKeputusanController } from "@/controllers/v2/keuangan/suratKeputusan/suratKeputusan.controller";
+import { uploadCsvMemory } from "@/middlewares/multer.middleware";
 const router = Router();
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (!file.originalname.endsWith(".csv")) {
-      return cb(new Error("Only CSV files are allowed"));
-    }
-    cb(null, true);
-  },
-});
 
-router.get("/", getAllSuratKeputusan);
-router.get("/:SkId", getSuratKeputusanById);
-router.get("/:SkId/File", getSuratKeputusanFile);
-router.post("/:SkId/Payroll", upload.single("file"), importPayroll);
-router.get("/:SkId/Overview", getOverview);
-
+router.get("/", SuratKeputusanController.getAll);
+router.get("/:SkId", SuratKeputusanController.getById);
+router.get("/:SkId/File", SuratKeputusanController.getFile);
+router.post("/:SkId/Payroll", uploadCsvMemory, SuratKeputusanController.importPayroll);
+router.get("/:SkId/Overview", SuratKeputusanController.getOverview);
 export default router;

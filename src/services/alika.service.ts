@@ -1,9 +1,8 @@
 import axios from "axios";
-import { alikaConfig } from "@/config/alika.config";
 import jwkToPem from "jwk-to-pem";
-import { RedisService } from "./redis.service";
+import { alikaConfig } from "@/config/alika.config";
 import { appConfig } from "@/config/app.config";
-const redis = new RedisService();
+import { redisService } from "./redis-service";
 
 export class AlikaService {
   private static token: string | null = null;
@@ -100,9 +99,7 @@ export class AlikaService {
       if (this.publicKey && currentTime < this.publicKeyExpiration) {
         return this.publicKey;
       }
-      const response = await axios.get(
-        `${alikaConfig.BASE_URI}/.well-known/jwks.json`
-      );
+      const response = await axios.get(`${alikaConfig.BASE_URI}/.well-known/jwks.json`);
       const jwk = response.data.keys[0];
       const pem = jwkToPem(jwk);
       this.publicKey = pem;
@@ -120,11 +117,14 @@ export class AlikaService {
     }[]
   > {
     try {
-      const cachedUser = await redis.getCache(
-        `${appConfig.name}:Alika:User:SDM`
-      );
+      const cachedUser = await redisService.get<
+        {
+          nama: string;
+          nip: string;
+        }[]
+      >(`${appConfig.NAME}:Alika:User:SDM`);
       if (cachedUser) {
-        return JSON.parse(cachedUser);
+        return cachedUser;
       }
       const { data } = await axios.get(
         `${alikaConfig.BASE_URI}/api/v1/user/getByRole?service_kode=005&role=002`,
@@ -134,11 +134,7 @@ export class AlikaService {
           },
         }
       );
-      await redis.setCache(
-        `${appConfig.name}:Alika:User:SDM`,
-        JSON.stringify(data.data),
-        3600
-      );
+      await redisService.setWithTimeout(`${appConfig.NAME}:Alika:User:SDM`, data.data, 3600);
       return data.data as {
         nama: string;
         nip: string;
@@ -155,11 +151,14 @@ export class AlikaService {
     }[]
   > {
     try {
-      const cachedUser = await redis.getCache(
-        `${appConfig.name}:Alika:User:Keu`
-      );
+      const cachedUser = await redisService.get<
+        {
+          nama: string;
+          nip: string;
+        }[]
+      >(`${appConfig.NAME}:Alika:User:Keu`);
       if (cachedUser) {
-        return JSON.parse(cachedUser);
+        return cachedUser;
       }
       const { data } = await axios.get(
         `${alikaConfig.BASE_URI}/api/v1/user/getByRole?service_kode=005&role=003`,
@@ -169,11 +168,7 @@ export class AlikaService {
           },
         }
       );
-      await redis.setCache(
-        `${appConfig.name}:Alika:User:Keu`,
-        JSON.stringify(data.data),
-        3600
-      );
+      await redisService.setWithTimeout(`${appConfig.NAME}:Alika:User:Keu`, data.data, 3600);
       return data.data as {
         nama: string;
         nip: string;

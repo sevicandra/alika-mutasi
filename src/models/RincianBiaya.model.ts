@@ -1,5 +1,5 @@
+import { BelongsTo, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes } from "sequelize";
 import PegawaiMutasi from "./PegawaiMutasi.model";
 
 type RincianBiayaAttributes = {
@@ -19,10 +19,7 @@ type RincianBiayaAttributes = {
   urutan?: number;
 };
 
-type RincianBiayaCreationAttributes = Optional<
-  RincianBiayaAttributes,
-  "id" | "urutan"
->;
+type RincianBiayaCreationAttributes = Optional<RincianBiayaAttributes, "id" | "urutan">;
 
 class RincianBiaya
   extends Model<RincianBiayaAttributes, RincianBiayaCreationAttributes>
@@ -42,6 +39,12 @@ class RincianBiaya
   public sub_jenis!: string;
   public keterangan!: string;
   public urutan?: number;
+
+  public Pegawai!: PegawaiMutasi;
+
+  public static associations: {
+    Pegawai: BelongsTo<PegawaiMutasi, RincianBiaya>;
+  };
 }
 
 RincianBiaya.init(

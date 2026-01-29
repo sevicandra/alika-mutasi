@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { getAllDataSanggah, getSuratKeputusanFile } from "@/controllers/v2/sdm/dataSanggah.controller";
+import { DataSanggahControllerV2 } from "@/controllers/v2/sdm/dataSanggah.controller";
 
 const router = Router({ mergeParams: true });
-router.get("/", getAllDataSanggah);
-router.get("/:DataId/File", getSuratKeputusanFile);
+router.get("/", DataSanggahControllerV2.getAll);
+router.get("/:DataId/File", DataSanggahControllerV2.getFile);
 
 export default router;

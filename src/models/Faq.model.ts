@@ -1,5 +1,5 @@
+import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes } from "sequelize";
 
 type FaqAttributes = {
   id: string;
@@ -9,12 +9,9 @@ type FaqAttributes = {
   created_at: Date;
 };
 
-type FaqCreationAttributes = Optional<FaqAttributes, "id"| "status" | "created_at">;
+type FaqCreationAttributes = Optional<FaqAttributes, "id" | "status" | "created_at">;
 
-class Faq
-  extends Model<FaqAttributes, FaqCreationAttributes>
-  implements FaqAttributes
-{
+class Faq extends Model<FaqAttributes, FaqCreationAttributes> implements FaqAttributes {
   public id!: string;
   public question!: string;
   public answer!: string;
@@ -34,7 +31,7 @@ Faq.init(
       allowNull: false,
     },
     answer: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
       allowNull: false,
     },
     status: {

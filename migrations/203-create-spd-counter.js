@@ -8,7 +8,7 @@ module.exports = {
         type: Sequelize.STRING(4),
         primaryKey: true,
       },
-      ext:{
+      ext: {
         type: Sequelize.STRING(50),
         allowNull: false,
       },

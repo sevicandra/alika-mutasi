@@ -1,11 +1,10 @@
 import { Router } from "express";
-import SuratKeputusan from "./SuratKeputusan.route";
-import PegawaiMutasi from "./PegawaiMutasi.route";
+import History from "./History.route";
 import Keluarga from "./Keluarga.route";
+import PegawaiMutasi from "./PegawaiMutasi.route";
 import RincianBiaya from "./RincianBiaya.route";
+import SuratKeputusan from "./SuratKeputusan.route";
 import Termin from "./Termin.route";
-import History from "./History.route"
-
 
 const router = Router({ mergeParams: true });
 router.use("/", SuratKeputusan);

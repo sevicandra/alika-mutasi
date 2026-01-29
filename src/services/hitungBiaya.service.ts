@@ -1,102 +1,72 @@
+import { appConfig } from "@/config/app.config";
+import sequelize from "@/config/db.config";
+import { PegawaiMutasi } from "@/models";
+import { biayaQueue } from "@/queues/Biaya.queue";
 import {
+  RefBarang,
   RefDarat,
   RefKapal,
-  RefTarif,
-  RefPesawat,
-  RefBarang,
-  RefUangHarian,
   RefKota,
+  RefPesawat,
+  RefTarif,
+  RefUangHarian,
 } from "../models";
-import { RedisService } from "./redis.service";
-import { appConfig } from "@/config/app.config";
-const redisService = new RedisService();
-import { biayaQueue } from "@/queues/Biaya.queue";
-import { PegawaiMutasi } from "@/models";
-import sequelize from "@/config/db.config";
+import { redisService } from "./redis-service";
 
 export class BiayaMutasiService {
   private static async getRuteDarat(): Promise<RefDarat[]> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const redisKey = `${appConfig.name}:rute:darat`;
-        const rute = await redisService.getCache(redisKey);
-        if (rute) {
-          resolve(JSON.parse(rute) as RefDarat[]);
-        }
-        const refDarat = await RefDarat.findAll({
-          include: ["KotaAsal", "KotaTujuan"],
-        });
-        await redisService.setCache(redisKey, JSON.stringify(refDarat), 300);
-        resolve(refDarat);
-      } catch (error) {
-        console.error("Error requesting Rute Darat:", error);
-        reject("Failed to get Rute Darat");
-      }
+    const redisKey = `${appConfig.NAME}:rute:darat`;
+    const rute = await redisService.get<RefDarat[]>(redisKey);
+    if (rute) {
+      return rute;
+    }
+    const refDarat = await RefDarat.findAll({
+      include: ["KotaAsal", "KotaTujuan"],
     });
+    await redisService.setWithTimeout(redisKey, refDarat, 60 * 60 * 100);
+    return refDarat;
   }
 
   private static async getRuteLaut(): Promise<RefKapal[]> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const redisKey = `${appConfig.name}:rute:kapal`;
-        const rute = await redisService.getCache(redisKey);
-        if (rute) {
-          resolve(JSON.parse(rute) as RefKapal[]);
-        }
-        const refKapal = await RefKapal.findAll({
-          include: ["KotaAsal", "KotaTujuan"],
-        });
-        await redisService.setCache(redisKey, JSON.stringify(refKapal), 300);
-        resolve(refKapal);
-      } catch (error) {
-        console.error("Error requesting Rute Kapal:", error);
-        reject("Failed to get Rute Kapal");
-      }
+    const redisKey = `${appConfig.NAME}:rute:kapal`;
+    const rute = await redisService.get<RefKapal[]>(redisKey);
+    if (rute) {
+      return rute;
+    }
+    const refKapal = await RefKapal.findAll({
+      include: ["KotaAsal", "KotaTujuan"],
     });
+    await redisService.setWithTimeout(redisKey, refKapal, 60 * 60 * 100);
+    return refKapal;
   }
 
   private static async getRutePesawat(): Promise<RefPesawat[]> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const redisKey = `${appConfig.name}:rute:pesawat`;
-        const rute = await redisService.getCache(redisKey);
-        if (rute) {
-          resolve(JSON.parse(rute) as RefPesawat[]);
-        }
-        const refPesawat = await RefPesawat.findAll({
-          include: ["KotaAsal", "KotaTujuan"],
-        });
-        await redisService.setCache(redisKey, JSON.stringify(refPesawat), 300);
-        resolve(refPesawat);
-      } catch (error) {
-        console.error("Error requesting Rute Pesawat:", error);
-        reject("Failed to get Rute Pesawat");
-      }
+    const redisKey = `${appConfig.NAME}:rute:pesawat`;
+    const rute = await redisService.get<RefPesawat[]>(redisKey);
+    if (rute) {
+      return rute;
+    }
+    const refPesawat = await RefPesawat.findAll({
+      include: ["KotaAsal", "KotaTujuan"],
     });
+    await redisService.setWithTimeout(redisKey, refPesawat, 60 * 60 * 100);
+    return refPesawat;
   }
 
   private static async getKota({ kode }: { kode: string }): Promise<RefKota> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const redisKey = `${appConfig.name}:kota:${kode}`;
-        const kota = await redisService.getCache(redisKey);
-        if (kota) {
-          resolve(JSON.parse(kota) as RefKota);
-        }
-        const refKota = await RefKota.findOne({
-          where: { kode },
-        });
-        if (!refKota) {
-          reject(new Error("Kota tidak ditemukan"));
-          return;
-        }
-        await redisService.setCache(redisKey, JSON.stringify(refKota), 300);
-        resolve(refKota);
-      } catch (error) {
-        console.error("Error requesting Kota:", error);
-        reject("Failed to get Kota");
-      }
+    const redisKey = `${appConfig.NAME}:kota:${kode}`;
+    const kota = await redisService.get<RefKota>(redisKey);
+    if (kota) {
+      return kota;
+    }
+    const refKota = await RefKota.findOne({
+      where: { kode },
     });
+    if (!refKota) {
+      throw new Error("Kota not found");
+    }
+    await redisService.setWithTimeout(redisKey, refKota, 60 * 60 * 100);
+    return refKota;
   }
 
   static async getvolumeBarang({
@@ -104,89 +74,66 @@ export class BiayaMutasiService {
     status,
   }: {
     golongan: string;
-    status:
-      | "TIDAK_BERKELUARGA"
-      | "BERKELUARGA_TANPA_ANAK"
-      | "BERKELUARGA_DENGAN_ANAK";
+    status: "TIDAK_BERKELUARGA" | "BERKELUARGA_TANPA_ANAK" | "BERKELUARGA_DENGAN_ANAK";
   }): Promise<number> {
-    return new Promise(async (resolve, reject) => {
-      const volume = await redisService.getCache(
-        `${appConfig.name}:volume_barang:${golongan}:${status}`
-      );
-      if (volume) {
-        resolve(Number(volume));
-        return;
-      }
-      try {
-        const refVolume = await RefBarang.findOne({
-          where: {
-            golongan: golongan,
-            status: status,
-          },
-        });
-        await redisService.setCache(
-          `${appConfig.name}:volume_barang:${golongan}:${status}`,
-          String(refVolume?.volume ?? 0),
-          60
-        );
-        resolve(refVolume?.volume ?? 0);
-      } catch (error: any) {
-        reject(error.message);
-      }
+    const volume = await redisService.get<string>(
+      `${appConfig.NAME}:volume_barang:${golongan}:${status}`
+    );
+    if (volume) {
+      return Number(volume);
+    }
+
+    const refVolume = await RefBarang.findOne({
+      where: {
+        golongan: golongan,
+        status: status,
+      },
     });
+    await redisService.setWithTimeout(
+      `${appConfig.NAME}:volume_barang:${golongan}:${status}`,
+      String(refVolume?.volume ?? 0),
+      60 * 60 * 100
+    );
+    return refVolume?.volume ?? 0;
   }
 
-  static async getUangHarian({
-    kode_provinsi,
-  }: {
-    kode_provinsi: string;
-  }): Promise<{
+  static async getUangHarian({ kode_provinsi }: { kode_provinsi: string }): Promise<{
     tarif: number;
     provinsi: string;
   }> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const redisKey = `${appConfig.name}:uang_harian:${kode_provinsi}`;
-        const uangHarian = await redisService.getCache(redisKey);
-        if (uangHarian) {
-          resolve(
-            JSON.parse(uangHarian) as {
-              tarif: number;
-              provinsi: string;
-            }
-          );
-          return;
-        }
-        const refUangHarian = await RefUangHarian.findOne({
-          where: {
-            kode_provinsi,
-          },
-          include: [
-            {
-              association: "Provinsi",
-            },
-          ],
-        });
-        if (!refUangHarian) {
-          reject(new Error("Uang harian tidak ditemukan"));
-          return;
-        }
-        await redisService.setCache(
-          redisKey,
-          JSON.stringify({
-            tarif: refUangHarian.tarif,
-            provinsi: refUangHarian.Provinsi.provinsi,
-          }),
-          60 * 5
-        );
-        resolve({
-          tarif: refUangHarian.tarif,
-          provinsi: refUangHarian.Provinsi.provinsi,
-        });
-      } catch (error: any) {
-        reject(error.message);
-      }
+    const redisKey = `${appConfig.NAME}:uang_harian:${kode_provinsi}`;
+    const uangHarian = await redisService.get<{
+      tarif: number;
+      provinsi: string;
+    }>(redisKey);
+    if (uangHarian) {
+      return uangHarian;
+    }
+    const refUangHarian = await RefUangHarian.findOne({
+      where: {
+        kode_provinsi,
+      },
+      include: [
+        {
+          association: "Provinsi",
+        },
+      ],
     });
+    if (!refUangHarian) {
+      throw new Error("Uang Harian not found");
+    }
+    await redisService.setWithTimeout(
+      redisKey,
+      {
+        tarif: refUangHarian.tarif,
+        provinsi: refUangHarian.Provinsi.provinsi,
+      },
+      60 * 60 * 100
+    );
+    return {
+      tarif: refUangHarian.tarif,
+      provinsi: refUangHarian.Provinsi.provinsi,
+    };
   }
 
   static async getTarif({
@@ -199,29 +146,21 @@ export class BiayaMutasiService {
       | "TRANSPORT_DARAT_ORANG"
       | "UANG_HARIAN";
   }): Promise<number> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const redisKey = `${appConfig.name}:tarif:${jenis}`;
-        const tarif = await redisService.getCache(redisKey);
-        if (tarif) {
-          resolve(Number(tarif));
-          return;
-        }
-        const refTarif = await RefTarif.findOne({
-          where: {
-            jenis: jenis,
-          },
-        });
-        if (!refTarif) {
-          reject(new Error(`Tarif untuk jenis ${jenis} tidak ditemukan`));
-          return;
-        }
-        await redisService.setCache(redisKey, String(refTarif.tarif), 60 * 5);
-        resolve(refTarif?.tarif ?? 0);
-      } catch (error: any) {
-        reject(error.message);
-      }
+    const redisKey = `${appConfig.NAME}:tarif:${jenis}`;
+    const tarif = await redisService.get<string>(redisKey);
+    if (tarif) {
+      return Number(tarif);
+    }
+    const refTarif = await RefTarif.findOne({
+      where: {
+        jenis: jenis,
+      },
     });
+    if (!refTarif) {
+      throw new Error("Tarif not found");
+    }
+    await redisService.setWithTimeout(redisKey, String(refTarif.tarif), 60 * 60 * 100);
+    return refTarif.tarif;
   }
 
   static async RuteBarang({
@@ -367,8 +306,7 @@ export class BiayaMutasiService {
             const biayaBobotBaru = biayaBobot[kota] + hargaBobot;
             const trukBaru = truk + (jenis === "TRUK" ? 1 : 0);
             const kapalBaru = kapal + (jenis === "KAPAL" ? 1 : 0);
-            const scoreBaru =
-              trukBaru * 100000 + kapalBaru * 50000 + biayaBobotBaru;
+            const scoreBaru = trukBaru * 100000 + kapalBaru * 50000 + biayaBobotBaru;
             if (scoreBaru < score[tujuanKota]) {
               biaya[tujuanKota] = biayaBaru;
               biayaBobot[tujuanKota] = biayaBobotBaru;
@@ -578,8 +516,7 @@ export class BiayaMutasiService {
             const biayaBobotBaru = biayaBobot[kota] + hargaBobot;
             const pesawatBaru = pesawat + (jenis === "PESAWAT" ? 1 : 0);
             const busBaru = bus + (jenis === "BUS" ? 1 : 0);
-            const scoreBaru =
-              busBaru * 100000 + pesawatBaru * 50000 + biayaBobotBaru;
+            const scoreBaru = busBaru * 100000 + pesawatBaru * 50000 + biayaBobotBaru;
             if (scoreBaru < score[tujuanKota]) {
               biaya[tujuanKota] = biayaBaru;
               biayaBobot[tujuanKota] = biayaBobotBaru;

@@ -1,33 +1,33 @@
-import { PegawaiMutasi, Termin, DokumenTermin } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import sequelize from "@/config/db.config";
-import { MinioService } from "@/services/minio.service";
-const minioService = new MinioService();
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { minioService } from "@/services/minio-service";
+import {
+  AuthorizationError,
+  InternalServerError,
+  InvalidRequestError,
+  NotFoundError,
+} from "@/utils/errors";
+import { fileResponse, successResponse } from "@/helpers/respose.helper";
+import { DokumenTermin, PegawaiMutasi, Termin } from "@/repositories";
 
-export const getAllTermin = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const TerminControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
     const { PegawaiId, SkId } = req.params;
-    const where: any = {};
-    if (PegawaiId) where.pegawai_id = PegawaiId;
-    const termin = await Termin.findAll({
-      where,
+    if (typeof PegawaiId != "string" || typeof SkId != "string")
+      throw new InvalidRequestError("Invalid request");
+
+    const { items: data, pagination } = await Termin.findAllWithPagination({
+      where: {
+        pegawai_id: PegawaiId,
+      },
       limit,
       offset,
       include: [
         {
           association: "Pegawai",
           attributes: ["id", "nama", "nip"],
-          where: {
-            id: PegawaiId,
-          },
           include: [
             {
               association: "SuratKeputusan",
@@ -43,46 +43,15 @@ export const getAllTermin = async (
         },
       ],
     });
-    const count = await Termin.count({
-      where,
-      include: [
-        {
-          association: "Pegawai",
-          attributes: ["id", "nama", "nip"],
-          where: {
-            id: PegawaiId,
-          },
-          include: [
-            {
-              association: "SuratKeputusan",
-              attributes: ["id", "nomor", "tanggal"],
-              where: {
-                id: SkId,
-              },
-            },
-          ],
-        },
-      ],
-    });
-    return successResponse(res, "Berhasil mendapatkan termin", termin, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getTerminById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Berhasil mendapatkan termin", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { TerminId, PegawaiId, SkId } = req.params;
-    const data = await Termin.findByPk(TerminId, {
+    if (typeof TerminId != "string" || typeof PegawaiId != "string" || typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+    const data = await Termin.findById(TerminId, {
       include: [
         {
           association: "Pegawai",
@@ -106,67 +75,47 @@ export const getTerminById = async (
       ],
     });
     if (!data) {
-      return errorResponse(res, "Termin tidak ditemukan", null, 404);
+      throw new NotFoundError("Data tidak ditemukan");
     }
-    return successResponse(res, "Berhasil mendapatkan termin", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const getDokumen = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Berhasil mendapatkan termin", data);
+  }),
+  getDokumen: asyncHandler(async (req: Request, res: Response) => {
     const { TerminId, PegawaiId, SkId } = req.params;
-    const data = await Termin.findByPk(TerminId, {
+    if (typeof TerminId != "string" || typeof PegawaiId != "string" || typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+    const data = await DokumenTermin.findAll({
+      where: {
+        termin_id: TerminId,
+      },
       include: [
         {
-          association: "Pegawai",
-          attributes: [],
+          association: "Termin",
           where: {
-            id: PegawaiId,
+            pegawai_id: PegawaiId,
           },
           include: [
             {
-              association: "SuratKeputusan",
-              attributes: [],
+              association: "Pegawai",
+              attributes: ["id", "nama", "nip"],
               where: {
-                id: SkId,
+                id: PegawaiId,
               },
             },
           ],
         },
-        {
-          association: "DokumenTermin",
-        },
-        {
-          association: "Ref",
-        },
       ],
     });
-    if (!data) {
-      return errorResponse(res, "Termin tidak ditemukan", null, 404);
-    }
-    return successResponse(
-      res,
-      "Berhasil mendapatkan termin",
-      data.DokumenTermin
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getDokumenFile = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Berhasil mendapatkan termin", data);
+  }),
+  getDokumenFile: asyncHandler(async (req: Request, res: Response) => {
     const { TerminId, DokumenId } = req.params;
+
+    if (typeof TerminId != "string" || typeof DokumenId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
     const data = await DokumenTermin.findOne({
       where: {
         termin_id: TerminId,
@@ -174,260 +123,221 @@ export const getDokumenFile = async (
       },
     });
     if (!data || !data.file) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("data tidak ditemukan");
     }
 
-    const stream = await minioService.downloadFile(`${data.file}`);
-    if (stream) {
-      const chunks: Buffer[] = [];
-      stream.on("data", (chunk) => chunks.push(chunk));
-      stream.on("end", () => {
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader(
-          "Content-Disposition",
-          `inline; filename="${data.document_type}.pdf"`
-        );
-        return res.status(200).send(Buffer.concat(chunks));
-      });
-      stream.on("error", (err: Error) => {
-        return errorResponse(res, "Terjadi kesalahan", err, 500);
-      });
-    } else {
-      throw new Error("File tidak ditemukan");
-    }
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    const stream = await minioService.getFile(`${data.file}`);
+    fileResponse(res, stream, `${data.document_type}.pdf`, "application/pdf");
+  }),
+  create: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const { PegawaiId, SkId } = req.params;
+      if (typeof PegawaiId != "string" || typeof SkId != "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
 
-export const createTermin = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const t = await sequelize.transaction();
-  try {
-    const ValidationError: {
-      field: string;
-      message: string;
-    }[] = [];
-    const { PegawaiId, SkId } = req.params;
-    const { ref_termin, nominal, tahun } = req.body;
-    const pegawai = await PegawaiMutasi.findByPk(PegawaiId, {
-      include: [
-        {
-          association: "SuratKeputusan",
-          attributes: ["id", "nomor", "tanggal"],
-          where: {
-            id: SkId,
-            status: "DRAFT",
-          },
+      const { ref_termin, nominal, tahun } = req.body;
+
+      const pegawai = await PegawaiMutasi.findOne({
+        where: {
+          id: PegawaiId,
         },
-        {
-          association: "MonitoringTagihan",
-        },
-      ],
-    });
-
-    if (!pegawai) {
-      return errorResponse(
-        res,
-        "penambahan termin tidak dapat dilakukan",
-        null,
-        409
-      );
-    }
-
-    if (!ref_termin)
-      ValidationError.push({
-        field: "ref_termin",
-        message: "Referensi Termin harus diisi",
-      });
-
-    if (!tahun)
-      ValidationError.push({
-        field: "tahun",
-        message: "Tahun harus diisi",
-      });
-
-    if (!nominal)
-      ValidationError.push({
-        field: "nominal",
-        message: "Nominal harus diisi",
-      });
-
-    if (nominal && pegawai.MonitoringTagihan.sisa_tagihan < nominal)
-      ValidationError.push({
-        field: "nominal",
-        message: "Nominal melebihi sisa tagihan",
-      });
-
-    if (ValidationError.length > 0) {
-      await t.rollback();
-      return errorResponse(res, "validation error", ValidationError, 422);
-    }
-
-    const data = await Termin.create({
-      pegawai_id: PegawaiId,
-      tahun,
-      ref_termin,
-      nominal,
-    });
-    await t.commit();
-    return successResponse(res, "Termin berhasil dibuat", data);
-  } catch (error: unknown) {
-    await t.rollback();
-    next(error);
-  }
-};
-
-export const updateTermin = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const t = await sequelize.transaction();
-  try {
-    const { TerminId, PegawaiId, SkId } = req.params;
-    const { ref_termin, nominal, status, tahun } = req.body;
-    const data = await Termin.findByPk(TerminId, {
-      include: [
-        {
-          association: "Pegawai",
-          attributes: ["id", "nama", "nip"],
-          where: {
-            id: PegawaiId,
-          },
-          include: [
-            {
-              association: "SuratKeputusan",
-              attributes: ["id", "nomor", "tanggal"],
-              where: {
-                id: SkId,
-              },
-            },
-            {
-              association: "MonitoringTagihan",
-            },
-          ],
-        },
-      ],
-    });
-    if (!data) {
-      return errorResponse(res, "Termin tidak ditemukan", null, 404);
-    }
-    if (ref_termin) data.ref_termin = ref_termin;
-    if (nominal) data.nominal = nominal;
-    if (status) data.status = status;
-    if (tahun) data.tahun = tahun;
-
-    await data.save({ transaction: t });
-    await data.reload({ transaction: t });
-    if (data.Pegawai.MonitoringTagihan.sisa_tagihan < 0) {
-      await t.rollback();
-      return errorResponse(
-        res,
-        "Termin melebihi sisa tagihan",
-        [
+        include: [
           {
-            field: "nominal",
-            message: "Nominal melebihi sisa tagihan",
+            association: "SuratKeputusan",
+            attributes: ["id", "nomor", "tanggal"],
+            where: {
+              id: SkId,
+              status: "DRAFT",
+            },
+          },
+          {
+            association: "MonitoringTagihan",
           },
         ],
-        422
-      );
-    }
-    await t.commit();
-    return successResponse(res, "Termin berhasil diperbarui", data);
-  } catch (error: unknown) {
-    await t.rollback();
-    next(error);
-  }
-};
+        transaction: t,
+      });
 
-export const deleteTermin = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { TerminId, PegawaiId, SkId } = req.params;
-    const data = await Termin.findByPk(TerminId, {
-      include: [
+      if (!pegawai) {
+        throw new NotFoundError("Pegawai tidak ditemukan atau SK bukan DRAFT");
+      }
+      const data = await Termin.create(
         {
-          association: "Pegawai",
-          attributes: ["id", "nama", "nip"],
+          pegawai_id: PegawaiId,
+          tahun,
+          ref_termin,
+          nominal,
+        },
+        {
+          transaction: t,
+        }
+      );
+      await pegawai.reload({
+        transaction: t,
+      });
+      if (pegawai.MonitoringTagihan.sisa_tagihan < 0) {
+        throw new AuthorizationError("Termin melebihi sisa tagihan");
+      }
+      successResponse(res, "Berhasil membuat termin", data);
+    },
+    {
+      useTransaction: true,
+    }
+  ),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const { TerminId, PegawaiId, SkId } = req.params;
+      if (typeof TerminId != "string" || typeof PegawaiId != "string" || typeof SkId != "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const { ref_termin, nominal, status, tahun } = req.body;
+
+      const data = await Termin.updateOne(
+        {
           where: {
-            id: PegawaiId,
+            id: TerminId,
           },
           include: [
             {
-              association: "SuratKeputusan",
-              attributes: ["id", "nomor", "tanggal"],
+              association: "Pegawai",
+              attributes: ["id", "nama", "nip"],
               where: {
-                id: SkId,
+                id: PegawaiId,
               },
+              include: [
+                {
+                  association: "SuratKeputusan",
+                  attributes: ["id", "nomor", "tanggal"],
+                  where: {
+                    id: SkId,
+                  },
+                },
+                {
+                  association: "MonitoringTagihan",
+                },
+              ],
             },
           ],
         },
-      ],
-    });
-    if (!data) {
-      return errorResponse(res, "Termin tidak ditemukan", null, 404);
-    }
-    await data.destroy();
-    return successResponse(res, "Termin berhasil dihapus", {
-      id: TerminId,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+        {
+          ref_termin,
+          nominal,
+          status,
+          tahun,
+        },
+        t
+      );
 
-export const resetTermin = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const t = await sequelize.transaction();
-  try {
+      if (data.Pegawai.MonitoringTagihan.sisa_tagihan < 0) {
+        throw new AuthorizationError("Termin melebihi sisa tagihan");
+      }
+
+      successResponse(res, "Berhasil memperbarui termin", data);
+    },
+    {
+      useTransaction: true,
+    }
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const { TerminId, PegawaiId, SkId } = req.params;
+      if (typeof TerminId != "string" || typeof PegawaiId != "string" || typeof SkId != "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await Termin.deleteOne(
+        {
+          where: {
+            id: TerminId,
+          },
+          include: [
+            {
+              association: "Pegawai",
+              attributes: [],
+              where: {
+                id: PegawaiId,
+              },
+              include: [
+                {
+                  association: "SuratKeputusan",
+                  attributes: [],
+                  where: {
+                    id: SkId,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        t
+      );
+      successResponse(res, "Berhasil menghapus termin", data);
+    },
+    {
+      useTransaction: true,
+    }
+  ),
+  reset: asyncHandler(async (req: Request, res: Response) => {
+    const t = req.transaction;
+    if (!t) {
+      throw new InternalServerError("Transaction not found");
+    }
     const { PegawaiId, SkId } = req.params;
 
-    const data = await PegawaiMutasi.findOne({
-      where: {
-        id: PegawaiId,
-        process_termin: "DONE",
-      },
-      include: [
-        {
-          association: "SuratKeputusan",
-          attributes: ["id", "nomor", "tanggal"],
-          where: {
-            id: SkId,
-            status: "DRAFT",
-          },
-        },
-      ],
-    });
-
-    if (!data) {
-      return errorResponse(res, "reset data tidak dapat di proses", null, 409);
+    if (typeof PegawaiId != "string" || typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
     }
 
-    await Termin.destroy({
-      where: {
-        pegawai_id: PegawaiId,
+    const data = await PegawaiMutasi.updateOne(
+      {
+        where: {
+          id: PegawaiId,
+          process_termin: "DONE",
+        },
+        include: [
+          {
+            association: "SuratKeputusan",
+            attributes: ["id", "nomor", "tanggal"],
+            where: {
+              id: SkId,
+              status: "DRAFT",
+            },
+          },
+        ],
       },
-      transaction: t,
-    });
+      {
+        process_termin: "IDLE",
+      },
+      t
+    );
 
-    data.process_termin = "IDLE";
-    await data.save({ transaction: t });
+    if (!data) {
+      throw new NotFoundError("Pegawai tidak ditemukan atau SK bukan DRAFT");
+    }
 
-    await t.commit();
-    return successResponse(res, "Berhasil reset rincian biaya", null);
-  } catch (error: unknown) {
-    await t.rollback();
-    next(error);
-  }
+    await Termin.delete(
+      {
+        where: {
+          pegawai_id: PegawaiId,
+        },
+      },
+      t
+    );
+
+    successResponse(res, "Berhasil reset termin", data);
+  },{
+    useTransaction: true,
+  
+  }),
 };

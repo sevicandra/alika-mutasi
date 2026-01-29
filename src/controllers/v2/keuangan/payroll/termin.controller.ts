@@ -1,18 +1,20 @@
-import { Rekening, Termin } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { Op, col, where } from "sequelize";
-import sequelize from "@/config/db.config";
-import { Logger } from "@/services/log.service";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { AlikaService } from "@/services/alika.service";
+import { Logger } from "@/services/log.service";
+import {
+  AuthorizationError,
+  InternalServerError,
+  InvalidRequestError,
+  NotFoundError,
+} from "@/utils/errors";
+import sequelize from "@/config/db.config";
+import { successResponse } from "@/helpers/respose.helper";
+import { Rekening, Termin } from "@/repositories";
 
-export const getAllTermin = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const TerminController = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
     const search = (req.query.search as string) || undefined;
@@ -38,7 +40,7 @@ export const getAllTermin = async (
       whereClause.status = status;
     }
 
-    const { rows: data, count } = await Termin.findAndCountAll({
+    const { items: data, pagination } = await Termin.findAllWithPagination({
       where: whereClause,
       limit,
       offset,
@@ -72,7 +74,7 @@ export const getAllTermin = async (
       ],
     });
 
-    return successResponse(
+    successResponse(
       res,
       "Berhasil mendapatkan termin",
       data.map((d) => {
@@ -98,84 +100,47 @@ export const getAllTermin = async (
           },
         };
       }),
-      {
-        limit,
-        offset,
-        count,
-        totalPages: limit ? Math.ceil(count / limit) : 1,
-      }
+      pagination
     );
-  } catch (error: unknown) {
-    console.log(error);
+  }),
+  tolak: asyncHandler(async (req: Request, res: Response) => {
+    const t = req.transaction;
+    if (!t) {
+      throw new InternalServerError("Transaction not found");
+    }
+    const nip = req.user?.nip;
 
-    next(error);
-  }
-};
-
-export const payrollTermin = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const { tanggal, tahap } = req.body;
-
-    if (!tanggal || !tahap) {
-      return errorResponse(res, "Tanggal dan tahap harus diisi", null, 400);
+    if (!nip) {
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
 
-    const termin = await Termin.findByPk(id);
-    if (!termin) {
-      return errorResponse(res, "Termin tidak ditemukan", null, 404);
-    }
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const tolakTermin = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const t = await sequelize.transaction();
-  try {
-    const { nip } = req.user;
     const { SkId, TerminId } = req.params;
+    if (typeof TerminId != "string" || typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
     const {
       catatan,
     }: {
       catatan: string;
     } = req.body;
-    if (!catatan) {
-      return errorResponse(
-        res,
-        "Validation error",
-        [
-          {
-            field: "catatan",
-            message: "Catatan tidak boleh kosong",
-          },
-        ],
-        422
-      );
-    }
-    const data = await Termin.findOne({
-      where: {
-        id: TerminId,
+
+    const whereClause = {
+      id: TerminId,
+      status: {
+        [Op.or]: ["APPROVED_KEU", "PAID"],
       },
-      include: [
-        { association: "Pegawai", where: { sk_id: SkId } },
-        { association: "Payroll" },
-        { association: "Ref" },
-      ],
+      [Op.and]: [where(col("Pegawai.sk_id"), SkId)],
+    };
+
+    const data = await Termin.findOne({
+      where: whereClause,
+      include: [{ association: "Pegawai" }, { association: "Payroll" }, { association: "Ref" }],
     });
     if (!data) {
-      return errorResponse(res, "Termin tidak ditemukan", null, 404);
+      throw new NotFoundError("Termin tidak ditemukan");
     }
     if (data.status !== "APPROVED_KEU" && data.status !== "PAID") {
-      return errorResponse(res, "Termin tidak dalam status draft", null, 400);
+      throw new AuthorizationError("Termin tidak dalam status draft");
     }
     data.status = "WAITING_APPROVAL_KEU";
     await data.Payroll?.destroy({ transaction: t });
@@ -193,99 +158,92 @@ export const tolakTermin = async (
       message: `${catatan}`,
       title: "Payroll Mutasi Ditolak",
     });
-    await t.commit();
-    return successResponse(res, "Berhasil tolak payroll", null, 200);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const getRekening = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Berhasil tolak payroll", null);
+  },{
+    useTransaction: true,
+  
+  }),
+  getRekening: asyncHandler(async (req: Request, res: Response) => {
     const { SkId, TerminId } = req.params;
-    const data = await Termin.findOne({
-      where: {
-        id: TerminId,
-      },
+    if (typeof TerminId != "string" || typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+    const data = await Rekening.findOne({
       include: [
         {
           association: "Pegawai",
-          attributes: ["id"],
-          where: { sk_id: SkId },
+          attributes: ["id", "sk_id"],
+          where: {
+            sk_id: SkId,
+          },
           include: [
             {
-              association: "Rekening",
-              attributes: ["nama_rekening", "nama_bank", "nomor_rekening"],
+              association: "Termin",
+              attributes: [],
+              where: {
+                id: TerminId,
+                status: "APPROVED_KEU",
+              },
             },
           ],
         },
       ],
     });
-    if (!data || !data.Pegawai.Rekening) {
-      return errorResponse(res, "Rekening pegawai tidak ditemukan", null, 404);
+    successResponse(res, "Berhasil mengambil data rekening", data);
+  }),
+  updateRekening: asyncHandler(async (req: Request, res: Response) => {
+    const t = req.transaction;
+    if (!t) {
+      throw new InternalServerError("Transaction not found");
     }
-    return successResponse(
-      res,
-      "Berhasil mengambil data rekening",
-      data.Pegawai.Rekening,
-      200
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updateRekening = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const t = await sequelize.transaction();
-  try {
     const { SkId, TerminId } = req.params;
+    if (typeof TerminId != "string" || typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
     const { nama_rekening, nama_bank, nomor_rekening } = req.body;
-
+    const whereClause = {
+      id: TerminId,
+      status: "APPROVED_KEU",
+      [Op.and]: [
+        where(col("Pegawai.sk_id"), SkId),
+      ],
+    };
     const data = await Termin.findOne({
-      where: {
-        id: TerminId,
-      },
+      where: whereClause,
       include: [
         {
           association: "Pegawai",
-          where: { sk_id: SkId },
-          required: true,
+          attributes: ["id"],
+          include: [
+            {
+              association: "Termin",
+              attributes: [],
+            },
+          ],
         },
       ],
-      transaction: t,
     });
-
     if (!data) {
-      return errorResponse(res, "Termin tidak ditemukan", null, 404);
+      throw new NotFoundError("Termin tidak ditemukan");
     }
 
     if (data.status === "PAID") {
-      return errorResponse(res, "Payroll telah di prosess", null, 400);
+      throw new AuthorizationError("Payroll telah di prosess");
     }
 
-    await Rekening.upsert(
+    await Rekening.CreateOrUpdate(
       {
         pegawai_id: data.Pegawai.id,
         nama_rekening,
         nama_bank,
         nomor_rekening,
       },
-      {
-        transaction: t,
-      }
+      t
     );
-    await t.commit();
-    return successResponse(res, "Berhasil memperbarui rekening", null, 200);
-  } catch (error: unknown) {
-    await t.rollback();
-    next(error);
-  }
+
+    successResponse(res, "Berhasil memperbarui rekening", null);
+  },{
+    useTransaction: true,
+  
+  }),
 };

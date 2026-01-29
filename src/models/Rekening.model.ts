@@ -1,5 +1,6 @@
+import { BelongsTo, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes } from "sequelize";
+import { PegawaiMutasi } from "./";
 
 type RekeningAttributes = {
   id: string;
@@ -9,10 +10,7 @@ type RekeningAttributes = {
   nama_bank: string;
 };
 
-type RekeningCreationAttributes = Optional<
-  RekeningAttributes,
-  "id" 
->;
+type RekeningCreationAttributes = Optional<RekeningAttributes, "id">;
 
 class Rekening
   extends Model<RekeningAttributes, RekeningCreationAttributes>
@@ -23,6 +21,12 @@ class Rekening
   public nomor_rekening!: string;
   public nama_rekening!: string;
   public nama_bank!: string;
+
+  public Pegawai!: PegawaiMutasi;
+
+  public static associations: {
+    Pegawai: BelongsTo<Rekening, PegawaiMutasi>;
+  };
 }
 
 Rekening.init(

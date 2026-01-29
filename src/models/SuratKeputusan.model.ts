@@ -1,5 +1,5 @@
+import { Association, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, Association } from "sequelize";
 import PegawaiMutasi from "./PegawaiMutasi.model";
 import Timeline from "./Timeline.model";
 

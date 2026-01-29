@@ -1,8 +1,8 @@
 import moment from "moment-timezone";
-import { PegawaiMutasi, sequelize } from "@/models";
 import { Op } from "sequelize";
 import { ApproveMutasi } from "@/services/approveDataKeluarga.service";
 import logger from "@/utils/Logger.utils";
+import { PegawaiMutasi, sequelize } from "@/models";
 
 export const approveMutasi = async () => {
   const t = await sequelize.transaction();

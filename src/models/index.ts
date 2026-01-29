@@ -1,45 +1,38 @@
-import Art from "./Art.model";
+import { Op } from "sequelize";
+import sequelize from "@/config/db.config";
+import DataSanggah from "./DataSanggah.model";
+import DokumenTermin from "./DokumenTermin.model";
+import Faq from "./Faq.model";
 import Keluarga from "./Keluarga.model";
+import MonitoringTagihan from "./MonitoringTagihan.model";
+import Payroll from "./Payroll.model";
+import PayrollCounter from "./PayrollCounter.model";
 import PegawaiMutasi from "./PegawaiMutasi.model";
+import PembayaranLog from "./PembayaranLog.model";
+import PerubahanKeluarga from "./PerubahanKeluarga.model";
 import RefBarang from "./RefBarang.model";
 import RefDarat from "./RefDarat.model";
 import RefGolongan from "./RefGolongan.model";
+import RefHubunganKeluarga from "./RefHubunganKeluarga.model";
 import RefKantor from "./RefKantor.model";
 import RefKapal from "./RefKapal.model";
-import RefHubunganKeluarga from "./RefHubunganKeluarga.model";
 import RefKota from "./RefKota.model";
+import RefPejabat from "./RefPejabat.model";
 import RefPesawat from "./RefPesawat.model";
 import RefProvinsi from "./RefProvinsi.model";
 import RefTarif from "./RefTarif.model";
-import RefUangHarian from "./RefUangHarian.model";
-import RincianBiaya from "./RincianBiaya.model";
-import SuratKeputusan from "./SuratKeputusan.model";
-import PerubahanKeluarga from "./PerubahanKeluarga.model";
-import Termin from "./Termin.model";
-import MonitoringTagihan from "./MonitoringTagihan.model";
 import RefTermin from "./RefTermin.model";
 import RefTimeline from "./RefTimeline.model";
-import Timeline from "./Timeline.model";
-import Sanggah from "./Sanggah.model";
-import DataSanggah from "./DataSanggah.model";
-import sequelize from "@/config/db.config";
-import TicketCounter from "./TicketCounter.model";
-import DokumenTermin from "./DokumenTermin.model";
-import TteDokumen from "./TteDokumen.model";
-import RefPejabat from "./RefPejabat.model";
-import SpdCounter from "./SpdCounter.model";
-import PembayaranLog from "./PembayaranLog.model";
+import RefUangHarian from "./RefUangHarian.model";
 import Rekening from "./Rekening.model";
-import Payroll from "./Payroll.model";
-import PayrollCounter from "./PayrollCounter.model";
-import Faq from "./Faq.model";
-import { Op } from "sequelize";
-
-Art.belongsTo(PegawaiMutasi, {
-  foreignKey: "pegawai_id",
-  targetKey: "id",
-  as: "Pegawai",
-});
+import RincianBiaya from "./RincianBiaya.model";
+import Sanggah from "./Sanggah.model";
+import SpdCounter from "./SpdCounter.model";
+import SuratKeputusan from "./SuratKeputusan.model";
+import Termin from "./Termin.model";
+import TicketCounter from "./TicketCounter.model";
+import Timeline from "./Timeline.model";
+import TteDokumen from "./TteDokumen.model";
 
 Keluarga.belongsTo(RefHubunganKeluarga, {
   foreignKey: "hubungan",
@@ -159,6 +152,11 @@ PegawaiMutasi.hasOne(Rekening, {
   foreignKey: "pegawai_id",
   sourceKey: "id",
   as: "Rekening",
+});
+
+Rekening.belongsTo(PegawaiMutasi, {
+  foreignKey: "pegawai_id",
+  as: "Pegawai",
 });
 
 PerubahanKeluarga.belongsTo(PegawaiMutasi, {
@@ -374,7 +372,6 @@ Payroll.belongsTo(Termin, {
 
 export {
   sequelize,
-  Art,
   Keluarga,
   PegawaiMutasi,
   RefBarang,

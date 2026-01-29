@@ -1,11 +1,6 @@
+import { BelongsTo, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
 import Termin from "./Termin.model";
-import {
-  Model,
-  Optional,
-  DataTypes,
-  BelongsTo,
-} from "sequelize";
 
 type PayrollAttributes = {
   id: string;
@@ -14,10 +9,7 @@ type PayrollAttributes = {
   tahap: string;
 };
 
-type PayrollCreationAttributes = Optional<
-  PayrollAttributes,
-  "id"
->;
+type PayrollCreationAttributes = Optional<PayrollAttributes, "id">;
 
 class Payroll
   extends Model<PayrollAttributes, PayrollCreationAttributes>

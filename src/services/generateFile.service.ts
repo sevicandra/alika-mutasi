@@ -1,65 +1,52 @@
-import { PegawaiMutasi, RefPejabat } from "@/models";
+import { PDFDocument } from "pdf-lib";
 import { UUID } from "@/utils/uuid.util";
-import { RedisService } from "./redis.service";
 import { appConfig } from "@/config/app.config";
+import { PegawaiMutasi, RefPejabat } from "@/models";
+import { minioService } from "./minio-service";
 import { PdfService } from "./pdf.service";
 import { PdfCoordinateExtractorService } from "./pdfCoordinateExtractor.service";
-import { PDFDocument } from "pdf-lib";
-import { MinioService } from "./minio.service";
+import { redisService } from "./redis-service";
 
-const minioService = new MinioService();
-const redisService = new RedisService();
 export class GenerateFileService {
   private static async getPpk(): Promise<RefPejabat> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const redisKey = `${appConfig.name}:ref:pejabat:ppk`;
-        const rute = await redisService.getCache(redisKey);
-        if (rute) {
-          resolve(JSON.parse(rute) as RefPejabat);
-        }
-        const refPejabat = await RefPejabat.findOne({
-          where: { jenis: "PPK" },
-        });
-        if (!refPejabat) {
-          throw new Error("PPK not found");
-        }
-        await redisService.setCache(redisKey, JSON.stringify(refPejabat), 300);
-        resolve(refPejabat);
-      } catch (error) {
-        console.error("Error requesting Rute Darat:", error);
-        reject("Failed to get Rute Darat");
-      }
+    const redisKey = `${appConfig.NAME}:ref:pejabat:ppk`;
+    const rute = await redisService.get<RefPejabat>(redisKey);
+    if (rute) {
+      return rute;
+    }
+    const refPejabat = await RefPejabat.findOne({
+      where: { jenis: "PPK" },
     });
+    if (!refPejabat) {
+      throw new Error("PPK not found");
+    }
+    await redisService.setWithTimeout(redisKey, refPejabat, 300);
+    return refPejabat;
   }
 
   private static async getBendahara(): Promise<RefPejabat> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const redisKey = `${appConfig.name}:ref:pejabat:bendahara`;
-        const rute = await redisService.getCache(redisKey);
-        if (rute) {
-          resolve(JSON.parse(rute) as RefPejabat);
-        }
-        const refPejabat = await RefPejabat.findOne({
-          where: { jenis: "BENDAHARA" },
-        });
-        if (!refPejabat) {
-          throw new Error("Bendahara not found");
-        }
-        await redisService.setCache(redisKey, JSON.stringify(refPejabat), 300);
-        resolve(refPejabat);
-      } catch (error) {
-        console.error("Error requesting Rute Darat:", error);
-        reject("Failed to get Rute Darat");
-      }
+    const redisKey = `${appConfig.NAME}:ref:pejabat:bendahara`;
+    const rute = await redisService.get<RefPejabat>(redisKey);
+    if (rute) {
+      return rute;
+    }
+    const refPejabat = await RefPejabat.findOne({
+      where: { jenis: "BENDAHARA" },
     });
+    if (!refPejabat) {
+      throw new Error("Bendahara not found");
+    }
+    await redisService.setWithTimeout(redisKey, refPejabat, 300);
+    return refPejabat;
   }
 
-  static async generateFile(pegawai: PegawaiMutasi, agenda: {
-    nomor: string;
-    tanggal: string;
-  }): Promise<
+  static async generateFile(
+    pegawai: PegawaiMutasi,
+    agenda: {
+      nomor: string;
+      tanggal: string;
+    }
+  ): Promise<
     {
       termin_id: string;
       file?: string;
@@ -74,12 +61,7 @@ export class GenerateFileService {
           x: number;
           y: number;
         };
-        jabatan:
-          | "PEGAWAI"
-          | "PEJABAT_KANTOR_ASAL"
-          | "PEJABAT_KANTOR_TUJUAN"
-          | "BENDAHARA"
-          | "PPK";
+        jabatan: "PEGAWAI" | "PEJABAT_KANTOR_ASAL" | "PEJABAT_KANTOR_TUJUAN" | "BENDAHARA" | "PPK";
       }[];
     }[]
   > {
@@ -112,7 +94,7 @@ export class GenerateFileService {
         const ppk = await this.getPpk();
         const bendahara = await this.getBendahara();
         for (const termin of pegawai.Termin) {
-          const req_doc = termin.Ref.required_doc;          
+          const req_doc = termin.Ref.required_doc;
           for (const doc of req_doc) {
             if (doc.jenis === "RINCIAN_BIAYA") {
               const pdf = await PdfService.RincianBiaya({
@@ -120,17 +102,16 @@ export class GenerateFileService {
                 ppk,
                 bendahara,
                 termin,
-                agenda
+                agenda,
               });
               const pdfBuffer = Buffer.from(pdf, "base64");
-              const coordinates =
-                await PdfCoordinateExtractorService.extractPlaceholderCoordinates(
-                  pdfBuffer,
-                  doc.penandatatangan.map((penandatangan) => ({
-                    jabatan: penandatangan,
-                    placeholder_text: `##PLACEHOLDER_${penandatangan}##`,
-                  }))
-                );
+              const coordinates = await PdfCoordinateExtractorService.extractPlaceholderCoordinates(
+                pdfBuffer,
+                doc.penandatatangan.map((penandatangan) => ({
+                  jabatan: penandatangan,
+                  placeholder_text: `##PLACEHOLDER_${penandatangan}##`,
+                }))
+              );
 
               const pdfDoc = await PDFDocument.load(pdfBuffer);
               const pages = pdfDoc.getPages();
@@ -141,7 +122,7 @@ export class GenerateFileService {
                 /\//g,
                 "_"
               )}/${pegawai.nip}/${fileName}.pdf`;
-              await minioService.uploadFile(bufferPdf, filePath);
+              await minioService.uploadFile(bufferPdf, filePath, "application/pdf");
 
               files.push({
                 termin_id: termin.id,
@@ -155,26 +136,23 @@ export class GenerateFileService {
                       c.jabatan === "PEGAWAI"
                         ? pegawai.nama
                         : c.jabatan === "PPK"
-                        ? ppk.nama
-                        : c.jabatan === "BENDAHARA"
-                        ? bendahara.nama
-                        : undefined,
+                          ? ppk.nama
+                          : c.jabatan === "BENDAHARA"
+                            ? bendahara.nama
+                            : undefined,
                     nip:
                       c.jabatan === "PEGAWAI"
                         ? pegawai.nip
                         : c.jabatan === "PPK"
-                        ? ppk.nip
-                        : c.jabatan === "BENDAHARA"
-                        ? bendahara.nip
-                        : undefined,
+                          ? ppk.nip
+                          : c.jabatan === "BENDAHARA"
+                            ? bendahara.nip
+                            : undefined,
                     jabatan: c.jabatan as "PEGAWAI" | "BENDAHARA" | "PPK",
                     koordinat: {
                       page: c.page,
                       x: c.x * pages[c.page - 1].getWidth() + 2,
-                      y:
-                        pages[c.page - 1].getHeight() -
-                        c.y * pages[c.page - 1].getHeight() -
-                        10,
+                      y: pages[c.page - 1].getHeight() - c.y * pages[c.page - 1].getHeight() - 10,
                     },
                   };
                 }),
@@ -183,17 +161,16 @@ export class GenerateFileService {
               const pdf = await PdfService.Spd1({
                 pegawai,
                 ppk,
-                agenda
+                agenda,
               });
               const pdfBuffer = Buffer.from(pdf, "base64");
-              const coordinates =
-                await PdfCoordinateExtractorService.extractPlaceholderCoordinates(
-                  pdfBuffer,
-                  doc.penandatatangan.map((penandatangan) => ({
-                    jabatan: penandatangan,
-                    placeholder_text: `##PLACEHOLDER_${penandatangan}##`,
-                  }))
-                );
+              const coordinates = await PdfCoordinateExtractorService.extractPlaceholderCoordinates(
+                pdfBuffer,
+                doc.penandatatangan.map((penandatangan) => ({
+                  jabatan: penandatangan,
+                  placeholder_text: `##PLACEHOLDER_${penandatangan}##`,
+                }))
+              );
               const pdfDoc = await PDFDocument.load(pdfBuffer);
               const pages = pdfDoc.getPages();
               const pdfBytes: Uint8Array = await pdfDoc.save();
@@ -203,7 +180,7 @@ export class GenerateFileService {
                 /\//g,
                 "_"
               )}/${pegawai.nip}/${fileName}.pdf`;
-              await minioService.uploadFile(bufferPdf, filePath);
+              await minioService.uploadFile(bufferPdf, filePath, "application/pdf");
               files.push({
                 termin_id: termin.id,
                 file: filePath,
@@ -216,18 +193,18 @@ export class GenerateFileService {
                       c.jabatan === "PEGAWAI"
                         ? pegawai.nama
                         : c.jabatan === "PPK"
-                        ? ppk.nama
-                        : c.jabatan === "BENDAHARA"
-                        ? bendahara.nama
-                        : undefined,
+                          ? ppk.nama
+                          : c.jabatan === "BENDAHARA"
+                            ? bendahara.nama
+                            : undefined,
                     nip:
                       c.jabatan === "PEGAWAI"
                         ? pegawai.nip
                         : c.jabatan === "PPK"
-                        ? ppk.nip
-                        : c.jabatan === "BENDAHARA"
-                        ? bendahara.nip
-                        : undefined,
+                          ? ppk.nip
+                          : c.jabatan === "BENDAHARA"
+                            ? bendahara.nip
+                            : undefined,
                     jabatan: c.jabatan as
                       | "PEGAWAI"
                       | "PEJABAT_KANTOR_ASAL"
@@ -237,10 +214,7 @@ export class GenerateFileService {
                     koordinat: {
                       page: c.page,
                       x: c.x * pages[c.page - 1].getWidth() + 2,
-                      y:
-                        pages[c.page - 1].getHeight() -
-                        c.y * pages[c.page - 1].getHeight() -
-                        10,
+                      y: pages[c.page - 1].getHeight() - c.y * pages[c.page - 1].getHeight() - 10,
                     },
                   };
                 }),
@@ -248,14 +222,13 @@ export class GenerateFileService {
             } else if (doc.jenis === "SPD2") {
               const pdf = await PdfService.Spd2({ pegawai, ppk, agenda });
               const pdfBuffer = Buffer.from(pdf, "base64");
-              const coordinates =
-                await PdfCoordinateExtractorService.extractPlaceholderCoordinates(
-                  pdfBuffer,
-                  doc.penandatatangan.map((penandatangan) => ({
-                    jabatan: penandatangan,
-                    placeholder_text: `##PLACEHOLDER_${penandatangan}##`,
-                  }))
-                );
+              const coordinates = await PdfCoordinateExtractorService.extractPlaceholderCoordinates(
+                pdfBuffer,
+                doc.penandatatangan.map((penandatangan) => ({
+                  jabatan: penandatangan,
+                  placeholder_text: `##PLACEHOLDER_${penandatangan}##`,
+                }))
+              );
               const pdfDoc = await PDFDocument.load(pdfBuffer);
               const pages = pdfDoc.getPages();
               const pdfBytes: Uint8Array = await pdfDoc.save();
@@ -265,7 +238,7 @@ export class GenerateFileService {
                 /\//g,
                 "_"
               )}/${pegawai.nip}/${fileName}.pdf`;
-              await minioService.uploadFile(bufferPdf, filePath);
+              await minioService.uploadFile(bufferPdf, filePath, "application/pdf");
               files.push({
                 termin_id: termin.id,
                 file: filePath,
@@ -278,18 +251,18 @@ export class GenerateFileService {
                       c.jabatan === "PEGAWAI"
                         ? pegawai.nama
                         : c.jabatan === "PPK"
-                        ? ppk.nama
-                        : c.jabatan === "BENDAHARA"
-                        ? bendahara.nama
-                        : undefined,
+                          ? ppk.nama
+                          : c.jabatan === "BENDAHARA"
+                            ? bendahara.nama
+                            : undefined,
                     nip:
                       c.jabatan === "PEGAWAI"
                         ? pegawai.nip
                         : c.jabatan === "PPK"
-                        ? ppk.nip
-                        : c.jabatan === "BENDAHARA"
-                        ? bendahara.nip
-                        : undefined,
+                          ? ppk.nip
+                          : c.jabatan === "BENDAHARA"
+                            ? bendahara.nip
+                            : undefined,
                     jabatan: c.jabatan as
                       | "PEGAWAI"
                       | "PEJABAT_KANTOR_ASAL"
@@ -299,10 +272,7 @@ export class GenerateFileService {
                     koordinat: {
                       page: c.page,
                       x: c.x * pages[c.page - 1].getWidth() + 2,
-                      y:
-                        pages[c.page - 1].getHeight() -
-                        c.y * pages[c.page - 1].getHeight() -
-                        10,
+                      y: pages[c.page - 1].getHeight() - c.y * pages[c.page - 1].getHeight() - 10,
                     },
                   };
                 }),
@@ -335,10 +305,7 @@ export class GenerateFileService {
           try {
             await minioService.deleteFile(filePath);
           } catch (deleteError) {
-            console.warn(
-              `Gagal menghapus file rollback: ${filePath}`,
-              deleteError
-            );
+            console.warn(`Gagal menghapus file rollback: ${filePath}`, deleteError);
           }
         }
         reject(error);

@@ -1,9 +1,17 @@
 import axios from "axios";
-import { ServiceKemenkeuConfig } from "@/config/serviceKemenkeu.config";
+import { redisService } from "@/services/redis-service";
+import logger from "@/utils/Logger.utils";
+import {
+  AuthenticationError,
+  ExternalServiceError,
+  NotFoundError,
+  TimeoutError,
+} from "@/utils/errors";
 import { appConfig } from "@/config/app.config";
-import { RedisService } from "./redis.service";
-import { Profil, Keluarga } from "@/types/kemenkeuService";
-const redis = new RedisService();
+import { ServiceKemenkeuConfig } from "@/config/serviceKemenkeu.config";
+import { Keluarga, Profile, Profile2 } from "@/types/serviceKemenkeu";
+
+const API_TIMEOUT = 5000;
 
 export class KemenkeuService {
   private static token: string | null = null;
@@ -37,71 +45,169 @@ export class KemenkeuService {
       throw new Error("Failed to get access token");
     }
   }
-  static async getProfil({ nip }: { nip: string }): Promise<Profil> {
+
+  static async getProfil({ nip }: { nip: string }): Promise<Profile> {
     try {
-      const cachedProfil = await redis.getCache(
-        `${appConfig.name}:KemenkeuService:Profil:${nip}`
-      );
+      const cacheKey = `${appConfig.NAME}:KemenkeuService:Profil:${nip}`;
+      const cachedProfil = await redisService.get<Profile>(cacheKey);
       if (cachedProfil) {
-        return JSON.parse(cachedProfil) as Profil;
+        return cachedProfil;
       }
+
       const response = await axios.get(
         `${ServiceKemenkeuConfig.BASE_URI}/hris/profil/Pegawai/GetByNip/${nip}`,
         {
           headers: {
             Authorization: `Bearer ${await this.getAccessToken()}`,
           },
+          timeout: API_TIMEOUT,
         }
       );
-      await redis.setCache(
-        `${appConfig.name}:KemenkeuService:Profil:${nip}`,
-        JSON.stringify(response.data.Data),
-        3600
-      );
-      return response.data.Data as Profil;
+
+      if (!response.data?.Data) {
+        throw new ExternalServiceError("KemenkeuService", "Invalid Profil response format");
+      }
+
+      const profil = response.data.Data as Profile;
+
+      await redisService.set(cacheKey, profil, 60 * 60);
+
+      return profil;
     } catch (error) {
-      console.error("Error requesting Profil:", error);
-      throw new Error("Failed to get Profil");
+      if (
+        error instanceof ExternalServiceError ||
+        error instanceof TimeoutError ||
+        error instanceof AuthenticationError
+      ) {
+        throw error;
+      }
+
+      if (axios.isAxiosError(error)) {
+        if (error.code === "ECONNABORTED") {
+          logger.error("Profil API timeout", { nip });
+          throw new TimeoutError("Kemenkeu Profil Service");
+        }
+        if (error.response?.status === 404) {
+          logger.warn("Profil not found", { nip });
+          throw new NotFoundError(`Profile for NIP: ${nip}`);
+        }
+      }
+
+      logger.error("Failed to get Profil from Kemenkeu", {
+        nip,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      throw new ExternalServiceError("KemenkeuService", "Failed to get Profil");
     }
   }
+
   static async getKeluarga({ nip }: { nip: string }): Promise<Keluarga[]> {
     try {
-      const cachedKeluarga = await redis.getCache(
-        `${appConfig.name}:KemenkeuService:Keluarga:${nip}`
-      );
+      const cacheKey = `${appConfig.NAME}:KemenkeuService:Keluarga:${nip}`;
+      const cachedKeluarga = await redisService.get<Keluarga[]>(cacheKey);
       if (cachedKeluarga) {
-        return JSON.parse(cachedKeluarga) as Keluarga[];
+        return cachedKeluarga;
       }
+
       const response = await axios.get(
         `${ServiceKemenkeuConfig.BASE_URI}/hris/keluarga/Riwayat/GetKeluargaByNip/${nip}`,
         {
           headers: {
             Authorization: `Bearer ${await this.getAccessToken()}`,
           },
+          timeout: API_TIMEOUT,
         }
       );
-      await redis.setCache(
-        `${appConfig.name}:KemenkeuService:Keluarga:${nip}`,
-        JSON.stringify(response.data.Data),
-        3600
-      );
-      return response.data.Data as Keluarga[];
+
+      if (!response.data?.Data) {
+        throw new ExternalServiceError("KemenkeuService", "Invalid Keluarga response format");
+      }
+
+      const keluarga = response.data.Data as Keluarga[];
+
+      await redisService.set(cacheKey, keluarga, 60 * 60);
+
+      return keluarga;
     } catch (error) {
-      console.error("Error requesting Profil:", error);
-      throw new Error("Failed to get Profil");
+      if (
+        error instanceof ExternalServiceError ||
+        error instanceof TimeoutError ||
+        error instanceof AuthenticationError
+      ) {
+        throw error;
+      }
+
+      if (axios.isAxiosError(error) && error.code === "ECONNABORTED") {
+        logger.error("Keluarga API timeout", { nip });
+        throw new TimeoutError("Kemenkeu Keluarga Service");
+      }
+
+      logger.error("Failed to get Keluarga from Kemenkeu", {
+        nip,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      throw new ExternalServiceError("KemenkeuService", "Failed to get Keluarga");
     }
   }
-  static async getDaftarPegawai({
-    kdsatker,
-  }: {
-    kdsatker: string;
-  }): Promise<Profil[]> {
+
+  static async getProfilHris2({ nip }: { nip: string }): Promise<Profile2> {
     try {
-      const cachedKeluarga = await redis.getCache(
-        `${appConfig.name}:KemenkeuService:DaftarPegawai:${kdsatker}`
+      const cacheKey = `${appConfig.NAME}:KemenkeuService:Profil2:${nip}`;
+      const cachedProfil = await redisService.get<Profile2>(cacheKey);
+      if (cachedProfil) {
+        return cachedProfil;
+      }
+
+      const response = await axios.get(
+        `${ServiceKemenkeuConfig.BASE_URI2}/HrisProfil/2.0/api/Profile/GetPegawai?nip=${nip}`,
+        {
+          headers: {
+            Authorization: `Bearer ${await this.getAccessToken()}`,
+          },
+          timeout: API_TIMEOUT,
+        }
       );
-      if (cachedKeluarga) {
-        return JSON.parse(cachedKeluarga) as Profil[];
+
+      if (!response.data?.data) {
+        throw new ExternalServiceError("KemenkeuService", "Invalid Profil2 response format");
+      }
+
+      const profil = response.data.data as Profile2;
+
+      await redisService.set(cacheKey, profil, 60 * 60);
+
+      return profil;
+    } catch (error) {
+      if (
+        error instanceof ExternalServiceError ||
+        error instanceof TimeoutError ||
+        error instanceof AuthenticationError
+      ) {
+        throw error;
+      }
+
+      if (axios.isAxiosError(error) && error.code === "ECONNABORTED") {
+        logger.error("Profil2 API timeout", { nip });
+        throw new TimeoutError("Kemenkeu Profil2 Service");
+      }
+
+      logger.error("Failed to get Profil2 from Kemenkeu", {
+        nip,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      throw new ExternalServiceError("KemenkeuService", "Failed to get Profil");
+    }
+  }
+
+  static async getDaftarPegawai({ kdsatker }: { kdsatker: string }): Promise<Profile[]> {
+    try {
+      const cacheKey = `${appConfig.NAME}:KemenkeuService:DaftarPegawai:${kdsatker}`;
+      const cachedDaftarPegawai = await redisService.get<Profile[]>(cacheKey);
+      if (cachedDaftarPegawai) {
+        return cachedDaftarPegawai;
       }
       const response = await axios.get(
         `${ServiceKemenkeuConfig.BASE_URI}/hris/profil/pegawai/getByKodeSatker?kdSatker=${kdsatker}`,
@@ -109,17 +215,40 @@ export class KemenkeuService {
           headers: {
             Authorization: `Bearer ${await this.getAccessToken()}`,
           },
+          timeout: API_TIMEOUT,
         }
       );
-      await redis.setCache(
-        `${appConfig.name}:KemenkeuService:DaftarPegawai:${kdsatker}`,
-        JSON.stringify(response.data.Data),
-        3600
-      );
-      return response.data.Data as Profil[];
+      
+
+      if (!response.data?.Data) {
+        throw new ExternalServiceError("KemenkeuService", "Invalid Profil response format");
+      }
+
+      const profil = response.data.Data as Profile[];
+
+      await redisService.set(cacheKey, profil, 60 * 60);
+
+      return profil;
     } catch (error) {
-      console.error("Error requesting Daftar Pegawai:", error);
-      throw new Error("Failed to get Daftar Pegawai");
+      if (
+        error instanceof ExternalServiceError ||
+        error instanceof TimeoutError ||
+        error instanceof AuthenticationError
+      ) {
+        throw error;
+      }
+
+      if (axios.isAxiosError(error) && error.code === "ECONNABORTED") {
+        logger.error("Daftar Pegawai API timeout", { kdsatker });
+        throw new TimeoutError("Kemenkeu Daftar Pegawai Service");
+      }
+
+      logger.error("Failed to get Daftar Pegawai from Kemenkeu", {
+        kdsatker,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      throw new ExternalServiceError("KemenkeuService", "Failed to get Profil");
     }
   }
 }

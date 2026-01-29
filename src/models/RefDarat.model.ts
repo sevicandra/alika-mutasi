@@ -1,5 +1,5 @@
+import { BelongsTo, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, BelongsTo } from "sequelize";
 import Kota from "./RefKota.model";
 
 type RefDaratAttributes = {
@@ -83,9 +83,6 @@ RefDarat.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       validate: {
-        isPositive: {
-          msg: "Jarak harus lebih dari 0",
-        },
         notNull: {
           msg: "Jarak tidak boleh kosong",
         },

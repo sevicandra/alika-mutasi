@@ -1,24 +1,22 @@
-import { PegawaiMutasi, sequelize, SpdCounter } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { Op } from "sequelize";
-import { approveMutasiQueue } from "@/queues/ApproveMutasi.queue";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { Logger } from "@/services/log.service";
+import {
+  AuthorizationError,
+  InternalServerError,
+  InvalidRequestError,
+  NotFoundError,
+} from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { approveMutasiQueue } from "@/queues/ApproveMutasi.queue";
+import { PegawaiMutasi, SpdCounter } from "@/repositories";
 
-export const getAllMutasi = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
-    const { nip } = req.user;
+export const MutasiControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
@@ -41,7 +39,7 @@ export const getAllMutasi = async (
         },
       ];
 
-    const data = await PegawaiMutasi.findAll({
+    const { items: data, pagination } = await PegawaiMutasi.findAllWithPagination({
       where,
       limit,
       offset,
@@ -61,48 +59,13 @@ export const getAllMutasi = async (
         },
       ],
     });
-    const count = await PegawaiMutasi.count({
-      where,
-      include: [
-        {
-          association: "SuratKeputusan",
-          where: skSearch,
-        },
-        {
-          association: "KantorAsal",
-        },
-        {
-          association: "KantorTujuan",
-        },
-        {
-          association: "Golongan",
-        },
-      ],
-    });
-    return successResponse(res, "data berhasil didapatkan", data, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error)
-  }
-};
+    successResponse(res, "data berhasil didapatkan", data, pagination);
+  }),
 
-export const getMutasiById = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  try {
-    const { nip } = req.user;
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
     const { mutasiId } = req.params;
     const data = await PegawaiMutasi.findOne({
@@ -125,24 +88,15 @@ export const getMutasiById = async (
       ],
     });
     if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("data tidak ditemukan");
     }
-    return successResponse(res, "data berhasil didapatkan", data);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
+    successResponse(res, "data berhasil didapatkan", data);
+  }),
 
-export const getTimeline = async (req: AuthenticatedRequest, res: Response, next:NextFunction) => {
-  try {
-    const { nip } = req.user;
+  getTimeline: asyncHandler(async (req: Request, res: Response) => {
+    const nip = req.user?.nip;
     if (!nip) {
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
+      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
     }
     const { mutasiId } = req.params;
 
@@ -175,145 +129,91 @@ export const getTimeline = async (req: AuthenticatedRequest, res: Response, next
     });
 
     if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("data tidak ditemukan");
     }
 
-    return successResponse(
-      res,
-      "data berhasil didapatkan",
-      data.SuratKeputusan,
-      200
-    );
-  } catch (error: unknown) {
-    next(error)
-  }
-};
+    successResponse(res, "data berhasil didapatkan", data.SuratKeputusan);
+  }),
 
-export const approve = async (req: AuthenticatedRequest, res: Response, next:NextFunction) => {
-  const t = await sequelize.transaction();
-  try {
-    const { nip } = req.user;
-    if (!nip) {
-      await t.rollback();
-      return errorResponse(
-        res,
-        "Pengguna tidak dapat di verifikasi",
-        null,
-        403
-      );
-    }
-    const { mutasiId } = req.params;
-
-    const [counter] = await SpdCounter.findOrCreate({
-      where: { year: `${new Date().getFullYear()}` },
-      defaults: {
-        ext: "KN.122",
-      },
-      transaction: t,
-    });
-
-    counter.last_number += 1;
-    await counter.save({ transaction: t });
-
-    const data = await PegawaiMutasi.findOne({
-      where: {
-        id: mutasiId,
-        nip: nip,
-        status: "PENDING_APROVAL",
-      },
-      include: [
-        {
-          association: "TanggunganDewasa",
-        },
-        {
-          association: "TanggunganInvant",
-        },
-        {
-          association: "Art",
-        },
-        {
-          association: "KantorAsal",
-          include: [
-            {
-              association: "Kota",
-            },
-          ],
-        },
-        {
-          association: "KantorTujuan",
-          include: [
-            {
-              association: "Kota",
-            },
-          ],
-        },
-      ],
-      transaction: t,
-    });
-    if (!data) {
-      await t.rollback();
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    data.status = "CALCULATING";
-    (data.nomor_spd = `${String(counter.last_number).padStart(4, "0")}/${
-      counter.ext
-    }/${new Date().getFullYear()}`),
-      (data.tanggal_spd = new Date());
-
-    await data.save({ transaction: t });
-    await approveMutasiQueue.add(
-      "approve_mutasi",
-      {
-        nip: nip,
-        agenda: {
-          nomor: `${String(counter.last_number).padStart(4, "0")}/${
-            counter.ext
-          }/${new Date().getFullYear()}`,
-          tanggal: new Date().toLocaleDateString("id-ID", {
-            year: "numeric",
-            month: "long",
-            day: "2-digit",
-          }),
-        },
-        pegawai_id: mutasiId,
-        jumlah_tanggungan_dewasa: data.TanggunganDewasa.length,
-        jumlah_tanggungan_invant: data.TanggunganInvant.length,
-        tanggungan_art: data.Art ? true : false,
-        asal: data.KantorAsal.Kota.kode,
-        tujuan: data.KantorTujuan.Kota.kode,
-        provinsi_tujuan: data.KantorTujuan.Kota.kode_provinsi,
-        faktor_darat: data.faktor_darat,
-        faktor_laut: data.faktor_laut,
-        faktor_udara: data.faktor_udara,
-        kelas_pesawat: data.kelas_pesawat,
-        golongan: data.golongan.split("")[0] as "1" | "2" | "3" | "4",
-        jumlah_hari: data.jumlah_hari,
-      },
-      {
-        jobId: mutasiId,
-        attempts: 3,
-        backoff: { type: "exponential", delay: 1000 },
-        removeOnComplete: true,
-        removeOnFail: false,
+  approve: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
       }
-    );
-    await Logger.GeneralAction({
-      pegawai_id: mutasiId,
-      actor_nip: nip,
-      actor_role: "PEGAWAI",
-      action: "Setujui Data Tanggungan Mutasi",
-      description: null,
-      transaction: t,
-    });
-    await t.commit();
-    return successResponse(
-      res,
-      "data perhitungan biaya mutasi berhasil diproses",
-      data,
-      200
-    );
-  } catch (error: unknown) {
-    await t.rollback();
-    next(error)
-  }
+      const nip = req.user?.nip;
+      if (!nip) {
+        throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
+      }
+      const { mutasiId } = req.params;
+
+      if (typeof mutasiId != "string") {
+        throw new InvalidRequestError("Parameter tidak valid");
+      }
+      const counter = await SpdCounter.getCounter(t);
+      const data = await PegawaiMutasi.getDataPerhitungan(nip, mutasiId, t);
+      if (!data) {
+        throw new NotFoundError("data tidak ditemukan");
+      }
+      data.status = "CALCULATING";
+      ((data.nomor_spd = `${String(counter.last_number).padStart(4, "0")}/${
+        counter.ext
+      }/${new Date().getFullYear()}`),
+        (data.tanggal_spd = new Date()));
+      await data.save({ transaction: t });
+      await approveMutasiQueue.add(
+        "approve_mutasi",
+        {
+          nip: nip,
+          agenda: {
+            nomor: `${String(counter.last_number).padStart(4, "0")}/${
+              counter.ext
+            }/${new Date().getFullYear()}`,
+            tanggal: new Date().toLocaleDateString("id-ID", {
+              year: "numeric",
+              month: "long",
+              day: "2-digit",
+            }),
+          },
+          pegawai_id: mutasiId,
+          jumlah_tanggungan_dewasa: data.TanggunganDewasa.length,
+          jumlah_tanggungan_invant: data.TanggunganInvant.length,
+          tanggungan_art: data.Art ? true : false,
+          asal: data.KantorAsal.Kota.kode,
+          tujuan: data.KantorTujuan.Kota.kode,
+          provinsi_tujuan: data.KantorTujuan.Kota.kode_provinsi,
+          faktor_darat: data.faktor_darat,
+          faktor_laut: data.faktor_laut,
+          faktor_udara: data.faktor_udara,
+          kelas_pesawat: data.kelas_pesawat,
+          golongan: data.golongan.split("")[0] as "1" | "2" | "3" | "4",
+          jumlah_hari: data.jumlah_hari,
+        },
+        {
+          jobId: mutasiId,
+          attempts: 3,
+          backoff: { type: "exponential", delay: 1000 },
+          removeOnComplete: true,
+          removeOnFail: false,
+        }
+      );
+      await Logger.GeneralAction({
+        pegawai_id: mutasiId,
+        actor_nip: nip,
+        actor_role: "PEGAWAI",
+        action: "Setujui Data Tanggungan Mutasi",
+        description: null,
+        transaction: t,
+      });
+
+      successResponse(
+        res,
+        "data berhasil diproses, silakan menunggu perhitungan biaya selesai",
+        data
+      );
+    },
+    {
+      useTransaction: true,
+    }
+  ),
 };

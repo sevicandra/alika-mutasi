@@ -1,117 +1,98 @@
-import { RefUangHarian } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefUangHarian } from "@/repositories";
 
-export const getAllUangHarian = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const UangHarianControllerV1 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
-    const where: any = {};
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
-    const provinsi = await RefUangHarian.findAll({
-      where,
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
+
+    const { items: data, pagination } = await RefUangHarian.findAllWithPagination({
       limit,
       offset,
       order,
     });
-    const count = await RefUangHarian.count({ where });
-    return successResponse(res, "Berhasil mengambil data provinsi", provinsi, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getUangHarianById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Success get all ref uang harian", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const provinsi = await RefUangHarian.findByPk(id);
-    if (!provinsi) {
-      return errorResponse(res, "Provinsi tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "Berhasil mengambil data provinsi", provinsi);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const createUangHarian = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { kode_provinsi, tarif } = req.body;
-    if (!kode_provinsi || !tarif) {
-      return errorResponse(res, "parameter tidak lengkap", null, 400);
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
     }
+
+    const data = await RefUangHarian.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
+
+    successResponse(res, "Success get ref uang harian", data);
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
+    const { kode_provinsi, tarif } = req.body;
     const data = await RefUangHarian.create({
       kode_provinsi,
       tarif,
     });
-
-    return successResponse(res, "Berhasil membuat data provinsi", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updateUangHarian = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const { kode_provinsi, tarif } = req.body;
-    if (!id) {
-      return errorResponse(res, "parameter tidak lengkap", null, 400);
+    successResponse(res, "Success create ref uang harian", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { kode_provinsi, tarif } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefUangHarian.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          kode_provinsi,
+          tarif,
+        },
+        t
+      );
+      successResponse(res, "Success update ref uang harian", data);
+    },
+    {
+      useTransaction: true,
     }
-    const data = await RefUangHarian.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefUangHarian.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref uang harian", data);
+    },
+    {
+      useTransaction: true,
     }
-    if (kode_provinsi) data.kode_provinsi = kode_provinsi;
-    if (tarif) data.tarif = tarif;
-    await data.save();
-    return successResponse(res, "Berhasil mengubah data provinsi", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deleteUangHarian = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
-    const data = await RefUangHarian.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
-    }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus data provinsi", {
-      id,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
+  ),
 };

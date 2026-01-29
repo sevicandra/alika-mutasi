@@ -1,16 +1,14 @@
-import { PegawaiMutasi } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { Op } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError } from "@/utils/errors";
 import sequelize from "@/config/db.config";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { PegawaiMutasi } from "@/repositories";
 
-export const getAllPegawaiMutasi = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const PegawaiMutasiController = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const { SkId } = req.params;
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
@@ -35,11 +33,9 @@ export const getAllPegawaiMutasi = async (
           nip: { [Op.like]: `%${search}%` },
         },
       ];
-    const order: any[] = [];
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
-    order.push([sortField, sortOrder.toUpperCase()]);
-    const { rows: data, count } = await PegawaiMutasi.findAndCountAll({
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
+    const { items: data, pagination } = await PegawaiMutasi.findAllWithPagination({
       where,
       limit,
       offset,
@@ -86,36 +82,16 @@ export const getAllPegawaiMutasi = async (
       raw: true,
     });
 
-    return successResponse(
-      res,
-      "Berhasil mengambil data pegawai mutasi",
-      data,
-      {
-        limit,
-        offset,
-        count,
-        totalPages: limit ? Math.ceil(count / limit) : 1,
-      }
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const countAllPegawaiMutasi = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Berhasil mendapatkan dokumen", data, pagination);
+  }),
+  count: asyncHandler(async (req: Request, res: Response) => {
     const { SkId } = req.params;
     const kantor_asal = (req.query.kantor_asal as string) || undefined;
     const kantor_tujuan = (req.query.kantor_tujuan as string) || undefined;
     const nip = (req.query.nip as string) || undefined;
     const status = (req.query.status as string) || undefined;
     const search = (req.query.search as string) || undefined;
-    const process_keluarga =
-      (req.query.process_keluarga as string) || undefined;
+    const process_keluarga = (req.query.process_keluarga as string) || undefined;
     const process_biaya = (req.query.process_biaya as string) || undefined;
     const where: any = {
       sk_id: SkId,
@@ -135,25 +111,17 @@ export const countAllPegawaiMutasi = async (
           nip: { [Op.like]: `%${search}%` },
         },
       ];
-    const count = await PegawaiMutasi.count({ where });
-    return successResponse(
-      res,
-      "Berhasil menghitung data pegawai mutasi",
-      count
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    const data = await PegawaiMutasi.count({ where });
 
-export const getPegawaiMutasiById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    successResponse(res, "Berhasil mendapatkan dokumen", data);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { PegawaiId, SkId } = req.params;
-    const data = await PegawaiMutasi.findByPk(PegawaiId, {
+    if (typeof PegawaiId != "string" || typeof SkId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
+    const data = await PegawaiMutasi.findById(PegawaiId, {
       include: [
         {
           association: "SuratKeputusan",
@@ -168,11 +136,8 @@ export const getPegawaiMutasiById = async (
       ],
     });
     if (!data) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("data tidak ditemukan");
     }
-
-    return successResponse(res, "Berhasil mengambil data pegawai mutasi", data);
-  } catch (error: unknown) {
-    next(error);
-  }
+    successResponse(res, "Berhasil mendapatkan dokumen", data);
+  }),
 };

@@ -1,13 +1,9 @@
 import { Router } from "express";
-import {
-  getAllHistory,
-  getHistoryById,
-} from "@/controllers/v2/pegawai/riwayat.controller";
+import { RiwayatControllerV2 } from "@/controllers/v2/pegawai/riwayat.controller";
 
 const router = Router({ mergeParams: true });
 
-router.get("/", getAllHistory);
-router.get("/:historyId", getHistoryById);
-
+router.get("/", RiwayatControllerV2.getAll);
+router.get("/:historyId", RiwayatControllerV2.getById);
 
 export default router;

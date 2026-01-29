@@ -1,5 +1,5 @@
+import { Association, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, Association } from "sequelize";
 import Provinsi from "./RefProvinsi.model";
 
 type RefUangHarianAttributes = {
@@ -32,7 +32,7 @@ RefUangHarian.init(
       primaryKey: true,
     },
     kode_provinsi: {
-      type: DataTypes.STRING(255),
+      type: DataTypes.STRING(3),
       allowNull: false,
       references: {
         model: Provinsi,
@@ -47,9 +47,6 @@ RefUangHarian.init(
       }),
       allowNull: false,
       validate: {
-        isPositive: {
-          msg: "Tarif harus lebih dari 0",
-        },
         notNull: {
           msg: "Tarif tidak boleh kosong",
         },

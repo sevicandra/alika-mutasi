@@ -1,24 +1,22 @@
-import { Sanggah, sequelize, Keluarga } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { Op, where, col } from "sequelize";
-import { Invant } from "@/helpers/age.helper";
-import { Logger } from "@/services/log.service";
-import { ReviewSanggah } from "@/types/pembayaranLog";
+import { Request, Response } from "express";
+import { Op, col, where } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { AlikaService } from "@/services/alika.service";
+import { Logger } from "@/services/log.service";
+import { AuthenticationError, InvalidRequestError, NotFoundError, InternalServerError} from "@/utils/errors";
+import { Invant } from "@/helpers/age.helper";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { Keluarga, Sanggah } from "@/repositories";
+import { ReviewSanggah } from "@/types/pembayaranLog";
 
-export const getAllSanggah = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const SanggahControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
     const search = (req.query.search as string) || "";
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
+    const sort = (req.query.sort as string) || "id";
+    const order = sortBuilder(sort);
 
     const whereClause = search
       ? {
@@ -31,7 +29,7 @@ export const getAllSanggah = async (
         }
       : { status: "PENDING" };
 
-    const { rows: data, count } = await Sanggah.findAndCountAll({
+    const { items: data, pagination } = await Sanggah.findAllWithPagination({
       where: whereClause,
       include: [
         {
@@ -48,28 +46,19 @@ export const getAllSanggah = async (
       ],
       limit,
       offset,
-      order: [[sortField, sortOrder.toUpperCase()]],
+      order,
     });
 
-    return successResponse(res, "Berhasil mengambil data sanggah", data, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    successResponse(res, "Berhasil mengambil data sanggah", data, pagination);
+  }),
 
-export const getSanggahById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+  getById: asyncHandler(async (req: Request, res: Response) => {
     const { SanggahId } = req.params;
-    const data = await Sanggah.findByPk(SanggahId, {
+    if (typeof SanggahId) {
+      throw new InvalidRequestError("Invalid request");
+    }
+    const data = await Sanggah.findOne({
+      where: { id: SanggahId },
       include: [
         {
           association: "Pegawai",
@@ -79,103 +68,94 @@ export const getSanggahById = async (
       ],
     });
     if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
-    }
-    return successResponse(res, "Berhasil mengambil data sanggah", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const reviewSanggah = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const t = await sequelize.transaction();
-  const {
-    review,
-  }: {
-    review: {
-      id: string;
-      is_approved: boolean;
-      admin_notes: string;
-    }[];
-  } = req.body;
-  try {
-    const { SanggahId } = req.params;
-    const { nip } = req.user;
-    const data = await Sanggah.findOne({
-      where: { id: SanggahId, status: "PENDING" },
-      include: [
-        {
-          association: "DataSanggah",
-        },
-        {
-          association: "Pegawai",
-          attributes: ["nama", "nip", "id", "status"],
-          include: [
-            {
-              association: "SuratKeputusan",
-              attributes: ["id", "nomor", "tanggal"],
-            },
-          ],
-        },
-      ],
-      transaction: t,
-    });
-    if (!data) {
-      await t.rollback();
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
-    }
-    const dataSanggahIds = data.DataSanggah.map((d: any) => d.id);
-    if (
-      review.length !== dataSanggahIds.length ||
-      !review.every((r) => dataSanggahIds.includes(r.id))
-    ) {
-      return errorResponse(
-        res,
-        "belum melakukan review untuk seluruh data",
-        null,
-        400
-      );
+      throw new NotFoundError("Data not found");
     }
 
-    const allReviewed = review.every((r) => r.is_approved !== undefined);
-    if (!allReviewed) {
-      await t.rollback();
-      return errorResponse(
-        res,
-        "belum melakukan review untuk seluruh data",
-        null,
-        400
-      );
-    }
-    const logPayload: ReviewSanggah[] = [];
+    successResponse(res, "Berhasil mengambil data sanggah", data);
+  }),
 
-    for (const d of data.DataSanggah) {
-      const reviewData = review.find((r) => r.id === d.id);
-      if (reviewData) {
-        d.is_approved = reviewData.is_approved;
-        d.admin_notes = reviewData.admin_notes;
-        await d.save({ transaction: t });
-        await d.reload({ transaction: t });
-        logPayload.push({
-          id: d.keluarga_id,
-          nama: d.Ref?.nama ? d.Ref.nama : "",
-          action: d.action,
-          data: d.new_value
-            ? JSON.parse(JSON.stringify(d.new_value))
-            : undefined,
-          catatan: reviewData.admin_notes,
-          file: d.file,
-          confrimation: reviewData.is_approved,
-        });
+  review: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
       }
-    }
+      const nip = req.user?.nip;
+      if (!nip) {
+        throw new AuthenticationError("Pengguna tidak dapat di verifikasi");
+      }
+      const { SanggahId } = req.params;
+      if (typeof SanggahId != "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
 
-    data.DataSanggah.filter((d) => d.is_approved === true).forEach(
-      async (d) => {
+      const {
+        review,
+      }: {
+        review: {
+          id: string;
+          is_approved: boolean;
+          admin_notes: string;
+        }[];
+      } = req.body;
+      const data = await Sanggah.findOne({
+        where: { id: SanggahId, status: "PENDING" },
+        include: [
+          {
+            association: "DataSanggah",
+          },
+          {
+            association: "Pegawai",
+            attributes: ["nama", "nip", "id", "status"],
+            include: [
+              {
+                association: "SuratKeputusan",
+                attributes: ["id", "nomor", "tanggal"],
+              },
+            ],
+          },
+        ],
+        transaction: t,
+      });
+
+      if (!data) {
+        throw new NotFoundError("Data not found");
+      }
+
+      const dataSanggahIds = data.DataSanggah.map((d: any) => d.id);
+      if (
+        review.length !== dataSanggahIds.length ||
+        !review.every((r) => dataSanggahIds.includes(r.id))
+      ) {
+        throw new InvalidRequestError("belum melakukan review untuk seluruh data");
+      }
+
+      const allReviewed = review.every((r) => r.is_approved !== undefined);
+      if (!allReviewed) {
+        throw new InvalidRequestError("belum melakukan review untuk seluruh data");
+      }
+      const logPayload: ReviewSanggah[] = [];
+
+      for (const d of data.DataSanggah) {
+        const reviewData = review.find((r) => r.id === d.id);
+        if (reviewData) {
+          d.is_approved = reviewData.is_approved;
+          d.admin_notes = reviewData.admin_notes;
+          await d.save({ transaction: t });
+          await d.reload({ transaction: t });
+          logPayload.push({
+            id: d.keluarga_id,
+            nama: d.Ref?.nama ? d.Ref.nama : "",
+            action: d.action,
+            data: d.new_value ? JSON.parse(JSON.stringify(d.new_value)) : undefined,
+            catatan: reviewData.admin_notes,
+            file: d.file,
+            confrimation: reviewData.is_approved,
+          });
+        }
+      }
+
+      data.DataSanggah.filter((d) => d.is_approved === true).forEach(async (d) => {
         if (d.action === "ADD") {
           type NewValueType = {
             nama: { new: string };
@@ -241,37 +221,39 @@ export const reviewSanggah = async (
         }
 
         if (d.action === "REMOVE") {
-          await Keluarga.destroy({
-            where: { id: d.keluarga_id },
-            transaction: t,
-          });
+          await Keluarga.deleteOne(
+            {
+              where: { id: d.keluarga_id },
+            },
+            t
+          );
         }
-      }
-    );
-    data.status = "REVIEWED";
-    data.reviewed_at = new Date();
-    data.Pegawai.status = "PENDING_APROVAL";
-    await data.save({ transaction: t });
-    await data.Pegawai.save({ transaction: t });
+      });
+      data.status = "REVIEWED";
+      data.reviewed_at = new Date();
+      data.Pegawai.status = "PENDING_APROVAL";
+      await data.save({ transaction: t });
+      await data.Pegawai.save({ transaction: t });
 
-    await Logger.SanggahanReview({
-      pegawai_id: data.Pegawai.id,
-      actor_nip: nip,
-      action: "Review Sanggah Data Keluarga",
-      description: null,
-      payload: logPayload,
-      transaction: t,
-    });
+      await Logger.SanggahanReview({
+        pegawai_id: data.Pegawai.id,
+        actor_nip: nip,
+        action: "Review Sanggah Data Keluarga",
+        description: null,
+        payload: logPayload,
+        transaction: t,
+      });
 
-    await AlikaService.sendPushNotification({
-      nip: data.Pegawai.nip,
-      message: `Sanggah anda telah selesai di review oleh bagian SDM, silahkan memeriksa hasil dan melanjutkan proses pengajuan pembayaran`,
-      title: "Sanggah Data Keluarga",
-    });
-    await t.commit();
-    return successResponse(res, "Review sanggah berhasil", null, 200);
-  } catch (error: unknown) {
-    await t.rollback();
-    next(error);
-  }
+      await AlikaService.sendPushNotification({
+        nip: data.Pegawai.nip,
+        message: `Sanggah anda telah selesai di review oleh bagian SDM, silahkan memeriksa hasil dan melanjutkan proses pengajuan pembayaran`,
+        title: "Sanggah Data Keluarga",
+      });
+
+      successResponse(res, "Berhasil melakukan review sanggah");
+    },
+    {
+      useTransaction: true,
+    }
+  ),
 };

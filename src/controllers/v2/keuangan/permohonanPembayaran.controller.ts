@@ -1,25 +1,26 @@
-import { Termin, sequelize, DokumenTermin } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { Op, where, col } from "sequelize";
+import { Request, Response } from "express";
+import { Op, col, where } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { AlikaService } from "@/services/alika.service";
 import { Logger } from "@/services/log.service";
-import { MinioService } from "@/services/minio.service";
+import { minioService } from "@/services/minio-service";
+import {
+  AuthorizationError,
+  InternalServerError,
+  InvalidRequestError,
+  NotFoundError,
+} from "@/utils/errors";
+import { fileResponse, successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { DokumenTermin, Termin } from "@/repositories";
 
-const minioService = new MinioService();
-
-export const getAllPermohonan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const PermohonanPembayaranController = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
     const search = (req.query.search as string) || undefined;
-    const sortField = (req.query.sortField as string) || "id";
-    const sortOrder = (req.query.sortOrder as string) || "DESC";
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
 
     const whereClause = search
       ? {
@@ -31,7 +32,7 @@ export const getAllPermohonan = async (
         }
       : { status: "WAITING_APPROVAL_KEU" };
 
-    const { rows: data, count } = await Termin.findAndCountAll({
+    const { items: data, pagination } = await Termin.findAllWithPagination({
       where: whereClause,
       include: [
         {
@@ -55,27 +56,20 @@ export const getAllPermohonan = async (
       ],
       limit,
       offset,
-      order: [[sortField, sortOrder.toUpperCase()]],
+      order,
     });
-    return successResponse(res, "Berhasil mengambil data pegawai", data, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getPermohonanById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { PermohonanId } = req.params;
-  try {
-    const data = await Termin.findByPk(PermohonanId, {
+    successResponse(res, "Berhasil mengambil data pegawai", data, pagination);
+  }),
+
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const { PermohonanId } = req.params;
+
+    if (typeof PermohonanId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
+    const data = await Termin.findById(PermohonanId, {
       include: [
         {
           association: "DokumenTermin",
@@ -83,140 +77,148 @@ export const getPermohonanById = async (
       ],
     });
     if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+      throw new NotFoundError("Data not found");
     }
+    successResponse(res, "Berhasil mengambil data pegawai", data);
+  }),
 
-    return successResponse(res, "Berhasil mengambil data pegawai", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+  approve: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
 
-export const setujuiPermohonan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { nip } = req.user;
-  const { PermohonanId } = req.params;
-  const { catatan } = await req.body;
-  const t = await sequelize.transaction();
-  try {
-    const data = await Termin.findOne({
-      where: {
-        id: PermohonanId,
-        status: "WAITING_APPROVAL_KEU",
-      },
-      include: [
+      const nip = req.user?.nip;
+      if (!nip) {
+        throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
+      }
+
+      const { PermohonanId } = req.params;
+      const { catatan } = await req.body;
+
+      const data = await Termin.updateOne(
         {
-          association: "Pegawai",
+          where: {
+            id: PermohonanId,
+            status: "WAITING_APPROVAL_KEU",
+          },
         },
         {
-          association: "Ref",
-        }
-      ],
-      transaction: t,
-    });
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
-    }
-    data.status = "APPROVED_KEU";
-    await data.save({ transaction: t });
-    await AlikaService.sendPushNotification({
-      nip: data.Pegawai.nip,
-      message:
-        "Permohonan pembayaran telah disetujui oleh Bagian Keuangan dan akan segera diproses payroll",
-    });
-    await Logger.GeneralAction({
-      pegawai_id: data.Pegawai.id,
-      actor_nip: nip,
-      actor_role: "KEU",
-      action: `Setujui permohonan pembayaran (${data.Ref.nama})`,
-      description: catatan ? catatan : null,
-      transaction: t,
-    });
-    await t.commit();
-    return successResponse(res, "Berhasil mengubah status permohonan", data);
-  } catch (error: unknown) {
-    await t.rollback();
-    next(error);
-  }
-};
+          status: "APPROVED_KEU",
+        },
+        t
+      );
 
-export const tolakPermohonan = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { PermohonanId } = req.params;
-  const { nip } = req.user;
-  const { catatan } = await req.body;
-  const t = await sequelize.transaction();
-  try {
-    if (!catatan) {
-      await t.rollback();
-      return errorResponse(
-        res,
-        "Validation gagal",
-        [
+      await data.reload({
+        include: [
           {
-            field: "catatan",
-            message: "Catatan harus diisi",
+            association: "Pegawai",
+            attributes: ["nip", "nama", "id"],
+          },
+          {
+            association: "Ref",
+            attributes: ["nama"],
           },
         ],
-        422
-      );
+
+        transaction: t,
+      });
+
+      await AlikaService.sendPushNotification({
+        nip: data.Pegawai.nip,
+        message:
+          "Permohonan pembayaran telah disetujui oleh Bagian Keuangan dan akan segera diproses payroll",
+      });
+      await Logger.GeneralAction({
+        pegawai_id: data.Pegawai.id,
+        actor_nip: nip,
+        actor_role: "KEU",
+        action: `Setujui permohonan pembayaran (${data.Ref.nama})`,
+        description: catatan ? catatan : null,
+        transaction: t,
+      });
+
+      successResponse(res, "Berhasil menyetujui permohonan pembayaran");
+    },
+    {
+      useTransaction: true,
     }
-    const data = await Termin.findOne({
-      where: {
-        id: PermohonanId,
-        status: "WAITING_APPROVAL_KEU",
-      },
-      include: [
+  ),
+
+  reject: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+
+      const nip = req.user?.nip;
+      if (!nip) {
+        throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
+      }
+      const { PermohonanId } = req.params;
+      if (typeof PermohonanId != "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const { catatan } = await req.body;
+
+      const data = await Termin.updateOne(
         {
-          association: "Pegawai",
+          where: {
+            id: PermohonanId,
+            status: "WAITING_APPROVAL_KEU",
+          },
         },
         {
-          association: "Ref",
-        }
-      ],
-      transaction: t,
-    });
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+          status: "REJECTED",
+        },
+        t
+      );
+
+      await data.reload({
+        include: [
+          {
+            association: "Pegawai",
+            attributes: ["nip", "nama", "id"],
+          },
+          {
+            association: "Ref",
+            attributes: ["nama"],
+          },
+        ],
+
+        transaction: t,
+      });
+
+      await AlikaService.sendPushNotification({
+        nip: data.Pegawai.nip,
+        message:
+          "Permohonan pembayaran telah di tolak oleh Bagian Keuangan. silahkan cek pada menu history untuk melihat detail penolakan",
+      });
+      await data.save({ transaction: t });
+      await Logger.GeneralAction({
+        pegawai_id: data.Pegawai.id,
+        actor_nip: nip,
+        actor_role: "KEU",
+        action: `Tolak permohonan pembayaran (${data.Ref.nama})`,
+        description: catatan,
+        transaction: t,
+      });
+
+      successResponse(res, "Berhasil menolak permohonan pembayaran");
+    },
+    {
+      useTransaction: true,
     }
-    data.status = "REJECTED";
-    await AlikaService.sendPushNotification({
-      nip: data.Pegawai.nip,
-      message:
-        "Permohonan pembayaran telah di tolak oleh Bagian Keuangan. silahkan cek pada menu history untuk melihat detail penolakan",
-    });
-    await data.save({ transaction: t });
-    await Logger.GeneralAction({
-      pegawai_id: data.Pegawai.id,
-      actor_nip: nip,
-      actor_role: "KEU",
-      action: `Tolak permohonan pembayaran (${data.Ref.nama})`,
-      description: catatan,
-      transaction: t,
-    });
-    await t.commit();
-    return successResponse(res, "Berhasil mengubah status permohonan", data);
-  } catch (error: unknown) {
-    t.rollback();
-    console.log(error);
+  ),
 
-    next(error);
-  }
-};
-
-export const getDokumenFile = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+  getDokumenFile: asyncHandler(async (req: Request, res: Response) => {
     const { PermohonanId, DokumenId } = req.params;
+    if (typeof PermohonanId != "string" || typeof DokumenId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
     const data = await DokumenTermin.findOne({
       where: {
         termin_id: PermohonanId,
@@ -224,28 +226,10 @@ export const getDokumenFile = async (
       },
     });
     if (!data || !data.file) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("data tidak ditemukan");
     }
 
-    const stream = await minioService.downloadFile(`${data.file}`);
-    if (stream) {
-      const chunks: Buffer[] = [];
-      stream.on("data", (chunk) => chunks.push(chunk));
-      stream.on("end", () => {
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader(
-          "Content-Disposition",
-          `inline; filename="${data.document_type}.pdf"`
-        );
-        return res.status(200).send(Buffer.concat(chunks));
-      });
-      stream.on("error", (err: Error) => {
-        return errorResponse(res, "Terjadi kesalahan", err, 500);
-      });
-    } else {
-      throw new Error("File tidak ditemukan");
-    }
-  } catch (error: unknown) {
-    next(error);
-  }
+    const stream = await minioService.getFile(`${data.file}`);
+    fileResponse(res, stream, `${data.document_type}.pdf`, "application/pdf");
+  }),
 };

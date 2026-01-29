@@ -1,20 +1,18 @@
-import { RefKapal } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { Op, where, col } from "sequelize";
+import { Request, Response } from "express";
+import { Op, col, where } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefKapal } from "@/repositories";
 
-export const getAllKapal = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const KapalControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
     const search = (req.query.search as string) || undefined;
-    const sortField = (req.query.sortField as string) || "kota_asal";
-    const sortOrder = (req.query.sortOrder as string) || "ASC";
     const whereClause = search
       ? {
           [Op.or]: [
@@ -24,67 +22,34 @@ export const getAllKapal = async (
           ],
         }
       : {};
-    const { rows: data, count } = await RefKapal.findAndCountAll({
+
+    const { items: data, pagination } = await RefKapal.findAllWithPagination({
       where: whereClause,
-      limit,
-      offset,
-      order: [[sortField, sortOrder.toUpperCase()]],
       include: [
         {
           association: "KotaAsal",
-          attributes: ["id", "kota", "kode"],
-          include: [
-            {
-              association: "Provinsi",
-              attributes: ["id", "provinsi", "kode"],
-            },
-          ],
+          attributes: ["kode", "kota"],
         },
         {
           association: "KotaTujuan",
-          attributes: ["id", "kota", "kode"],
-          include: [
-            {
-              association: "Provinsi",
-              attributes: ["id", "provinsi", "kode"],
-            },
-          ],
+          attributes: ["kode", "kota"],
         },
       ],
+      limit,
+      offset,
+      order,
     });
-    return successResponse(
-      res,
-      "Berhasil mengambil data kapal",
-      data.map((item) => ({
-        id: item.id,
-        kota_asal: item.KotaAsal.kota,
-        provinsi_asal: item.KotaAsal.Provinsi.provinsi,
-        kota_tujuan: item.KotaTujuan.kota,
-        provinsi_tujuan: item.KotaTujuan.Provinsi.provinsi,
-        rute: item.rute,
-        tarif: item.tarif,
-        kapal: item.kapal,
-      })),
-      {
-        limit,
-        offset,
-        count,
-        totalPages: limit ? Math.ceil(count / limit) : 1,
-      }
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
 
-export const getKapalById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  try {
-    const data = await RefKapal.findByPk(id, {
+    successResponse(res, "Success get all ref kapal", data, pagination);
+  }),
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
+    const data = await RefKapal.findById(id, {
       include: [
         {
           association: "KotaAsal",
@@ -97,83 +62,85 @@ export const getKapalById = async (
       ],
     });
     if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+      throw new NotFoundError("Data not found");
     }
-    return successResponse(res, "Berhasil mengambil data kapal", {
+
+    successResponse(res, "Success get ref kapal", {
       id: data.id,
+      kapal: data.kapal,
+      rute: data.rute,
       kota_asal: data.kota_asal,
       provinsi_asal: data.KotaAsal.kode_provinsi,
       kota_tujuan: data.kota_tujuan,
       provinsi_tujuan: data.KotaTujuan.kode_provinsi,
-      rute: data.rute,
       tarif: data.tarif,
-      kapal: data.kapal,
     });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const createKapal = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { kota_asal, kota_tujuan, tarif, kapal, rute } = req.body;
+  }),
+  create: asyncHandler(async (req: Request, res: Response) => {
+    const { kapal, rute, kota_asal, kota_tujuan, tarif } = req.body;
     const data = await RefKapal.create({
+      kapal,
+      rute,
       kota_asal,
       kota_tujuan,
       tarif,
-      kapal,
-      rute,
     });
-
-    return successResponse(res, "Berhasil menambahkan data kapal", data);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updateKapal = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  try {
-    const { kota_asal, kota_tujuan, tarif, kapal, rute } = req.body;
-    const data = await RefKapal.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+    successResponse(res, "Success create ref kapal", data);
+  }),
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { kapal, rute, kota_asal, kota_tujuan, tarif } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const data = await RefKapal.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          kapal,
+          rute,
+          kota_asal,
+          kota_tujuan,
+          tarif,
+        },
+        t
+      );
+      successResponse(res, "Success update ref kapal", data);
+    },
+    {
+      useTransaction: true,
     }
-
-    if (kota_asal) data.kota_asal = kota_asal;
-    if (kota_tujuan) data.kota_tujuan = kota_tujuan;
-    if (tarif) data.tarif = tarif;
-    if (kapal) data.kapal = kapal;
-    if (rute) data.rute = rute;
-    await data.save();
-    return successResponse(res, "Berhasil mengubah data kapal");
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deleteKapal = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  try {
-    const data = await RefKapal.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+  ),
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefKapal.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref kapal", data);
+    },
+    {
+      useTransaction: true,
     }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus data kapal");
-  } catch (error: unknown) {
-    next(error);
-  }
+  ),
 };

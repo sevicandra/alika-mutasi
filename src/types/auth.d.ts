@@ -1,4 +1,5 @@
 import { Request } from "express";
+
 export interface AuthenticatedRequest extends Request {
   id?: string;
   user?:
@@ -12,7 +13,7 @@ export interface AuthenticatedRequest extends Request {
       }
     | any;
   roles?: {
-      kode: string;
-      nama: string;
+    kode: string;
+    nama: string;
   }[];
 }

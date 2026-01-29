@@ -1,5 +1,5 @@
+import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes } from "sequelize";
 
 type RefTarifAttributes = {
   id: number;
@@ -14,10 +14,7 @@ type RefTarifAttributes = {
   createdAt?: Date;
 };
 
-type RefTarifCreationAttributes = Optional<
-  RefTarifAttributes,
-  "id" | "createdAt"
->;
+type RefTarifCreationAttributes = Optional<RefTarifAttributes, "id" | "createdAt">;
 class RefTarif
   extends Model<RefTarifAttributes, RefTarifCreationAttributes>
   implements RefTarifAttributes

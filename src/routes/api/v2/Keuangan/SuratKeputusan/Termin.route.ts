@@ -1,11 +1,9 @@
 import { Router } from "express";
-import {
-  getAllTermin,
-  getTerminById,
-} from "@/controllers/v2/keuangan/suratKeputusan/termin.controller";
+import { terminController } from "@/controllers/v2/keuangan/suratKeputusan/termin.controller";
+
 const router = Router({ mergeParams: true });
 
-router.get("/", getAllTermin);
-router.get("/:TerminId", getTerminById);
+router.get("/", terminController.getAll);
+router.get("/:TerminId", terminController.getById);
 
 export default router;

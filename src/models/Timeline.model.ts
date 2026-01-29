@@ -1,6 +1,5 @@
+import { Association, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, Association } from "sequelize";
-
 import RefTimeline from "./RefTimeline.model";
 import SuratKeputusan from "./SuratKeputusan.model";
 
@@ -68,7 +67,5 @@ Timeline.init(
     timestamps: false,
   }
 );
-
-
 
 export default Timeline;

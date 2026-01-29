@@ -1,133 +1,97 @@
-import { DokumenTermin } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
-import { Op } from "sequelize";
-import { MinioService } from "@/services/minio.service";
-const minioService = new MinioService();
+import { Request, Response } from "express";
+import { Op, col, where } from "sequelize";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { minioService } from "@/services/minio-service";
+import { InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { fileResponse, successResponse } from "@/helpers/respose.helper";
+import { DokumenTermin } from "@/repositories";
 
-export const getAllDokumen = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { PegawaiId, SkId, TerminId } = req.params;
-  try {
+export const DokumenController = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
+    const { PegawaiId, SkId, TerminId } = req.params;
+    if (typeof PegawaiId != "string" || typeof SkId != "string" || typeof TerminId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
-    const { rows: data, count } = await DokumenTermin.findAndCountAll({
-      where: {
-        termin_id: TerminId,
-      },
+
+    const whereClause = {
+      [Op.and]: [
+        where(col("Termin.id"), TerminId),
+        where(col("Termin.Pegawai.id"), PegawaiId),
+        where(col("Termin.Pegawai.SuratKeputusan.id"), SkId),
+        where(col("Termin.Pegawai.SuratKeputusan.status"), { [Op.ne]: "DRAFT" }),
+      ],
+    };
+
+    const { items: data, pagination } = await DokumenTermin.findAllWithPagination({
+      where: whereClause,
       include: [
         {
           association: "Termin",
-          where: {
-            pegawai_id: PegawaiId,
-          },
+          attributes: [],
           include: [
             {
               association: "Pegawai",
-              where: {
-                sk_id: SkId,
-              },
+              attributes: [],
               include: [
                 {
                   association: "SuratKeputusan",
-                  where: {
-                    status: {
-                      [Op.ne]: "DRAFT",
-                    },
-                  },
                   attributes: [],
                 },
               ],
-              attributes: [],
             },
           ],
-          attributes: [],
         },
       ],
       limit,
       offset,
     });
 
-    return successResponse(res, "Berhasil mendapatkan dokumen", data, {
-      limit,
-      offset,
-      count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-    });
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    successResponse(res, "Berhasil mendapatkan dokumen", data, pagination);
+  }),
 
-export const getDokumenFile = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+  getFile: asyncHandler(async (req: Request, res: Response) => {
     const { SkId, PegawaiId, TerminId, DokumenId } = req.params;
+    if (typeof PegawaiId != "string" || typeof SkId != "string" || typeof TerminId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
+    const whereClause = {
+      id: DokumenId,
+      [Op.and]: [
+        where(col("Termin.id"), TerminId),
+        where(col("Termin.Pegawai.id"), PegawaiId),
+        where(col("Termin.Pegawai.SuratKeputusan.id"), SkId),
+        where(col("Termin.Pegawai.SuratKeputusan.status"), { [Op.ne]: "DRAFT" }),
+      ],
+    };
+
     const data = await DokumenTermin.findOne({
-      where: {
-        termin_id: TerminId,
-        id: DokumenId,
-      },
+      where: whereClause,
       include: [
         {
           association: "Termin",
-          where: {
-            pegawai_id: PegawaiId,
-          },
+          attributes: [],
           include: [
             {
               association: "Pegawai",
-              where: {
-                sk_id: SkId,
-              },
+              attributes: [],
               include: [
                 {
                   association: "SuratKeputusan",
-                  where: {
-                    status: {
-                      [Op.ne]: "DRAFT",
-                    },
-                  },
                   attributes: [],
                 },
               ],
-              attributes: [],
             },
           ],
-          attributes: [],
         },
       ],
     });
     if (!data || !data.file) {
-      return errorResponse(res, "data tidak ditemukan", null, 404);
+      throw new NotFoundError("data tidak ditemukan");
     }
-
-    const stream = await minioService.downloadFile(`${data.file}`);
-    if (stream) {
-      const chunks: Buffer[] = [];
-      stream.on("data", (chunk) => chunks.push(chunk));
-      stream.on("end", () => {
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader(
-          "Content-Disposition",
-          `inline; filename="${data.document_type}.pdf"`
-        );
-        return res.status(200).send(Buffer.concat(chunks));
-      });
-      stream.on("error", (err: Error) => {
-        return errorResponse(res, "Terjadi kesalahan", err, 500);
-      });
-    } else {
-      throw new Error("File tidak ditemukan");
-    }
-  } catch (error: unknown) {
-    next(error);
-  }
+    const stream = await minioService.getFile(`${data.file}`);
+    fileResponse(res, stream, `${data.document_type}.pdf`, "application/pdf");
+  }),
 };

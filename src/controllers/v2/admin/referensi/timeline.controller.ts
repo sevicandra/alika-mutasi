@@ -1,120 +1,99 @@
-import { RefTimeline } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { sortBuilder } from "@/helpers/sequelizer.helper";
+import { RefTimeline } from "@/repositories";
 
-export const getAllTimeline = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+export const TimelineControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
-    const sortField = (req.query.sortField as string) || "urutan";
-    const sortOrder = (req.query.sortOrder as string) || "ASC";
-    const { rows: data, count } = await RefTimeline.findAndCountAll({
+    const sort = req.query.sort as string;
+    const order = sortBuilder(sort);
+    const { items: data, pagination } = await RefTimeline.findAllWithPagination({
       limit,
       offset,
-      order: [[sortField, sortOrder.toUpperCase()]],
+      order,
     });
-    return successResponse(
-      res,
-      "Berhasil mengambil data referensi timeline",
-      data,
-      {
-        limit,
-        offset,
-        count,
-        totalPages: limit ? Math.ceil(count / limit) : 1,
-      }
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    successResponse(res, "Success get all ref timeline", data, pagination);
+  }),
 
-export const getTimelineById = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  try {
-    const data = await RefTimeline.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (typeof id !== "string") {
+      throw new InvalidRequestError("Invalid request");
     }
-    return successResponse(
-      res,
-      "Berhasil mengambil data referensi timeline",
-      data
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
+    const data = await RefTimeline.findById(id);
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
+    successResponse(res, "Success get ref timeline", data);
+  }),
 
-export const createTimeline = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+  create: asyncHandler(async (req: Request, res: Response) => {
     const { kode, urutan, nama } = req.body;
     const data = await RefTimeline.create({
       kode,
       urutan,
       nama,
     });
+    successResponse(res, "Success create ref timeline", data);
+  }),
 
-    return successResponse(
-      res,
-      "Berhasil menambahkan data referensi timeline",
-      data
-    );
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const updateTimeline = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  try {
-    const { kode, urutan, nama } = req.body;
-    const data = await RefTimeline.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+  update: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const { id } = req.params;
+      const { kode, urutan, nama } = req.body;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefTimeline.updateOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        {
+          kode,
+          urutan,
+          nama,
+        },
+        t
+      );
+      successResponse(res, "Success update ref timeline", data);
+    },
+    {
+      useTransaction: true,
     }
+  ),
 
-    if (kode) data.kode = kode;
-    if (urutan) data.urutan = urutan;
-    if (nama) data.nama = nama;
-    await data.save();
-    return successResponse(res, "Berhasil mengubah data referensi timeline");
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-export const deleteTimeline = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  try {
-    const data = await RefTimeline.findByPk(id);
-    if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
+  delete: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const { id } = req.params;
+      if (typeof id !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await RefTimeline.deleteOne(
+        {
+          where: {
+            id: id,
+          },
+        },
+        t
+      );
+      successResponse(res, "Success delete ref timeline", data);
+    },
+    {
+      useTransaction: true,
     }
-    await data.destroy();
-    return successResponse(res, "Berhasil menghapus data referensi timeline");
-  } catch (error: unknown) {
-    next(error);
-  }
+  ),
 };

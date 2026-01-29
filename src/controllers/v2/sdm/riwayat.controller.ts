@@ -1,18 +1,18 @@
-import { PembayaranLog } from "@/models";
-import { errorResponse, successResponse } from "@/helpers/respose.helper";
-import { AuthenticatedRequest } from "@/types/auth";
-import { Response, NextFunction } from "express";
+import { Request, Response } from "express";
+import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { InvalidRequestError, NotFoundError } from "@/utils/errors";
+import { successResponse } from "@/helpers/respose.helper";
+import { PembayaranLog } from "@/repositories";
 
-export const getAllHistory = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  const { SkId, PegawaiId } = req.params;
-  try {
+export const RiwayatControllerV2 = {
+  getAll: asyncHandler(async (req: Request, res: Response) => {
+    const { SkId, PegawaiId } = req.params;
+    if (typeof SkId != "string" || typeof PegawaiId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
     const data = await PembayaranLog.findAll({
-      where: {
-        pegawai_id: PegawaiId,
-      },
+      where: { pegawai_id: PegawaiId },
       include: [
         {
           association: "Pegawai",
@@ -27,18 +27,16 @@ export const getAllHistory = async (
       order: [["created_at", "ASC"]],
     });
 
-    return successResponse(res, "data berhasil didapatkan", data);
-  } catch (error: unknown) {
-    next(error)
-  }
-};
+    successResponse(res, "Berhasil mengambil data pegawai", data);
+  }),
 
-export const getHistoryById = async (
-  req: AuthenticatedRequest,
-  res: Response, next:NextFunction
-) => {
-  const { SkId, PegawaiId, HistoryId } = req.params;
-  try {
+  getById: asyncHandler(async (req: Request, res: Response) => {
+    const { SkId, PegawaiId, HistoryId } = req.params;
+
+    if (typeof SkId != "string" || typeof PegawaiId != "string" || typeof HistoryId != "string") {
+      throw new InvalidRequestError("Invalid request");
+    }
+
     const data = await PembayaranLog.findOne({
       where: {
         id: HistoryId,
@@ -56,11 +54,10 @@ export const getHistoryById = async (
         include: ["payload", "action_type"],
       },
     });
+
     if (!data) {
-      return errorResponse(res, "Data tidak ditemukan", null, 404);
-    }    
-    return successResponse(res, "data berhasil didapatkan", data);
-  } catch (error: unknown) {
-    next(error)
-  }
+      throw new NotFoundError("Data not found");
+    }
+    successResponse(res, "Berhasil mengambil data pegawai", data);
+  }),
 };

@@ -1,5 +1,5 @@
+import { BelongsTo, DataTypes, HasMany, HasOne, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, BelongsTo, HasMany, HasOne } from "sequelize";
 import Termin from "./Termin.model";
 import TteDokumen from "./TteDokumen.model";
 
@@ -7,7 +7,7 @@ type DokumenTerminAttributes = {
   id: string;
   termin_id: string;
   document_type: string;
-  file: string|null;
+  file: string | null;
   required: boolean;
   uploadable: boolean;
   process: "IDLE" | "PROCESSING";
@@ -26,7 +26,7 @@ class DokumenTermin
   public id!: string;
   public termin_id!: string;
   public document_type!: string;
-  public file!: string|null;
+  public file!: string | null;
   public required!: boolean;
   public uploadable!: boolean;
   public process!: "IDLE" | "PROCESSING";

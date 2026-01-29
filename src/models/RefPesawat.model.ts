@@ -1,5 +1,5 @@
+import { BelongsTo, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, BelongsTo } from "sequelize";
 import Kota from "./RefKota.model";
 
 type RefPesawatAttributes = {
@@ -12,10 +12,7 @@ type RefPesawatAttributes = {
   jenis_tarif: string;
 };
 
-type RefPesawatCreationAttributes = Optional<
-  RefPesawatAttributes,
-  "id" | "jenis_tarif"
->;
+type RefPesawatCreationAttributes = Optional<RefPesawatAttributes, "id" | "jenis_tarif">;
 
 class RefPesawat
   extends Model<RefPesawatAttributes, RefPesawatCreationAttributes>
@@ -93,9 +90,6 @@ RefPesawat.init(
       }),
       allowNull: false,
       validate: {
-        isPositive: {
-          msg: "Tarif ekonomi harus lebih dari 0",
-        },
         notNull: {
           msg: "Tarif ekonomi tidak boleh kosong",
         },
@@ -107,9 +101,6 @@ RefPesawat.init(
       }),
       allowNull: false,
       validate: {
-        isPositive: {
-          msg: "Tarif bisnis harus lebih dari 0",
-        },
         notNull: {
           msg: "Tarif bisnis tidak boleh kosong",
         },

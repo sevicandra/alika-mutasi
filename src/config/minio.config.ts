@@ -1,5 +1,5 @@
-import { Client } from "minio";
 import fs from "fs";
+import { Client } from "minio";
 
 export const minioConfig = {
   endPoint: process.env.MINIO_ENDPOINT || "",

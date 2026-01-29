@@ -1,9 +1,8 @@
 import { Router } from "express";
-import {pembayaran} from "@/controllers/public/download.controller"
+import { downlaodFile } from "@/controllers/public/download.controller";
 
 const router = Router();
 
-router.use("/:id", pembayaran);
-
+router.use("/:id", downlaodFile);
 
 export default router;

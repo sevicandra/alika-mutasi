@@ -1,9 +1,9 @@
+import { Association, BelongsTo, DataTypes, Model, Optional } from "sequelize";
 import sequelize from "@/config/db.config";
-import { Model, Optional, DataTypes, Association, BelongsTo } from "sequelize";
-import PegawaiMutasi from "./PegawaiMutasi.model";
-import RefTermin from "./RefTermin.model";
 import DokumenTermin from "./DokumenTermin.model";
 import Payroll from "./Payroll.model";
+import PegawaiMutasi from "./PegawaiMutasi.model";
+import RefTermin from "./RefTermin.model";
 
 type TerminAttributes = {
   id: string;
@@ -29,17 +29,9 @@ type TerminAttributes = {
 
 type TerminCreationAttributes = Optional<
   TerminAttributes,
-  | "id"
-  | "created_at"
-  | "submitted_at"
-  | "reviewed_at"
-  | "admin_notes"
-  | "status"
+  "id" | "created_at" | "submitted_at" | "reviewed_at" | "admin_notes" | "status"
 >;
-class Termin
-  extends Model<TerminAttributes, TerminCreationAttributes>
-  implements TerminAttributes
-{
+class Termin extends Model<TerminAttributes, TerminCreationAttributes> implements TerminAttributes {
   public id!: string;
   public ref_termin!: string;
   public pegawai_id!: string;
@@ -63,7 +55,7 @@ class Termin
   public Pegawai!: PegawaiMutasi;
   public Ref!: RefTermin;
   public DokumenTermin!: DokumenTermin[] | [];
-  public Payroll!: Payroll| null;
+  public Payroll!: Payroll | null;
 
   public static associations: {
     Pegawai: BelongsTo<Termin, PegawaiMutasi>;

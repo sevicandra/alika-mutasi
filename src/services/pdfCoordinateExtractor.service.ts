@@ -1,6 +1,6 @@
 // src/services/pdfCoordinateExtractor.service.ts
-import PDFParser from "pdf2json";
 import { Buffer } from "buffer";
+import PDFParser from "pdf2json";
 
 export class PdfCoordinateExtractorService {
   /**
@@ -33,7 +33,9 @@ export class PdfCoordinateExtractorService {
     const pdfParser = new PDFParser();
 
     return new Promise((resolve, reject) => {
-      pdfParser.on("pdfParser_dataError", (err) => reject(err.parserError));
+      pdfParser.on("pdfParser_dataError", (err) =>
+        reject("parserError" in err ? err.parserError : err)
+      );
       pdfParser.on("pdfParser_dataReady", (pdfData) => {
         const pages = pdfData.Pages;
 
@@ -46,8 +48,8 @@ export class PdfCoordinateExtractorService {
               if (text.includes(placeholder.placeholder_text)) {
                 coordinates.push({
                   jabatan: placeholder.jabatan,
-                  x: textItem.x/page.Width,
-                  y: textItem.y/page.Height,
+                  x: textItem.x / page.Width,
+                  y: textItem.y / page.Height,
                   page: pageIndex + 1,
                   width: textItem.w,
                 });
