@@ -9,23 +9,23 @@ const router = Router({ mergeParams: true });
 const addSchema = z
   .object({
     action: z
-      .string("Action harus berupa string")
+      .string("Action is Required")
       .toUpperCase()
       .pipe(z.enum(["ADD", "EDIT", "REMOVE"])),
-    keluarga_id: z.string("Keluarga ID harus berupa string").optional(),
-    nama: z.string("Nama harus berupa string").optional(),
+    keluarga_id: z.string("Keluarga ID Action is Required").optional(),
+    nama: z.string("Nama Action is Required").optional(),
     nik: z
-      .string("NIK harus berupa string")
+      .string("NIK Action is Required")
       .regex(/^\d{16}$/, "NIK harus berupa angka")
       .optional(),
     hubungan: z
-      .string("Hubungan harus berupa string")
+      .string("Hubungan Action is Required")
       .regex(/^\d+$/, "Hubungan harus berupa angka")
       .optional(),
-    tanggal_lahir: z.string("Tanggal Lahir harus berupa string").optional(),
-    pekerjaan: z.string("Pekerjaan harus berupa string").optional(),
-    status: z.string("Status harus berupa string").optional(),
-    catatan: z.string("Catatan harus berupa string").optional(),
+    tanggal_lahir: z.string("Tanggal Lahir Action is Required").optional(),
+    pekerjaan: z.string("Pekerjaan Action is Required").optional(),
+    status: z.string("Status Action is Required").optional(),
+    catatan: z.string("Catatan Action is Required").optional(),
     file: z
       .object({
         fieldname: z.string(),

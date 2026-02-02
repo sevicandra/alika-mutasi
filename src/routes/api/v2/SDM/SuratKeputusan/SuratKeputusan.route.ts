@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { SuratKeputusanControllerV2 } from "@/controllers/v2/sdm/suratKeputusan.controller";
 import { uploadPdfDisk, uploadPdfDiskOptional } from "@/middlewares/multer.middleware";
-import { validateBody } from "@/middlewares/validate-request.middleware";
+import { validateBody, validateBodyWithFile } from "@/middlewares/validate-request.middleware";
 
 const router = Router();
 
@@ -118,12 +118,17 @@ const timelineSchema = z.object({
 
 router.get("/", SuratKeputusanControllerV2.getAll);
 router.get("/Count", SuratKeputusanControllerV2.count);
-router.post("/", uploadPdfDisk, validateBody(createSchema), SuratKeputusanControllerV2.create);
+router.post(
+  "/",
+  uploadPdfDisk,
+  validateBodyWithFile(createSchema),
+  SuratKeputusanControllerV2.create
+);
 router.get("/:SkId", SuratKeputusanControllerV2.getById);
 router.patch(
   "/:SkId",
   uploadPdfDiskOptional,
-  validateBody(updateSchema),
+  validateBodyWithFile(updateSchema),
   SuratKeputusanControllerV2.update
 );
 router.delete("/:SkId", SuratKeputusanControllerV2.delete);
