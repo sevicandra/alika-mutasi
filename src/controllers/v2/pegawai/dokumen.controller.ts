@@ -337,208 +337,216 @@ export const DokumenControllerV2 = {
     });
   }),
 
-  setPejabatKantorAsal: asyncHandler(async (req: Request, res: Response) => {
-    const t = req.transaction;
-    if (!t) {
-      throw new InternalServerError("Transaction not found");
-    }
-    const nipUser = req.user?.nip;
-    const nameUser = req.user?.name;
-    if (!nipUser || !nameUser) {
-      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
-    }
-    const { mutasiId, terminId, dokumenId } = req.params;
-    if (
-      typeof mutasiId != "string" ||
-      typeof terminId != "string" ||
-      typeof dokumenId != "string"
-    ) {
-      throw new InvalidRequestError("Parameter tidak valid");
-    }
-    const { nama, nip } = await req.body;
-    if (nipUser === nip) {
-      throw new AuthorizationError("Dokumen hanya dapat ditandatangani oleh pejabat lain");
-    }
-    const data = await TteDokumen.findOne({
-      where: {
-        dokumen_id: dokumenId,
-        jabatan: "PEJABAT_KANTOR_ASAL",
-        status: {
-          [Op.ne]: "SIGNED",
+  setPejabatKantorAsal: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const nipUser = req.user?.nip;
+      const nameUser = req.user?.name;
+      if (!nipUser || !nameUser) {
+        throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
+      }
+      const { mutasiId, terminId, dokumenId } = req.params;
+      if (
+        typeof mutasiId != "string" ||
+        typeof terminId != "string" ||
+        typeof dokumenId != "string"
+      ) {
+        throw new InvalidRequestError("Parameter tidak valid");
+      }
+      const { nama, nip } = await req.body;
+      if (nipUser === nip) {
+        throw new AuthorizationError("Dokumen hanya dapat ditandatangani oleh pejabat lain");
+      }
+      const data = await TteDokumen.findOne({
+        where: {
+          dokumen_id: dokumenId,
+          jabatan: "PEJABAT_KANTOR_ASAL",
+          status: {
+            [Op.ne]: "SIGNED",
+          },
+          nama: {
+            [Op.or]: ["", null],
+          },
+          nip: {
+            [Op.or]: ["", null],
+          },
         },
-        nama: {
-          [Op.or]: ["", null],
-        },
-        nip: {
-          [Op.or]: ["", null],
-        },
-      },
-      include: [
-        {
-          association: "Dokumen",
-          where: { termin_id: terminId, document_type: "SPD2" },
-          include: [
-            {
-              association: "Termin",
-              where: {
-                pegawai_id: mutasiId,
-              },
-              include: [
-                {
-                  association: "Pegawai",
-                  where: {
-                    nip: nipUser,
-                  },
+        include: [
+          {
+            association: "Dokumen",
+            where: { termin_id: terminId, document_type: "SPD2" },
+            include: [
+              {
+                association: "Termin",
+                where: {
+                  pegawai_id: mutasiId,
                 },
-              ],
-            },
-          ],
-        },
-      ],
-      transaction: t,
-    });
-    if (!data) {
-      throw new NotFoundError("data tidak ditemukan");
-    }
-    data.nama = nama;
-    data.nip = nip;
-    await data.save({ transaction: t });
-    await Logger.GeneralAction({
-      pegawai_id: mutasiId,
-      actor_nip: nipUser,
-      actor_role: "PEGAWAI",
-      action: "Permohonan tanda tangan SPD Lembar 2",
-      description: `Permohoanan tanda tangan SPD Lembar 2 keberangkatan kepada ${nama} / ${nip}`,
-      transaction: t,
-    });
-    await AlikaService.sendPushNotification({
-      title: "Permohonan tanda tangan SPD Lembar 2",
-      message: `${nameUser} mengajukan permohonan tanda tangan SPD Lembar 2`,
-      nip: nip,
-    });
-    successResponse(res, "data berhasil diupdate");
-  },{
-    useTransaction: true,
-  }),
-
-  setPejabatKantorTujuan: asyncHandler(async (req: Request, res: Response) => {
-    const t = req.transaction;
-    if (!t) {
-      throw new InternalServerError("Transaction not found");
-    }
-    const nipUser = req.user?.nip;
-    const nameUser = req.user?.name;
-    if (!nipUser || !nameUser) {
-      throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
-    }
-    const { mutasiId, terminId, dokumenId } = req.params;
-    if (
-      typeof mutasiId != "string" ||
-      typeof terminId != "string" ||
-      typeof dokumenId != "string"
-    ) {
-      throw new InvalidRequestError("Parameter tidak valid");
-    }
-    const { nama, nip } = await req.body;
-    if (nipUser === nip) {
-      throw new AuthorizationError("Dokumen hanya dapat ditandatangani oleh pejabat lain");
-    }
-    const datakeberangkatan = await TteDokumen.findOne({
-      where: {
-        dokumen_id: dokumenId,
-        jabatan: "PEJABAT_KANTOR_ASAL",
-        status: "SIGNED",
-      },
-      include: [
-        {
-          association: "Dokumen",
-          where: { termin_id: terminId, document_type: "SPD2" },
-          include: [
-            {
-              association: "Termin",
-              where: {
-                pegawai_id: mutasiId,
-              },
-              include: [
-                {
-                  association: "Pegawai",
-                  where: {
-                    nip: nipUser,
+                include: [
+                  {
+                    association: "Pegawai",
+                    where: {
+                      nip: nipUser,
+                    },
                   },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-      transaction: t,
-    });
-
-    if (!datakeberangkatan) {
-      throw new InvalidRequestError("data keberangkatan tidak ditemukan");
-    }
-    const data = await TteDokumen.findOne({
-      where: {
-        dokumen_id: dokumenId,
-        jabatan: "PEJABAT_KANTOR_TUJUAN",
-        status: {
-          [Op.ne]: "SIGNED",
-        },
-        nama: {
-          [Op.or]: ["", null],
-        },
-        nip: {
-          [Op.or]: ["", null],
-        },
-      },
-      include: [
-        {
-          association: "Dokumen",
-          where: { termin_id: terminId },
-          include: [
-            {
-              association: "Termin",
-              where: {
-                pegawai_id: mutasiId,
+                ],
               },
-              include: [
-                {
-                  association: "Pegawai",
-                  where: {
-                    nip: nipUser,
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-      transaction: t,
-    });
-    if (!data) {
-      throw new NotFoundError("data tidak ditemukan");
+            ],
+          },
+        ],
+        transaction: t,
+      });
+      if (!data) {
+        throw new NotFoundError("data tidak ditemukan");
+      }
+      data.nama = nama;
+      data.nip = nip;
+      await data.save({ transaction: t });
+      await Logger.GeneralAction({
+        pegawai_id: mutasiId,
+        actor_nip: nipUser,
+        actor_role: "PEGAWAI",
+        action: "Permohonan tanda tangan SPD Lembar 2",
+        description: `Permohoanan tanda tangan SPD Lembar 2 keberangkatan kepada ${nama} / ${nip}`,
+        transaction: t,
+      });
+      await AlikaService.sendPushNotification({
+        title: "Permohonan tanda tangan SPD Lembar 2",
+        message: `${nameUser} mengajukan permohonan tanda tangan SPD Lembar 2`,
+        nip: nip,
+      });
+      successResponse(res, "data berhasil diupdate");
+    },
+    {
+      useTransaction: true,
     }
-    data.nama = nama;
-    data.nip = nip;
-    await data.save({ transaction: t });
-    await Logger.GeneralAction({
-      pegawai_id: mutasiId,
-      actor_nip: nipUser,
-      actor_role: "PEGAWAI",
-      action: "Permohonan tanda tangan SPD Lembar 2",
-      description: `Permohoanan tanda tangan SPD Lembar 2 kedatangan kepada ${nama} / ${nip}`,
-      transaction: t,
-    });
-    await AlikaService.sendPushNotification({
-      title: "Permohonan tanda tangan SPD Lembar 2",
-      message: `${nameUser} mengajukan permohonan tanda tangan SPD Lembar 2`,
-      nip: nip,
-    });
+  ),
 
-    successResponse(res, "data berhasil diupdate");
-  },{
-    useTransaction: true,
-  }),
+  setPejabatKantorTujuan: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const nipUser = req.user?.nip;
+      const nameUser = req.user?.name;
+      if (!nipUser || !nameUser) {
+        throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
+      }
+      const { mutasiId, terminId, dokumenId } = req.params;
+      if (
+        typeof mutasiId != "string" ||
+        typeof terminId != "string" ||
+        typeof dokumenId != "string"
+      ) {
+        throw new InvalidRequestError("Parameter tidak valid");
+      }
+      const { nama, nip } = await req.body;
+      if (nipUser === nip) {
+        throw new AuthorizationError("Dokumen hanya dapat ditandatangani oleh pejabat lain");
+      }
+      const datakeberangkatan = await TteDokumen.findOne({
+        where: {
+          dokumen_id: dokumenId,
+          jabatan: "PEJABAT_KANTOR_ASAL",
+          status: "SIGNED",
+        },
+        include: [
+          {
+            association: "Dokumen",
+            where: { termin_id: terminId, document_type: "SPD2" },
+            include: [
+              {
+                association: "Termin",
+                where: {
+                  pegawai_id: mutasiId,
+                },
+                include: [
+                  {
+                    association: "Pegawai",
+                    where: {
+                      nip: nipUser,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        transaction: t,
+      });
+
+      if (!datakeberangkatan) {
+        throw new InvalidRequestError(
+          "data keberangkatan tidak ditemukan, mohon periksa kembali status tandatangan SPD Lembar 2"
+        );
+      }
+      const data = await TteDokumen.findOne({
+        where: {
+          dokumen_id: dokumenId,
+          jabatan: "PEJABAT_KANTOR_TUJUAN",
+          status: {
+            [Op.ne]: "SIGNED",
+          },
+          nama: {
+            [Op.or]: ["", null],
+          },
+          nip: {
+            [Op.or]: ["", null],
+          },
+        },
+        include: [
+          {
+            association: "Dokumen",
+            where: { termin_id: terminId },
+            include: [
+              {
+                association: "Termin",
+                where: {
+                  pegawai_id: mutasiId,
+                },
+                include: [
+                  {
+                    association: "Pegawai",
+                    where: {
+                      nip: nipUser,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        transaction: t,
+      });
+      if (!data) {
+        throw new NotFoundError("data tidak ditemukan");
+      }
+      data.nama = nama;
+      data.nip = nip;
+      await data.save({ transaction: t });
+      await Logger.GeneralAction({
+        pegawai_id: mutasiId,
+        actor_nip: nipUser,
+        actor_role: "PEGAWAI",
+        action: "Permohonan tanda tangan SPD Lembar 2",
+        description: `Permohoanan tanda tangan SPD Lembar 2 kedatangan kepada ${nama} / ${nip}`,
+        transaction: t,
+      });
+      await AlikaService.sendPushNotification({
+        title: "Permohonan tanda tangan SPD Lembar 2",
+        message: `${nameUser} mengajukan permohonan tanda tangan SPD Lembar 2`,
+        nip: nip,
+      });
+
+      successResponse(res, "data berhasil diupdate");
+    },
+    {
+      useTransaction: true,
+    }
+  ),
 
   removePejabatKantorAsal: asyncHandler(
     async (req: Request, res: Response) => {
@@ -689,7 +697,9 @@ export const DokumenControllerV2 = {
       });
 
       if (!datakeberangkatan) {
-        throw new InvalidRequestError("data keberangkatan tidak ditemukan");
+        throw new InvalidRequestError(
+          "data keberangkatan tidak ditemukan, mohon periksa kembali status tandatangan SPD Lembar 2"
+        );
       }
       const data = await TteDokumen.findOne({
         where: {

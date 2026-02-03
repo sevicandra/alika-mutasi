@@ -15,6 +15,12 @@ export const DataSanggahControllerV2 = {
     const offset = parseInt(req.query.offset as string) || undefined;
     const { items: data, pagination } = await DataSanggah.findAllWithPagination({
       where: { sanggah_id: SanggahId },
+      include: [
+        {
+          association: "Ref",
+          attributes: ["nama", "nik", "tanggal_lahir", "pekerjaan", "status"],
+        },
+      ],
       limit,
       offset,
     });

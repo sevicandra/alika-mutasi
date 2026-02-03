@@ -100,9 +100,7 @@ const csvFileFilterOptional = (
   }
 };
 
-const pdfFileFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
-  console.log("file", file);
-  
+const pdfFileFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {  
   if (!file) {
     cb(new ValidationError("File upload failed", { file: "No file uploaded" }));
     return; 

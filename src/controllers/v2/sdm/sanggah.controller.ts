@@ -3,7 +3,12 @@ import { Op, col, where } from "sequelize";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { AlikaService } from "@/services/alika.service";
 import { Logger } from "@/services/log.service";
-import { AuthenticationError, InvalidRequestError, NotFoundError, InternalServerError} from "@/utils/errors";
+import {
+  AuthenticationError,
+  InternalServerError,
+  InvalidRequestError,
+  NotFoundError,
+} from "@/utils/errors";
 import { Invant } from "@/helpers/age.helper";
 import { successResponse } from "@/helpers/respose.helper";
 import { sortBuilder } from "@/helpers/sequelizer.helper";
@@ -103,6 +108,12 @@ export const SanggahControllerV2 = {
         include: [
           {
             association: "DataSanggah",
+            include: [
+              {
+                association: "Ref",
+                attributes: ["nama"],
+              },
+            ],
           },
           {
             association: "Pegawai",

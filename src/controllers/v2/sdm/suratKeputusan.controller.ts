@@ -133,7 +133,6 @@ export const SuratKeputusanControllerV2 = {
 
     if (file?.path) {
       const buffer = fs.readFileSync(file.path);
-      const fileName = UUID.v4();
       await minioService.uploadFile(buffer, `suratKeputusan/${fileName}.pdf`, "application/pdf");
     }
 
