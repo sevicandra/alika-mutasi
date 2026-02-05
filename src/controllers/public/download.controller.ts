@@ -18,6 +18,5 @@ export const downlaodFile = asyncHandler(async (req: AuthenticatedRequest, res: 
     throw new NotFoundError("File not found");
   }
   const stream = await minioService.getFile(`${data.file}`);
-  res.setHeader("Content-Type", "application/pdf");
   fileResponse(res, stream, `${data.document_type}.pdf`, "application/pdf");
 });

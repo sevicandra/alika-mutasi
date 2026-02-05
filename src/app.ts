@@ -5,12 +5,10 @@ import express, { NextFunction, Request, Response } from "express";
 import methodOverride from "method-override";
 import morgan from "morgan";
 import cron from "node-cron";
-import { Op, col, where } from "sequelize";
 import { approveMutasi } from "@/controllers/otomasi.controller";
 import { correlationIdMiddleware } from "@/middlewares/correlation-id.middleware";
 import { redisService } from "@/services/redis-service";
 import { appConfig } from "@/config/app.config";
-import { Rekening } from "@/repositories";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler.middleware";
 import "./register-alias";
 import router from "./routes";
@@ -49,20 +47,7 @@ const startServer = async () => {
     app.use(cookieParser());
     app.use(methodOverride("_method"));
     app.use("/", router);
-    app.get("/test", async (_req, res) => {
-      const data = await Rekening.findOne({
-        where: {
-          [Op.and]: [where(col("Pegawai.sk_id"), "21b458d2-36b1-4105-9cac-ae9a5a3a27cd")],
-        },
-        include: [
-          {
-            association: "Pegawai",
-          },
-        ],
-      });
 
-      res.send(data);
-    });
     app.use(notFoundHandler);
     app.use(errorHandler);
 
