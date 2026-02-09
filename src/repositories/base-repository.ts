@@ -43,7 +43,7 @@ export abstract class BaseRepository<T extends Model> {
 
   async findAllWithPagination(options?: FindOptions<T>): Promise<PaginatedResult<T>> {
     try {
-      const { count, rows } = await this.model.findAndCountAll(options);
+      const { count, rows } = await this.model.findAndCountAll({ ...options, distinct: true });
 
       const limit = options?.limit || count;
       const offset = options?.offset || 0;
@@ -130,6 +130,9 @@ export abstract class BaseRepository<T extends Model> {
       await data.reload({ transaction: t });
       return data;
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       throw handleSequelizeError(error);
     }
   }
@@ -157,6 +160,9 @@ export abstract class BaseRepository<T extends Model> {
       await data.reload({ transaction: t });
       return data;
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       throw handleSequelizeError(error);
     }
   }
@@ -171,13 +177,16 @@ export abstract class BaseRepository<T extends Model> {
 
   async deleteOne(options: FindOptions<T>, t: Transaction): Promise<number> {
     try {
-      const data = await this.findOne(options);
+      const data = await this.model.findOne(options);
       if (!data) {
         throw new NotFoundError(`Data with not found`);
       }
       await data.destroy({ transaction: t });
       return 1;
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       throw handleSequelizeError(error);
     }
   }

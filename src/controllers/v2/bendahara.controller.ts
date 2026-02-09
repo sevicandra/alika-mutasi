@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
+import QRCode from "qrcode";
 import { Op } from "sequelize";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
-import { AlikaService } from "@/services/alika.service";
 import { EsignService } from "@/services/esign.service";
 import { Logger } from "@/services/log.service";
 import { minioService } from "@/services/minio-service";
@@ -11,12 +11,11 @@ import {
   InvalidRequestError,
   NotFoundError,
 } from "@/utils/errors";
-import { generateQRCodeWithText } from "@/utils/qrcode.utils";
 import { appConfig } from "@/config/app.config";
 import { fileResponse, successResponse } from "@/helpers/respose.helper";
 import { TteDokumen } from "@/repositories";
 
-export const TteControllerV2 = {
+export const BendaharaControllerV2 = {
   getAll: asyncHandler(async (req: Request, res: Response) => {
     const nip = req.user?.nip;
     if (!nip) {
@@ -27,9 +26,7 @@ export const TteControllerV2 = {
     const { items: data, pagination } = await TteDokumen.findAllWithPagination({
       where: {
         nip: nip,
-        jabatan: {
-          [Op.not]: ["PEGAWAI" , "PPK" , "SDM"],
-        },
+        jabatan: "Bendahara",
         status: {
           [Op.or]: ["PENDING", "FAILED"],
         },
@@ -138,22 +135,12 @@ export const TteControllerV2 = {
       if (typeof id != "string") {
         throw new InvalidRequestError("Parameter tidak valid");
       }
-      const { passphrase, tanggal } = await req.body;
+      const { passphrase } = await req.body;
 
       const data = await TteDokumen.findById(id, {
         include: [
           {
             association: "Dokumen",
-            include: [
-              {
-                association: "Termin",
-                include: [
-                  {
-                    association: "Pegawai",
-                  },
-                ],
-              },
-            ],
           },
         ],
         transaction: t,
@@ -169,29 +156,24 @@ export const TteControllerV2 = {
       const blob = new Blob([stream], { type: "application/pdf" });
 
       const qrCodeUrl = `${appConfig.URL}/public/file/download/pembayaran/${data.Dokumen.id}`;
-      const TteBlob = await generateQRCodeWithText(
-        qrCodeUrl,
-        new Date(tanggal).toLocaleDateString("id-ID", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }),
-        name
-      );
+      const TteBlob = await QRCode.toDataURL(qrCodeUrl, {
+        type: "image/png",
+        margin: 0,
+      });
       const tte = await EsignService.processEsign({
         nik: nik,
         passphrase: passphrase,
         jenis: data.Dokumen.document_type,
-        tujuan: "PPK Bagian SDM Sekretariat DJKN",
+        tujuan: "Bagian Keuangan Sekretariat DJKN",
         perihal: "Dokumen Pembayaran Mutasi",
         blob: blob,
         fileName: data.Dokumen.file,
         page: data.koordinat_qr.page,
-        xAxis: data.koordinat_qr.x + (TteBlob.width / TteBlob.height) * 100,
-        yAxis: data.koordinat_qr.y + 100,
+        xAxis: data.koordinat_qr.x + 50,
+        yAxis: data.koordinat_qr.y + 50,
         width: data.koordinat_qr.x,
         height: data.koordinat_qr.y,
-        imageTTD: await fetch(TteBlob.imageDataUrl).then((res) => res.blob()),
+        imageTTD: await fetch(TteBlob).then((res) => res.blob()),
         imageTTDName: "qrcode.png",
       });
       await minioService.uploadFile(tte.buffer, data.Dokumen.file, "application/pdf");
@@ -208,71 +190,6 @@ export const TteControllerV2 = {
         action: "Tanda tangan dokumen SPD Lembar 2",
         description: null,
         transaction: t,
-      });
-      await AlikaService.sendPushNotification({
-        nip: data.Dokumen.Termin.Pegawai.nip,
-        title: "SPD Lembar 2",
-        message: `Permohonan Tandatangan SPD Lembar 2 telah disetujui oleh ${name}`,
-      });
-      successResponse(res, "berhasil di proses", data);
-    },
-    {
-      useTransaction: true,
-    }
-  ),
-
-  reject: asyncHandler(
-    async (req: Request, res: Response) => {
-      const t = req.transaction;
-      if (!t) {
-        throw new InternalServerError("Transaction not found");
-      }
-      const nip = req.user?.nip;
-      const name = req.user?.name;
-      if (!nip || !name) {
-        throw new AuthorizationError("Pengguna tidak dapat di verifikasi");
-      }
-      const { id } = req.params;
-      if (typeof id != "string") {
-        throw new InvalidRequestError("Parameter tidak valid");
-      }
-      const data = await TteDokumen.findById(id, {
-        include: [
-          {
-            association: "Dokumen",
-            include: [
-              {
-                association: "Termin",
-                include: [
-                  {
-                    association: "Pegawai",
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-        transaction: t,
-      });
-      if (!data || data.nip !== nip || !data.Dokumen.file) {
-        throw new NotFoundError("data tidak ditemukan");
-      }
-      data.nama = null;
-      data.nip = null;
-
-      await data.save({ transaction: t });
-      await Logger.GeneralAction({
-        pegawai_id: data.Dokumen.Termin.pegawai_id,
-        actor_nip: nip,
-        actor_role: data.jabatan,
-        action: "Tolak SPD Lembar 2",
-        description: null,
-        transaction: t,
-      });
-      await AlikaService.sendPushNotification({
-        nip: data.Dokumen.Termin.Pegawai.nip,
-        title: "SPD Lembar 2",
-        message: `Permohonan Tandatangan SPD Lembar 2 telah ditolak oleh ${name}`,
       });
       successResponse(res, "berhasil di proses", data);
     },

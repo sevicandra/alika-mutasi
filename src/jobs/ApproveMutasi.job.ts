@@ -7,8 +7,14 @@ import { BiayaMutasiService } from "@/services/hitungBiaya.service";
 import { Logger } from "@/services/log.service";
 import { minioService } from "@/services/minio-service";
 import sequelize from "@/config/db.config";
-import { DokumenTermin, MonitoringTagihan, PegawaiMutasi, Termin, TteDokumen } from "@/models";
-import { RincianBiaya } from "@/models";
+import {
+  DokumenTermin,
+  MonitoringTagihan,
+  PegawaiMutasi,
+  RincianBiaya,
+  Termin,
+  TteDokumen,
+} from "@/repositories";
 import { BiayaJob } from "@/types/Job";
 
 dotenv.config();
@@ -32,20 +38,19 @@ export const processApproveMutasi = async (job: Job<BiayaJob>): Promise<void> =>
     let statusBarang: "TIDAK_BERKELUARGA" | "BERKELUARGA_TANPA_ANAK" | "BERKELUARGA_DENGAN_ANAK";
 
     try {
-      RincianBiaya.destroy({
-        where: {
-          pegawai_id: pegawai_id,
-          jenis: {
-            [Op.or]: ["BIAYA_ANGKUT_ORANG_ART", "BIAYA_ANGKUT_BARANG_ART", "UANG_HARIAN_ART"],
+      RincianBiaya.delete(
+        {
+          where: {
+            pegawai_id: pegawai_id,
+            jenis: {
+              [Op.or]: ["BIAYA_ANGKUT_ORANG_ART", "BIAYA_ANGKUT_BARANG_ART", "UANG_HARIAN_ART"],
+            },
           },
         },
-        transaction: t,
-      });
+        t
+      );
       if (asal === tujuan) {
-        await PegawaiMutasi.update(
-          { status: "APPROVED" },
-          { where: { id: pegawai_id }, transaction: t }
-        );
+        await PegawaiMutasi.updateOne({ where: { id: pegawai_id } }, { status: "APPROVED" }, t);
         await t.commit();
         resolve();
         return;
@@ -148,7 +153,7 @@ export const processApproveMutasi = async (job: Job<BiayaJob>): Promise<void> =>
           });
         }
       }
-      await RincianBiaya.bulkCreate(rute_art, { transaction: t });
+      await RincianBiaya.createBulk(rute_art, { transaction: t });
       const tagihan = await MonitoringTagihan.findOne({
         where: { pegawai_id: pegawai_id },
         transaction: t,
@@ -171,10 +176,7 @@ export const processApproveMutasi = async (job: Job<BiayaJob>): Promise<void> =>
         }
       }
 
-      await PegawaiMutasi.update(
-        { status: "APPROVED" },
-        { where: { id: pegawai_id }, transaction: t }
-      );
+      await PegawaiMutasi.updateOne({ where: { id: pegawai_id } }, { status: "APPROVED" }, t);
       const pegawai = await PegawaiMutasi.findOne({
         where: { id: pegawai_id },
         include: [

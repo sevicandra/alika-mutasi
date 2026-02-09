@@ -269,4 +269,5 @@ export class SuratKeputusanRepository extends BaseRepository<SuratKeputusan> {
 
     return { data, summary };
   }
+
 }

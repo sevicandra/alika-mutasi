@@ -273,7 +273,6 @@ export const PegawaiMutasiControllerV2 = {
           where: {
             id: PegawaiId,
             status: "DRAFT",
-            process_keluarga: "IDLE",
           },
           include: [
             {

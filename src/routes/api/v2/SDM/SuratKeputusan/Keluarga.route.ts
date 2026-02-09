@@ -14,10 +14,16 @@ const createSchema = z.object({
     .string("Nama is required")
     .max(100, "Nama must be at most 100 characters")
     .min(1, "Nama is required"),
-  hubungan: z
-    .string("Hubungan is required")
-    .max(2, "Hubungan must be at most 2 characters")
-    .min(1, "Hubungan is required"),
+  hubungan: z.preprocess(
+    (val) => {
+      if (val == null) return "";
+      return String(val);
+    },
+    z
+      .string("Hubungan is required")
+      .min(1, "Hubungan is required")
+      .max(2, "Hubungan must be at most 2 characters")
+  ),
   tanggal_lahir: z
     .string("Tanggal lahir is required")
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal lahir must be in YYYY-MM-DD format")
