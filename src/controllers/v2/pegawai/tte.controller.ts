@@ -28,7 +28,7 @@ export const TteControllerV2 = {
       where: {
         nip: nip,
         jabatan: {
-          [Op.not]: ["PEGAWAI" , "PPK" , "SDM"],
+          [Op.not]: ["PEGAWAI" , "PPK" , "SDM", "BENDAHARA"],
         },
         status: {
           [Op.or]: ["PENDING", "FAILED"],
