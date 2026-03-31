@@ -142,3 +142,5 @@ export class DataSanggahRepository extends BaseRepository<DataSanggah> {
     );
   }
 }
+
+export type DataSanggahType = DataSanggah;

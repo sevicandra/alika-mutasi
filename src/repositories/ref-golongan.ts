@@ -6,3 +6,5 @@ export class RefGolonganRepository extends BaseRepository<RefGolongan> {
     super(RefGolongan);
   }
 }
+
+export type RefGolonganType = RefGolongan;

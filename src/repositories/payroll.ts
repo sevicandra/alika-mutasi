@@ -6,3 +6,5 @@ export class PayrollRepository extends BaseRepository<Payroll> {
     super(Payroll);
   }
 }
+
+export type PayrollType = Payroll;

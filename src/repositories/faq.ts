@@ -32,3 +32,5 @@ export class FaqRepository extends BaseRepository<Faq> {
     await data.save({ transaction: t });
   }
 }
+
+export type FaqType = Faq;

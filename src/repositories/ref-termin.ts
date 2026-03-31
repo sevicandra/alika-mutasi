@@ -6,3 +6,5 @@ export class RefTerminRepository extends BaseRepository<RefTermin> {
     super(RefTermin);
   }
 }
+
+export type RefTerminType = RefTermin;

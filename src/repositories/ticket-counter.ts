@@ -24,3 +24,5 @@ export class TicketCounterRepository extends BaseRepository<TicketCounter> {
     return counter;
   }
 }
+
+export type TicketCounterType = TicketCounter;

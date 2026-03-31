@@ -6,3 +6,5 @@ export class MonitoringTagihanRepository extends BaseRepository<MonitoringTagiha
     super(MonitoringTagihan);
   }
 }
+
+export type MonitoringTagihanType = MonitoringTagihan;

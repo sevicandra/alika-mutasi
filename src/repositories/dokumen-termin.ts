@@ -139,3 +139,5 @@ export class DokumenTerminRepository extends BaseRepository<DokumenTermin> {
     });
   }
 }
+
+export type DokumenTerminType = DokumenTermin;

@@ -6,3 +6,5 @@ export class RefTarifRepository extends BaseRepository<RefTarif> {
     super(RefTarif);
   }
 }
+
+export type RefTarifType = RefTarif;

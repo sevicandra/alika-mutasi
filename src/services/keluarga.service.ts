@@ -1,6 +1,6 @@
+import { KeluargaQueue } from "@/bullmq/queues/keluarga";
 import sequelize from "@/config/db.config";
 import { PegawaiMutasi } from "@/models";
-import { keluargaQueue } from "@/queues/Keluarga.queue";
 
 export class KeluargaJobService {
   static async addJob(id: string): Promise<void> {
@@ -11,17 +11,12 @@ export class KeluargaJobService {
         throw new Error("Pegawai not found");
       }
       await Pegawai.update({ process_keluarga: "PROCESSING" }, { transaction: t });
-      await keluargaQueue.add(
-        "keluarga",
-        { id: Pegawai.id },
-        {
-          jobId: Pegawai.id,
-          attempts: 3,
-          backoff: { type: "exponential", delay: 1000 },
-          removeOnComplete: true,
-          removeOnFail: false,
-        }
-      );
+      await KeluargaQueue.addJob("keluarga", { pegawaiId: Pegawai.id }, Pegawai.id, {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 1000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      });
       await t.commit();
     } catch (error) {
       await t.rollback();
@@ -41,17 +36,12 @@ export class KeluargaJobService {
       }
       for (const item of Pegawai) {
         await item.update({ process_keluarga: "PROCESSING" }, { transaction: t });
-        await keluargaQueue.add(
-          "keluarga",
-          { id: item.id },
-          {
-            jobId: item.id,
-            attempts: 3,
-            backoff: { type: "exponential", delay: 1000 },
-            removeOnComplete: true,
-            removeOnFail: false,
-          }
-        );
+        await KeluargaQueue.addJob("keluarga", { pegawaiId: item.id }, item.id, {
+          attempts: 3,
+          backoff: { type: "exponential", delay: 1000 },
+          removeOnComplete: true,
+          removeOnFail: false,
+        });
       }
       await t.commit();
     } catch (error) {

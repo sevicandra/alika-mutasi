@@ -1,4 +1,4 @@
-import moduleAlias from "module-alias";
+import * as moduleAlias from "module-alias";
 import path from "path";
 
 const basePath = __dirname.includes("dist") ? "dist" : "src";

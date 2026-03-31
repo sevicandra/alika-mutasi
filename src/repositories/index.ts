@@ -1,36 +1,45 @@
-import { DataSanggahRepository } from "@/repositories/data-sanggah";
-import { DokumenTerminRepository } from "@/repositories/dokumen-termin";
-import { FaqRepository } from "@/repositories/faq";
-import { KeluargaRepository } from "@/repositories/keluarga";
-import { MonitoringTagihanRepository } from "@/repositories/monitoring-tagihan";
-import { PayrollRepository } from "@/repositories/payroll";
-import { PayrollCounterRepository } from "@/repositories/payroll-counter";
-import { PegawaiMutasiRepository } from "@/repositories/pegawai-mutasi";
-import { PembayaranLogRepository } from "@/repositories/pembayaran-log";
-import { PerubahanKeluargaRepository } from "@/repositories/perubahan-keluarga";
-import { RefBarangRepository } from "@/repositories/ref-barang";
-import { RefDaratRepository } from "@/repositories/ref-darat";
-import { RefGolonganRepository } from "@/repositories/ref-golongan";
-import { RefHubunganKeluargaRepository } from "@/repositories/ref-hubungan-keluarga";
-import { RefKantorRepository } from "@/repositories/ref-kantor";
-import { RefKapalRepository } from "@/repositories/ref-kapal";
-import { RefKotaRepository } from "@/repositories/ref-kota";
-import { RefPejabatRepository } from "@/repositories/ref-pejabat";
-import { RefPesawatRepository } from "@/repositories/ref-pesawat";
-import { RefProvinsiRepository } from "@/repositories/ref-provinsi";
-import { RefTarifRepository } from "@/repositories/ref-tarif";
-import { RefTerminRepository } from "@/repositories/ref-termin";
-import { RefTimelineRepository } from "@/repositories/ref-timeline";
-import { RefUangHarianRepository } from "@/repositories/ref-uang-harian";
-import { RekeningRepository } from "@/repositories/rekening";
-import { RincianBiayaRepository } from "@/repositories/rincian-biaya";
-import { SanggahRepository } from "@/repositories/sanggah";
-import { SpdCounterRepository } from "@/repositories/spd-counter";
-import { SuratKeputusanRepository } from "@/repositories/surat-keputusan";
-import { TerminRepository } from "@/repositories/termin";
-import { TicketCounterRepository } from "@/repositories/ticket-counter";
-import { TimelineRepository } from "@/repositories/timeline";
-import { TteDokumenRepository } from "@/repositories/tte-dokumen";
+import { DataSanggahRepository, DataSanggahType } from "@/repositories/data-sanggah";
+import { DokumenTerminRepository, DokumenTerminType } from "@/repositories/dokumen-termin";
+import { FaqRepository, FaqType } from "@/repositories/faq";
+import { KeluargaRepository, KeluargaType } from "@/repositories/keluarga";
+import {
+  MonitoringTagihanRepository,
+  MonitoringTagihanType,
+} from "@/repositories/monitoring-tagihan";
+import { PayrollRepository, PayrollType } from "@/repositories/payroll";
+import { PayrollCounterRepository, PayrollCounterType } from "@/repositories/payroll-counter";
+import { PegawaiMutasiRepository, PegawaiMutasiType } from "@/repositories/pegawai-mutasi";
+import { PembayaranLogRepository, PembayaranLogType } from "@/repositories/pembayaran-log";
+import {
+  PerubahanKeluargaRepository,
+  PerubahanKeluargaType,
+} from "@/repositories/perubahan-keluarga";
+import { RefBarangRepository, RefBarangType } from "@/repositories/ref-barang";
+import { RefDaratRepository, RefDaratType } from "@/repositories/ref-darat";
+import { RefGolonganRepository, RefGolonganType } from "@/repositories/ref-golongan";
+import {
+  RefHubunganKeluargaRepository,
+  RefHubunganKeluargaType,
+} from "@/repositories/ref-hubungan-keluarga";
+import { RefKantorRepository, RefKantorType } from "@/repositories/ref-kantor";
+import { RefKapalRepository, RefKapalType } from "@/repositories/ref-kapal";
+import { RefKotaRepository, RefKotaType } from "@/repositories/ref-kota";
+import { RefPejabatRepository, RefPejabatType } from "@/repositories/ref-pejabat";
+import { RefPesawatRepository, RefPesawatType } from "@/repositories/ref-pesawat";
+import { RefProvinsiRepository, RefProvinsiType } from "@/repositories/ref-provinsi";
+import { RefTarifRepository, RefTarifType } from "@/repositories/ref-tarif";
+import { RefTerminRepository, RefTerminType } from "@/repositories/ref-termin";
+import { RefTimelineRepository, RefTimelineType } from "@/repositories/ref-timeline";
+import { RefUangHarianRepository, RefUangHarianType } from "@/repositories/ref-uang-harian";
+import { RekeningRepository, RekeningType } from "@/repositories/rekening";
+import { RincianBiayaRepository, RincianBiayaType } from "@/repositories/rincian-biaya";
+import { SanggahRepository, SanggahType } from "@/repositories/sanggah";
+import { SpdCounterRepository, SpdCounterType } from "@/repositories/spd-counter";
+import { SuratKeputusanRepository, SuratKeputusanType } from "@/repositories/surat-keputusan";
+import { TerminRepository, TerminType } from "@/repositories/termin";
+import { TicketCounterRepository, TicketCounterType } from "@/repositories/ticket-counter";
+import { TimelineRepository, TimelineType } from "@/repositories/timeline";
+import { TteDokumenRepository, TteDokumenType } from "@/repositories/tte-dokumen";
 
 const DataSanggah = new DataSanggahRepository();
 const DokumenTermin = new DokumenTerminRepository();
@@ -100,4 +109,40 @@ export {
   TicketCounter,
   Timeline,
   TteDokumen,
+};
+
+export type {
+  DataSanggahType,
+  DokumenTerminType,
+  FaqType,
+  KeluargaType,
+  MonitoringTagihanType,
+  PayrollCounterType,
+  PayrollType,
+  PegawaiMutasiType,
+  PembayaranLogType,
+  PerubahanKeluargaType,
+  RefBarangType,
+  RefDaratType,
+  RefGolonganType,
+  RefHubunganKeluargaType,
+  RefKantorType,
+  RefKapalType,
+  RefKotaType,
+  RefPejabatType,
+  RefPesawatType,
+  RefProvinsiType,
+  RefTarifType,
+  RefTerminType,
+  RefTimelineType,
+  RefUangHarianType,
+  RekeningType,
+  RincianBiayaType,
+  SanggahType,
+  SpdCounterType,
+  SuratKeputusanType,
+  TerminType,
+  TicketCounterType,
+  TimelineType,
+  TteDokumenType,
 };

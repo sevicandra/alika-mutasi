@@ -6,3 +6,5 @@ export class RefTimelineRepository extends BaseRepository<RefTimeline> {
     super(RefTimeline);
   }
 }
+
+export type RefTimelineType = RefTimeline;

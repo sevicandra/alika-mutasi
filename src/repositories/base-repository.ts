@@ -28,7 +28,6 @@ export interface PaginatedResult<T> {
 
 export abstract class BaseRepository<T extends Model> {
   protected model: ModelStatic<T>;
-
   constructor(model: ModelStatic<T>) {
     this.model = model;
   }

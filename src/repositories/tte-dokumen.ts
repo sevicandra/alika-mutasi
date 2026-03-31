@@ -6,3 +6,5 @@ export class TteDokumenRepository extends BaseRepository<TteDokumen> {
     super(TteDokumen);
   }
 }
+
+export type TteDokumenType = TteDokumen;

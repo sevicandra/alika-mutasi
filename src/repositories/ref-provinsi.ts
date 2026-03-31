@@ -6,3 +6,5 @@ export class RefProvinsiRepository extends BaseRepository<RefProvinsi> {
     super(RefProvinsi);
   }
 }
+
+export type RefProvinsiType = RefProvinsi;

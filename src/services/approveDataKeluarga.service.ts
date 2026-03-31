@@ -1,7 +1,7 @@
 import sequelize from "sequelize";
 import { Logger } from "@/services/log.service";
+import { ApproveMutasiQueue } from "@/bullmq/queues/approve-mutasi";
 import { PegawaiMutasi, SpdCounter } from "@/models";
-import { approveMutasiQueue } from "@/queues/ApproveMutasi.queue";
 
 export class ApproveMutasi {
   static async addJob(pegawai_id: string, t: sequelize.Transaction): Promise<void> {
@@ -62,7 +62,7 @@ export class ApproveMutasi {
           (data.tanggal_spd = new Date()));
 
         await data.save({ transaction: t });
-        await approveMutasiQueue.add(
+        await ApproveMutasiQueue.addJob(
           "approve_mutasi",
           {
             nip: data.nip,
@@ -90,13 +90,7 @@ export class ApproveMutasi {
             golongan: data.golongan.split("")[0] as "1" | "2" | "3" | "4",
             jumlah_hari: data.jumlah_hari,
           },
-          {
-            jobId: pegawai_id,
-            attempts: 3,
-            backoff: { type: "exponential", delay: 1000 },
-            removeOnComplete: true,
-            removeOnFail: false,
-          }
+          pegawai_id
         );
         await Logger.GeneralAction({
           pegawai_id: pegawai_id,
@@ -174,7 +168,7 @@ export class ApproveMutasi {
             (data.tanggal_spd = new Date()));
 
           await data.save({ transaction: t });
-          await approveMutasiQueue.add(
+          await ApproveMutasiQueue.addJob(
             "approve_mutasi",
             {
               nip: data.nip,
@@ -202,13 +196,7 @@ export class ApproveMutasi {
               golongan: data.golongan.split("")[0] as "1" | "2" | "3" | "4",
               jumlah_hari: data.jumlah_hari,
             },
-            {
-              jobId: pegawai_id,
-              attempts: 3,
-              backoff: { type: "exponential", delay: 1000 },
-              removeOnComplete: true,
-              removeOnFail: false,
-            }
+            pegawai_id
           );
           await Logger.GeneralAction({
             pegawai_id: pegawai_id,

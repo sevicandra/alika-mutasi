@@ -1,12 +1,12 @@
-import { Job } from "bull";
 import dotenv from "dotenv";
+import { BaseQueueWorker } from "@/bullmq/base-queue-worker";
 import sequelize from "@/config/db.config";
 import { MonitoringTagihan, PegawaiMutasi, Termin } from "@/models";
 import { TerminJob } from "@/types/Job";
 
 dotenv.config();
 
-export const processTermin = async (job: Job<TerminJob>): Promise<void> => {
+export const TerminWorker = new BaseQueueWorker<TerminJob>("termin", (job) => {
   return new Promise(async (resolve, reject) => {
     const t = await sequelize.transaction();
     const { pegawai_id, nominal, tahun_lunas, tahun_uang_muka, type } = job.data;
@@ -74,4 +74,4 @@ export const processTermin = async (job: Job<TerminJob>): Promise<void> => {
       reject(error);
     }
   });
-};
+});

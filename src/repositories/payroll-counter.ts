@@ -18,3 +18,5 @@ export class PayrollCounterRepository extends BaseRepository<PayrollCounter> {
     return counter;
   }
 }
+
+export type PayrollCounterType = PayrollCounter;

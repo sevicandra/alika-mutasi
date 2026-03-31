@@ -65,3 +65,5 @@ export class SanggahRepository extends BaseRepository<Sanggah> {
     }
   }
 }
+
+export type SanggahType = Sanggah;

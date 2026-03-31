@@ -6,3 +6,5 @@ export class PembayaranLogRepository extends BaseRepository<PembayaranLog> {
     super(PembayaranLog);
   }
 }
+
+export type PembayaranLogType = PembayaranLog;

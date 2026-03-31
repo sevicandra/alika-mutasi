@@ -1,19 +1,18 @@
-import { Job } from "bull";
 import dotenv from "dotenv";
 import { KemenkeuService } from "@/services/kemenkeu.service";
+import { BaseQueueWorker } from "@/bullmq/base-queue-worker";
 import sequelize from "@/config/db.config";
 import { Adult, Invant } from "@/helpers/age.helper";
 import { Keluarga, PegawaiMutasi, RefHubunganKeluarga } from "@/repositories";
-import { PegawaiJob } from "@/types/Job";
 
 dotenv.config();
 
-export const processKeluarga = async (job: Job<PegawaiJob>): Promise<void> => {
+export const KeluargaWorker = new BaseQueueWorker<{ pegawaiId: string }>("keluarga", (job) => {
+  const { pegawaiId } = job.data;
   return new Promise(async (resolve, reject) => {
     const t = await sequelize.transaction();
-    const { id } = job.data;
     try {
-      const Pegawai = await PegawaiMutasi.findById(id, {
+      const Pegawai = await PegawaiMutasi.findById(pegawaiId, {
         include: [{ association: "SuratKeputusan" }],
       });
       if (!Pegawai) {
@@ -28,13 +27,6 @@ export const processKeluarga = async (job: Job<PegawaiJob>): Promise<void> => {
         where: { jenis: "ANAK" },
         attributes: ["kode", "jenis"],
       });
-
-      console.log(
-        keluarga.filter((item) => {
-          item.IdrefHubungan.toString() === "2";
-        })
-      );
-
       const dataPasangan = keluarga
         .filter((item) =>
           pasangan.some(
@@ -45,7 +37,7 @@ export const processKeluarga = async (job: Job<PegawaiJob>): Promise<void> => {
         )
         .map((item) => {
           return {
-            pegawai_id: id,
+            pegawai_id: pegawaiId,
             hris_id: item.IdpegawaiKeluarga,
             nama: item.Nama,
             hubungan: item.IdrefHubungan.toString(),
@@ -74,7 +66,7 @@ export const processKeluarga = async (job: Job<PegawaiJob>): Promise<void> => {
           const invant = Invant(new Date(item.TanggalLahir), Pegawai.SuratKeputusan.tanggal);
           const adult = Adult(new Date(item.TanggalLahir), Pegawai.SuratKeputusan.tanggal);
           return {
-            pegawai_id: id,
+            pegawai_id: pegawaiId,
             hris_id: item.IdpegawaiKeluarga,
             nama: item.Nama,
             hubungan: item.IdrefHubungan.toString(),
@@ -97,10 +89,10 @@ export const processKeluarga = async (job: Job<PegawaiJob>): Promise<void> => {
       console.error("Job gagal, percobaan ke:", job.attemptsMade + 1);
 
       if (job.attemptsMade >= 2) {
-        await PegawaiMutasi.update({ process_keluarga: "FAILED" }, { where: { id: id } });
+        await PegawaiMutasi.update({ process_keluarga: "FAILED" }, { where: { id: pegawaiId } });
         console.log("Job gagal maksimal, status diubah ke failed.");
       }
       reject(error);
     }
   });
-};
+});

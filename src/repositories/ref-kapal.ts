@@ -6,3 +6,5 @@ export class RefKapalRepository extends BaseRepository<RefKapal> {
     super(RefKapal);
   }
 }
+
+export type RefKapalType = RefKapal;

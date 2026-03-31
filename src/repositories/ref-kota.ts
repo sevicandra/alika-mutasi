@@ -6,3 +6,5 @@ export class RefKotaRepository extends BaseRepository<RefKota> {
     super(RefKota);
   }
 }
+
+export type RefKotaType = RefKota;

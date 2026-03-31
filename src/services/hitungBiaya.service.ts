@@ -1,22 +1,26 @@
+import { BiayaQueue } from "@/bullmq/queues/biaya";
 import { appConfig } from "@/config/app.config";
 import sequelize from "@/config/db.config";
-import { PegawaiMutasi } from "@/models";
-import { biayaQueue } from "@/queues/Biaya.queue";
 import {
+  PegawaiMutasi,
   RefBarang,
   RefDarat,
+  RefDaratType,
   RefKapal,
+  RefKapalType,
   RefKota,
+  RefKotaType,
   RefPesawat,
+  RefPesawatType,
   RefTarif,
   RefUangHarian,
-} from "../models";
+} from "@/repositories";
 import { redisService } from "./redis-service";
 
 export class BiayaMutasiService {
-  private static async getRuteDarat(): Promise<RefDarat[]> {
+  private static async getRuteDarat(): Promise<RefDaratType[]> {
     const redisKey = `${appConfig.NAME}:rute:darat`;
-    const rute = await redisService.get<RefDarat[]>(redisKey);
+    const rute = await redisService.get<RefDaratType[]>(redisKey);
     if (rute) {
       return rute;
     }
@@ -27,9 +31,9 @@ export class BiayaMutasiService {
     return refDarat;
   }
 
-  private static async getRuteLaut(): Promise<RefKapal[]> {
+  private static async getRuteLaut(): Promise<RefKapalType[]> {
     const redisKey = `${appConfig.NAME}:rute:kapal`;
-    const rute = await redisService.get<RefKapal[]>(redisKey);
+    const rute = await redisService.get<RefKapalType[]>(redisKey);
     if (rute) {
       return rute;
     }
@@ -40,9 +44,9 @@ export class BiayaMutasiService {
     return refKapal;
   }
 
-  private static async getRutePesawat(): Promise<RefPesawat[]> {
+  private static async getRutePesawat(): Promise<RefPesawatType[]> {
     const redisKey = `${appConfig.NAME}:rute:pesawat`;
-    const rute = await redisService.get<RefPesawat[]>(redisKey);
+    const rute = await redisService.get<RefPesawatType[]>(redisKey);
     if (rute) {
       return rute;
     }
@@ -53,9 +57,9 @@ export class BiayaMutasiService {
     return refPesawat;
   }
 
-  private static async getKota({ kode }: { kode: string }): Promise<RefKota> {
+  private static async getKota({ kode }: { kode: string }): Promise<RefKotaType> {
     const redisKey = `${appConfig.NAME}:kota:${kode}`;
-    const kota = await redisService.get<RefKota>(redisKey);
+    const kota = await redisService.get<RefKotaType>(redisKey);
     if (kota) {
       return kota;
     }
@@ -574,7 +578,7 @@ export class hitungBiayaJobService {
     return new Promise(async (resolve, reject) => {
       const t = await sequelize.transaction();
       try {
-        const pegawai = await PegawaiMutasi.findByPk(pegawai_id, {
+        const pegawai = await PegawaiMutasi.findById(pegawai_id, {
           include: [
             {
               association: "TanggunganDewasa",
@@ -611,7 +615,7 @@ export class hitungBiayaJobService {
         }
         pegawai.process_biaya = "PROCESSING";
         await pegawai.save({ transaction: t });
-        await biayaQueue.add(
+        await BiayaQueue.addJob(
           "biaya",
           {
             pegawai_id,
@@ -629,12 +633,12 @@ export class hitungBiayaJobService {
             jumlah_hari: pegawai.jumlah_hari,
             nip: pegawai.nip,
           },
+          pegawai_id,
           {
-            jobId: pegawai_id,
             attempts: 3,
             backoff: { type: "exponential", delay: 1000 },
             removeOnComplete: true,
-            removeOnFail: false,
+            removeOnFail: true,
           }
         );
         await t.commit();
@@ -653,7 +657,7 @@ export class hitungBiayaJobService {
         const jobs: any[] = [];
         for (const pegawai_id of pegawaiIds) {
           const t = await sequelize.transaction();
-          const pegawai = await PegawaiMutasi.findByPk(pegawai_id, {
+          const pegawai = await PegawaiMutasi.findById(pegawai_id, {
             include: [
               {
                 association: "TanggunganDewasa",
@@ -690,7 +694,7 @@ export class hitungBiayaJobService {
           }
           pegawai.process_biaya = "PROCESSING";
           await pegawai.save({ transaction: t });
-          await biayaQueue.add(
+          await BiayaQueue.addJob(
             "biaya",
             {
               pegawai_id,
@@ -708,12 +712,12 @@ export class hitungBiayaJobService {
               jumlah_hari: pegawai.jumlah_hari,
               nip: pegawai.nip,
             },
+            pegawai_id,
             {
-              jobId: pegawai_id,
               attempts: 3,
               backoff: { type: "exponential", delay: 1000 },
               removeOnComplete: true,
-              removeOnFail: false,
+              removeOnFail: true,
             }
           );
           await t.commit();

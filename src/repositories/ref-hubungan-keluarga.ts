@@ -6,3 +6,5 @@ export class RefHubunganKeluargaRepository extends BaseRepository<RefHubunganKel
     super(RefHubunganKeluarga);
   }
 }
+
+export type RefHubunganKeluargaType = RefHubunganKeluarga;

@@ -6,3 +6,5 @@ export class RincianBiayaRepository extends BaseRepository<RincianBiaya> {
     super(RincianBiaya);
   }
 }
+
+export type RincianBiayaType = RincianBiaya;

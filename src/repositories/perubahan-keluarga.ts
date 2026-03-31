@@ -6,3 +6,5 @@ export class PerubahanKeluargaRepository extends BaseRepository<PerubahanKeluarg
     super(PerubahanKeluarga);
   }
 }
+
+export type PerubahanKeluargaType = PerubahanKeluarga;

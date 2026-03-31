@@ -1,4 +1,3 @@
-import { Job } from "bull";
 import dotenv from "dotenv";
 import { Op } from "sequelize";
 import { AlikaService } from "@/services/alika.service";
@@ -16,10 +15,11 @@ import {
   TteDokumen,
 } from "@/repositories";
 import { BiayaJob } from "@/types/Job";
+import { BaseQueueWorker } from "../base-queue-worker";
 
 dotenv.config();
 
-export const processApproveMutasi = async (job: Job<BiayaJob>): Promise<void> => {
+export const ApproveMutasiWorker = new BaseQueueWorker<BiayaJob>("approve-mutasi", (job) => {
   return new Promise(async (resolve, reject) => {
     const uploadedFiles: string[] = [];
     const t = await sequelize.transaction();
@@ -295,4 +295,4 @@ export const processApproveMutasi = async (job: Job<BiayaJob>): Promise<void> =>
       reject(error);
     }
   });
-};
+});

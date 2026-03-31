@@ -6,3 +6,5 @@ export class RekeningRepository extends BaseRepository<Rekening> {
     super(Rekening);
   }
 }
+
+export type RekeningType = Rekening;

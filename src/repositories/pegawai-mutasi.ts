@@ -201,3 +201,5 @@ export class PegawaiMutasiRepository extends BaseRepository<PegawaiMutasi> {
     });
   }
 }
+
+export type PegawaiMutasiType = PegawaiMutasi;

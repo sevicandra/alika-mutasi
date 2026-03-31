@@ -271,3 +271,5 @@ export class SuratKeputusanRepository extends BaseRepository<SuratKeputusan> {
   }
 
 }
+
+export type SuratKeputusanType = SuratKeputusan;

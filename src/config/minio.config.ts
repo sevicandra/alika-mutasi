@@ -1,5 +1,7 @@
+import dotenv from "dotenv";
 import fs from "fs";
 import { Client } from "minio";
+dotenv.config();
 
 export const minioConfig = {
   endPoint: process.env.MINIO_ENDPOINT || "",

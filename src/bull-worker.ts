@@ -1,75 +1,35 @@
 import dotenv from "dotenv";
 import { redisService } from "@/services/redis-service";
-import { processApproveMutasi } from "./jobs/ApproveMutasi.job";
-import { processBiaya } from "./jobs/Biaya.job";
-import { processKeluarga } from "./jobs/Keluarga.job";
-import { processKirim } from "./jobs/KirimTagihan.job";
-import { processTermin } from "./jobs/Termin.job";
-import { approveMutasiQueue } from "./queues/ApproveMutasi.queue";
-import { biayaQueue } from "./queues/Biaya.queue";
-import { keluargaQueue } from "./queues/Keluarga.queue";
-import { kirimTagihanQueue } from "./queues/KirimTagihan.queue";
-import { terminQueue } from "./queues/Termin.queue";
+import { ApproveMutasiWorker } from "@/bullmq/workers/approve-mutasi";
+import { BiayaWorker } from "@/bullmq/workers/biaya";
+import { KeluargaWorker } from "@/bullmq/workers/keluarga";
+import { KirimTagihanWorker } from "@/bullmq/workers/kirim-tagihan";
+import { TerminWorker } from "@/bullmq/workers/termin";
 import "./register-alias";
 
 dotenv.config();
 const startServer = async () => {
   await redisService.connect();
-
-  keluargaQueue.process("keluarga", processKeluarga);
-  biayaQueue.process("biaya", processBiaya);
-  terminQueue.process("termin", processTermin);
-  approveMutasiQueue.process("approve_mutasi", processApproveMutasi);
-  kirimTagihanQueue.process("kirim_tagihan", processKirim);
-
-  keluargaQueue.on("failed", (job, err) => {
-    console.log("Job failed:", job.id, err);
-    if (job.attemptsMade < 3) {
-      console.log("Retrying job:", job.id);
-    } else {
-      console.log("Failed job:", job.id);
-      job.remove();
-    }
+  process.on("SIGTERM", () => {
+    Promise.all([
+      ApproveMutasiWorker.close(),
+      BiayaWorker.close(),
+      KeluargaWorker.close(),
+      KirimTagihanWorker.close(),
+      TerminWorker.close(),
+    ]);
+    process.exit(0);
   });
 
-  biayaQueue.on("failed", (job, err) => {
-    console.log("Job failed:", job.id, err);
-    if (job.attemptsMade < 3) {
-      console.log("Retrying job:", job.id);
-    } else {
-      console.log("Failed job:", job.id);
-      job.remove();
-    }
-  });
-
-  terminQueue.on("failed", (job, err) => {
-    console.log("Job failed:", job.id, err);
-    if (job.attemptsMade < 3) {
-      console.log("Retrying job:", job.id);
-    } else {
-      console.log("Failed job:", job.id);
-      job.remove();
-    }
-  });
-
-  kirimTagihanQueue.on("failed", (job, err) => {
-    console.log("Job failed:", job.id, err);
-    if (job.attemptsMade < 3) {
-      console.log("Retrying job:", job.id);
-    } else {
-      console.log("Failed job:", job.id);
-      job.remove();
-    }
-  });
-
-  approveMutasiQueue.on("failed", (job, err) => {
-    console.log("Job failed:", job.id, err);
-    if (job.attemptsMade < 3) {
-      console.log("Retrying job:", job.id);
-    } else {
-      console.log("Failed job:", job.id);
-      job.remove();
-    }
+  process.on("SIGINT", () => {
+    Promise.all([
+      ApproveMutasiWorker.close(),
+      BiayaWorker.close(),
+      KeluargaWorker.close(),
+      KirimTagihanWorker.close(),
+      TerminWorker.close(),
+    ]);
+    process.exit(0);
   });
 };
 

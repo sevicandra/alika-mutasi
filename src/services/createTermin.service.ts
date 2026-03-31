@@ -1,6 +1,6 @@
+import { TerminQueue } from "@/bullmq/queues/termin";
 import sequelize from "@/config/db.config";
 import { PegawaiMutasi } from "@/models";
-import { terminQueue } from "@/queues/Termin.queue";
 
 export class terminJobService {
   static async addJob({
@@ -52,7 +52,7 @@ export class terminJobService {
         nominal = Pegawai.MonitoringTagihan.total_tagihan;
       }
 
-      await terminQueue.add(
+      await TerminQueue.addJob(
         "termin",
         {
           pegawai_id: id,
@@ -61,8 +61,8 @@ export class terminJobService {
           tahun_lunas,
           type,
         },
+        id,
         {
-          jobId: id,
           attempts: 1,
           backoff: { type: "exponential", delay: 1000 },
           removeOnComplete: true,

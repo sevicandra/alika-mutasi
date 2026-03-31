@@ -6,3 +6,5 @@ export class RefKantorRepository extends BaseRepository<RefKantor> {
     super(RefKantor);
   }
 }
+
+export type RefKantorType = RefKantor;

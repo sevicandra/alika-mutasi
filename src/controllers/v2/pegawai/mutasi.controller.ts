@@ -8,8 +8,8 @@ import {
   InvalidRequestError,
   NotFoundError,
 } from "@/utils/errors";
+import { ApproveMutasiQueue } from "@/bullmq/queues/approve-mutasi";
 import { successResponse } from "@/helpers/respose.helper";
-import { approveMutasiQueue } from "@/queues/ApproveMutasi.queue";
 import { PegawaiMutasi, SpdCounter } from "@/repositories";
 
 export const MutasiControllerV2 = {
@@ -161,7 +161,7 @@ export const MutasiControllerV2 = {
       }/${new Date().getFullYear()}`),
         (data.tanggal_spd = new Date()));
       await data.save({ transaction: t });
-      await approveMutasiQueue.add(
+      await ApproveMutasiQueue.addJob(
         "approve_mutasi",
         {
           nip: nip,
@@ -189,13 +189,7 @@ export const MutasiControllerV2 = {
           golongan: data.golongan.split("")[0] as "1" | "2" | "3" | "4",
           jumlah_hari: data.jumlah_hari,
         },
-        {
-          jobId: mutasiId,
-          attempts: 3,
-          backoff: { type: "exponential", delay: 1000 },
-          removeOnComplete: true,
-          removeOnFail: false,
-        }
+        mutasiId
       );
       await Logger.GeneralAction({
         pegawai_id: mutasiId,

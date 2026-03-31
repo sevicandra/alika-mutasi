@@ -46,3 +46,5 @@ export class TimelineRepository extends BaseRepository<Timeline> {
     );
   }
 }
+
+export type TimelineType = Timeline;

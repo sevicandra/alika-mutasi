@@ -6,3 +6,5 @@ export class KeluargaRepository extends BaseRepository<Keluarga> {
     super(Keluarga);
   }
 }
+
+export type KeluargaType = Keluarga;

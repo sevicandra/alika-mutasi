@@ -6,3 +6,5 @@ export class TerminRepository extends BaseRepository<Termin> {
     super(Termin);
   }
 }
+
+export type TerminType = Termin;

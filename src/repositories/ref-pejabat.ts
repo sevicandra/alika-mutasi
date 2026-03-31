@@ -6,3 +6,5 @@ export class RefPejabatRepository extends BaseRepository<RefPejabat> {
     super(RefPejabat);
   }
 }
+
+export type RefPejabatType = RefPejabat;

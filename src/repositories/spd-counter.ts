@@ -20,3 +20,5 @@ export class SpdCounterRepository extends BaseRepository<SpdCounter> {
     return counter;
   }
 }
+
+export type SpdCounterType = SpdCounter;

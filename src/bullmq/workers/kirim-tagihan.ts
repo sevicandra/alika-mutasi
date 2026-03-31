@@ -1,4 +1,3 @@
-import { Job } from "bull";
 import dotenv from "dotenv";
 import QRCode from "qrcode";
 import { Op } from "sequelize";
@@ -8,6 +7,7 @@ import { appConfig } from "@/config/app.config";
 import sequelize from "@/config/db.config";
 import { DokumenTermin, Termin } from "@/models";
 import { PembayaranJob } from "@/types/Job";
+import { BaseQueueWorker } from "../base-queue-worker";
 
 dotenv.config();
 
@@ -119,7 +119,7 @@ const checkFinalDokumen = async (dokumenId: string) => {
   }
 };
 
-export const processKirim = async (job: Job<PembayaranJob>): Promise<void> => {
+export const KirimTagihanWorker = new BaseQueueWorker<PembayaranJob>("kirim-tagihan", (job) => {
   return new Promise(async (resolve, reject) => {
     const { dokumen_id, nik, passphrase } = job.data;
     const t = await sequelize.transaction();
@@ -216,4 +216,4 @@ export const processKirim = async (job: Job<PembayaranJob>): Promise<void> => {
       await checkFinalDokumen(dokumen_id);
     }
   });
-};
+});

@@ -6,3 +6,5 @@ export class RefUangHarianRepository extends BaseRepository<RefUangHarian> {
     super(RefUangHarian);
   }
 }
+
+export type RefUangHarianType = RefUangHarian;
