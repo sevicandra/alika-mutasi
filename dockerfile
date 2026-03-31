@@ -22,6 +22,7 @@ RUN npm ci --only=production && npm install pm2 -g
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/ecosystem.config.js ./ecosystem.config.js
+COPY --from=builder /app/assets ./assets
 
 EXPOSE 3000
 
