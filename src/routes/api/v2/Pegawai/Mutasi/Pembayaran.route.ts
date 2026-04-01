@@ -1,13 +1,16 @@
 import { Router } from "express";
-import { PembayaranControllerV2 } from "@/controllers/v2/pegawai/pembayaran.controller";
-import Dokumen from "./Dokumen.route";
 import z from "zod";
+import { PembayaranControllerV2 } from "@/controllers/v2/pegawai/pembayaran.controller";
 import { validateBody } from "@/middlewares/validate-request.middleware";
+import Dokumen from "./Dokumen.route";
 
 const router = Router({ mergeParams: true });
 
 const approveSchema = z.object({
   passphrase: z.string("Passphrase is required"),
+  confirmation: z.boolean("Confirmation is required").refine((value) => value === true, {
+    message: "Confirmation is required",
+  }),
 });
 
 router.get("/", PembayaranControllerV2.getAll);

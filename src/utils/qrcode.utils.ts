@@ -1,14 +1,58 @@
+import { createCanvas, registerFont } from "canvas";
+import fs from "fs";
+import path from "path";
 import QRCode from "qrcode";
 import sharp from "sharp";
 
+// Registrasi font
+try {
+  const fontPath = path.join(process.cwd(), "assets", "fonts", "arial", "ARIALBD.TTF");
+  if (fs.existsSync(fontPath)) {
+    registerFont(fontPath, { family: "ArialBold" });
+  }
+} catch (e) {
+  console.error("Gagal meregistrasi font ArialBold:", e);
+}
+
+// Fungsi pembantu untuk membuat teks menjadi buffer gambar PNG transparan
+function createTextBuffer(text: string, width: number, height: number, fontSize: number): Buffer {
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext("2d");
+
+  // Format font harus sesuai deklarasi font family saat register
+  ctx.font = `${fontSize}px "ArialBold", sans-serif`;
+  ctx.fillStyle = "#000000";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillText(text, width / 2, height / 2);
+
+  return canvas.toBuffer("image/png");
+}
+
 export const generateQRCode = async (url: string) => {
-  const qrBlob = await QRCode.toDataURL(url, {
-    type: "image/png",
-    margin: 0,
+  const qrSize = 220;
+  const qrBlob = await QRCode.toBuffer(url, {
+    type: "png",
+    width: qrSize,
+    margin: 1,
     errorCorrectionLevel: "H",
   });
 
-  return qrBlob;
+  const logoPath = path.join(process.cwd(), "assets", "logoAlika.png");
+  const logoSize = Math.floor(qrSize * 0.25);
+
+  const logoBuffer = await sharp(logoPath)
+    .resize(logoSize, logoSize, { fit: "contain" })
+    .toBuffer();
+
+  const qrWithLogo = await sharp(qrBlob)
+    .composite([{ input: logoBuffer, gravity: "center" }])
+    .png()
+    .toBuffer();
+
+  return `data:image/png;base64,${qrWithLogo.toString("base64")}`;
 };
 
 export const generateQRCodeWithText = async (
@@ -28,12 +72,24 @@ export const generateQRCodeWithText = async (
       const fontSize = Math.floor(qrSize / 5.5); // 100→18px ✅
       const textHeight = Math.floor(fontSize * 1.5);
 
-      const qrCodeBuffer = await QRCode.toBuffer(url, {
+      const baseQrCodeBuffer = await QRCode.toBuffer(url, {
         type: "png",
         width: qrSize,
         margin: 1,
         errorCorrectionLevel: "H",
       });
+
+      const logoPath = path.join(process.cwd(), "assets", "logoAlika.png");
+      const logoSize = Math.floor(qrSize * 0.25);
+
+      const logoBuffer = await sharp(logoPath)
+        .resize(logoSize, logoSize, { fit: "contain" })
+        .toBuffer();
+
+      const qrCodeBuffer = await sharp(baseQrCodeBuffer)
+        .composite([{ input: logoBuffer, gravity: "center" }])
+        .png()
+        .toBuffer();
 
       const headerWidth = Math.max(Math.floor(header.length * (fontSize * 0.6)), qrSize);
 
@@ -41,34 +97,9 @@ export const generateQRCodeWithText = async (
 
       const textWidth = Math.max(headerWidth, footerWidth);
 
-      // FIX #3: SVG dengan width dan height yang benar
-      const topTextSvg = Buffer.from(`
-      <svg width="${textWidth}" height="${textHeight}" xmlns="http://www.w3.org/2000/svg">
-        <style>
-          .text-label {
-            font-family: Arial, sans-serif;
-            font-size: ${fontSize}px;
-            font-weight: bold;
-            fill: #000000;
-          }
-        </style>
-        <text x="0" y="${textHeight * 0.7}" class="text-label">${header}</text>
-      </svg>
-    `);
-
-      const bottomTextSvg = Buffer.from(`
-      <svg width="${textWidth}" height="${textHeight}" xmlns="http://www.w3.org/2000/svg">
-        <style>
-          .text-label {
-            font-family: Arial, sans-serif;
-            font-size: ${fontSize}px;
-            font-weight: bold;
-            fill: #000000;
-          }
-        </style>
-        <text x="0" y="${textHeight * 0.7}" class="text-label">${footer}</text>
-      </svg>
-    `);
+      // Gambar Teks Menggunakan Canvas untuk menghindari isu font di OS
+      const topTextBuffer = createTextBuffer(header, textWidth, textHeight, fontSize);
+      const bottomTextBuffer = createTextBuffer(footer, textWidth, textHeight, fontSize);
 
       const finalWidth = Math.max(qrSize, textWidth) + padding * 2;
       const finalHeight = textHeight + padding + qrSize + padding + textHeight + padding;
@@ -84,18 +115,18 @@ export const generateQRCodeWithText = async (
         .png()
         .toBuffer();
 
-      const qrLeft = padding;
+      const qrLeft = Math.floor((finalWidth - qrSize) / 2);
       const textLeft = Math.floor((finalWidth - textWidth) / 2);
 
       const finalImageBuffer = await sharp(baseImage)
         .composite([
           // Top text (centered)
           {
-            input: topTextSvg,
+            input: topTextBuffer,
             top: padding,
             left: textLeft,
           },
-          // QR Code (left)
+          // QR Code (centered)
           {
             input: qrCodeBuffer,
             top: textHeight + padding * 2,
@@ -103,7 +134,7 @@ export const generateQRCodeWithText = async (
           },
           // Bottom text (centered)
           {
-            input: bottomTextSvg,
+            input: bottomTextBuffer,
             top: textHeight + qrSize + padding * 2,
             left: textLeft,
           },

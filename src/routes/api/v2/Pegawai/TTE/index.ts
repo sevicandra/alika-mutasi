@@ -7,7 +7,10 @@ const router = Router({ mergeParams: true });
 
 const tteSchema = z.object({
   passphrase: z.string("Passphrase is required"),
-  tanggal: z.string().optional(),
+  tanggal: z.string("Tanggal is required").regex(/\d{4}-\d{2}-\d{2}/, "Format tanggal salah"),
+  confirmation: z.boolean("Konfirmasi is required").refine((value) => value === true, {
+    message: "Konfirmasi is required",
+  }),
 });
 
 router.get("/", TteControllerV2.getAll);

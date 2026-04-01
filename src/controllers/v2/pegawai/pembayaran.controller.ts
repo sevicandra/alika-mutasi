@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import QRCode from "qrcode";
 import { Op } from "sequelize";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { AlikaService } from "@/services/alika.service";
@@ -12,6 +11,7 @@ import {
   InvalidRequestError,
   NotFoundError,
 } from "@/utils/errors";
+import { generateQRCode } from "@/utils/qrcode.utils";
 import { appConfig } from "@/config/app.config";
 import { successResponse } from "@/helpers/respose.helper";
 import { Termin } from "@/repositories";
@@ -180,10 +180,7 @@ export const PembayaranControllerV2 = {
         const blob = new Blob([stream], { type: "application/pdf" });
 
         const qrCodeUrl = `${appConfig.URL}/public/file/download/pembayaran/${doc.id}`;
-        const TteBlob = await QRCode.toDataURL(qrCodeUrl, {
-          type: "image/png",
-          margin: 0,
-        });
+        const TteBlob = await generateQRCode(qrCodeUrl);
         const tte = await EsignService.processEsign({
           nik: nik,
           passphrase: passphrase,
