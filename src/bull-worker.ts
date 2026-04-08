@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import { minioService } from "@/services/minio-service";
 import { redisService } from "@/services/redis-service";
 import { ApproveMutasiWorker } from "@/bullmq/workers/approve-mutasi";
 import { BiayaWorker } from "@/bullmq/workers/biaya";
@@ -10,6 +11,7 @@ import "./register-alias";
 dotenv.config();
 const startServer = async () => {
   await redisService.connect();
+  await minioService.ensureBucketExists();
   process.on("SIGTERM", () => {
     Promise.all([
       ApproveMutasiWorker.close(),
