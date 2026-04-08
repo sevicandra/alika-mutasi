@@ -6,7 +6,7 @@ import sharp from "sharp";
 
 // Registrasi font
 try {
-  const fontPath = path.join(process.cwd(), "assets", "fonts", "arial", "ARIALBD.TTF");
+  const fontPath = path.join(process.cwd(), "assets", "fonts", "ARIALBD.TTF");
   if (fs.existsSync(fontPath)) {
     registerFont(fontPath, { family: "ArialBold" });
   }
