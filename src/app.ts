@@ -46,6 +46,11 @@ const startServer = async () => {
     app.use(bodyParser.urlencoded({ extended: true }));
     app.use(cookieParser());
     app.use(methodOverride("_method"));
+
+    app.get("/health", (_req: Request, res: Response) => {
+      res.status(200).json({ status: "OK", timestamp: new Date() });
+    });
+
     app.use("/", router);
 
     app.use(notFoundHandler);
