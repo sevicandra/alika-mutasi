@@ -56,7 +56,7 @@ export default function generatePdf({
                 fit: [20, 20],
               },
               {
-                text: "Dokumen ini telah ditandatangani menggunakan sertifikat elektronik yang diterbitkan oleh Balai Besar Sertifikasi Elektronik (BSrE), Badan Siber dan Sandi Negara. Untuk memastikan keaslian tanda tangan elektronik, silakan unggah dokumen pada laman https://tte.komdigi.go.id/verifyPDF",
+                text: "Dokumen ini telah ditandatangani menggunakan sertifikat elektronik yang diterbitkan oleh Balai Besar Sertifikasi Elektronik (BSrE), BSSN.",
                 width: "*",
               },
             ],
