@@ -2,7 +2,7 @@ import axios from "axios";
 import jwkToPem from "jwk-to-pem";
 import { alikaConfig } from "@/config/alika.config";
 import { appConfig } from "@/config/app.config";
-import { redisService } from "./redis-service";
+import { redisService } from "@/services/redis-service";
 
 export class AlikaService {
   private static token: string | null = null;

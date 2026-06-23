@@ -1,3 +1,4 @@
+import { handleEsignError, handleEsignResponseError } from "@/utils/errors/esign-error-handler";
 import { eSignConfig } from "@/config/esign.config";
 
 export class EsignService {
@@ -35,6 +36,7 @@ export class EsignService {
     imageTTD: Blob;
     imageTTDName: string;
   }) {
+    const context = { nik, jenis };
     try {
       const formdata = new FormData();
       formdata.append("nik", nik);
@@ -58,7 +60,10 @@ export class EsignService {
         },
         body: formdata,
       });
-      if (!sign.ok) throw new Error(await sign.text());
+      if (!sign.ok) {
+        const bodyText = await sign.text();
+        throw handleEsignResponseError(sign.status, bodyText, context);
+      }
       const result = await sign.arrayBuffer();
       const buffer = Buffer.from(result);
       const headers = sign.headers;
@@ -72,7 +77,7 @@ export class EsignService {
         id_dokumen: data.id_dokumen,
       };
     } catch (error) {
-      throw error;
+      throw handleEsignError(error, context);
     }
   }
 }
