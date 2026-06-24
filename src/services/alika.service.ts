@@ -1,8 +1,8 @@
 import axios from "axios";
-import jwkToPem from "jwk-to-pem";
+import crypto from "crypto";
+import { redisService } from "@/services/redis-service";
 import { alikaConfig } from "@/config/alika.config";
 import { appConfig } from "@/config/app.config";
-import { redisService } from "@/services/redis-service";
 
 export class AlikaService {
   private static token: string | null = null;
@@ -101,7 +101,16 @@ export class AlikaService {
       }
       const response = await axios.get(`${alikaConfig.BASE_URI}/.well-known/jwks.json`);
       const jwk = response.data.keys[0];
-      const pem = jwkToPem(jwk);
+      const keyObject = crypto.createPublicKey({
+        key: jwk,
+        format: "jwk",
+      });
+      const pem = keyObject
+        .export({
+          type: "spki",
+          format: "pem",
+        })
+        .toString();
       this.publicKey = pem;
       this.publicKeyExpiration = currentTime + 3600;
       return this.publicKey;
