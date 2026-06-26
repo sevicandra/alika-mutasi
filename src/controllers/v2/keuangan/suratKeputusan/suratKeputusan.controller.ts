@@ -188,89 +188,92 @@ export const SuratKeputusanController = {
     successResponse(res, "Berhasil mengambil data pegawai", data);
   }),
 
-  importPayroll: asyncHandler(async (req: Request, res: Response) => {
-    const t = req.transaction;
-    if (!t) {
-      throw new InternalServerError("Transaction not found");
-    }
-
-    const file = req.file;
-    if (!file) {
-      throw new InvalidRequestError("File tidak ditemukan");
-    }
-    const { SkId } = req.params;
-    if (typeof SkId != "string") {
-      throw new InvalidRequestError("Invalid request");
-    }
-    const csvBuffer = file.buffer;
-    const records: {
-      pegawai_id: string;
-      nomor_rekening: string;
-      nama_rekening: string;
-      nama_bank: string;
-    }[] = [];
-    const parser = parse(csvBuffer, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-      delimiter: ";",
-    });
-    const data = await SuratKeputusan.findOne({
-      where: {
-        id: SkId,
-        status: {
-          [Op.ne]: "DRAFT",
-        },
-      },
-      include: [
-        {
-          association: "Pegawai",
-          include: [
-            {
-              association: "Rekening",
-            },
-          ],
-        },
-      ],
-      transaction: t,
-    });
-    if (!data) {
-      throw new NotFoundError("data tidak ditemukan");
-    }
-    const pegawaiNips = data.Pegawai.map((p) => p.nip);
-    const parserNips: string[] = [];
-    for await (const record of parser) {
-      if (data.Pegawai.find((p) => p.nip === record.nip)) {
-        parserNips.push(record.nip);
-        records.push({
-          pegawai_id: data.Pegawai.find((p) => p.nip === record.nip)?.id || "",
-          nomor_rekening: record.nomor_rekening,
-          nama_rekening: record.nama_rekening,
-          nama_bank: record.nama_bank.toUpperCase(),
-        });
+  importPayroll: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
       }
-    }
 
-    const allNipIncluded = pegawaiNips.every((nip: string) => parserNips.includes(nip));
-    if (!allNipIncluded) {
-      throw new InvalidRequestError("Tidak semua pegawai dalam SK ada di file payroll");
-    }
-    for (const record of records) {
-      await Rekening.CreateOrUpdate(
-        {
-          pegawai_id: record.pegawai_id,
-          nomor_rekening: record.nomor_rekening,
-          nama_rekening: record.nama_rekening,
-          nama_bank: record.nama_bank,
+      const file = req.file;
+      if (!file) {
+        throw new InvalidRequestError("File tidak ditemukan");
+      }
+      const { SkId } = req.params;
+      if (typeof SkId != "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const csvBuffer = file.buffer;
+      const records: {
+        pegawai_id: string;
+        nomor_rekening: string;
+        nama_rekening: string;
+        nama_bank: string;
+      }[] = [];
+      const parser = parse(csvBuffer, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        delimiter: ";",
+      });
+      const data = await SuratKeputusan.findOne({
+        where: {
+          id: SkId,
+          status: {
+            [Op.ne]: "DRAFT",
+          },
         },
-        t
-      );
-    }
+        include: [
+          {
+            association: "Pegawai",
+            include: [
+              {
+                association: "Rekening",
+              },
+            ],
+          },
+        ],
+        transaction: t,
+      });
+      if (!data) {
+        throw new NotFoundError("data tidak ditemukan");
+      }
+      const pegawaiNips = data.Pegawai.map((p) => p.nip);
+      const parserNips: string[] = [];
+      for await (const record of parser) {
+        if (data.Pegawai.find((p) => p.nip === record.nip)) {
+          parserNips.push(record.nip);
+          records.push({
+            pegawai_id: data.Pegawai.find((p) => p.nip === record.nip)?.id || "",
+            nomor_rekening: record.nomor_rekening,
+            nama_rekening: record.nama_rekening,
+            nama_bank: record.nama_bank.toUpperCase(),
+          });
+        }
+      }
 
-    successResponse(res, "Berhasil mengimpor payroll");
-  },{
-    useTransaction: true,
-  }),
+      const allNipIncluded = pegawaiNips.every((nip: string) => parserNips.includes(nip));
+      if (!allNipIncluded) {
+        throw new InvalidRequestError("Tidak semua pegawai dalam SK ada di file payroll");
+      }
+      for (const record of records) {
+        await Rekening.CreateOrUpdate(
+          {
+            pegawai_id: record.pegawai_id,
+            nomor_rekening: record.nomor_rekening,
+            nama_rekening: record.nama_rekening,
+            nama_bank: record.nama_bank,
+          },
+          t
+        );
+      }
+
+      successResponse(res, "Berhasil mengimpor payroll");
+    },
+    {
+      useTransaction: true,
+    }
+  ),
 
   getOverview: asyncHandler(async (req: Request, res: Response) => {
     const { SkId } = req.params;
@@ -328,11 +331,11 @@ export const SuratKeputusanController = {
 
     const headers = Array.from(new Set(csvData.flatMap((obj) => Object.keys(obj))));
     const csvContent = [
-      headers.join(","),
+      headers.join(";"),
       ...csvData.map((row) =>
         headers
           .map((header) => JSON.stringify((row as Record<string, any>)[header] || ""))
-          .join(",")
+          .join(";")
       ),
     ].join("\n");
 
