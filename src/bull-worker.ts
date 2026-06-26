@@ -7,11 +7,26 @@ import { KeluargaWorker } from "@/bullmq/workers/keluarga";
 import { KirimTagihanWorker } from "@/bullmq/workers/kirim-tagihan";
 import { TerminWorker } from "@/bullmq/workers/termin";
 import "./register-alias";
+import logger from "./utils/Logger.utils";
 
-dotenv.config();
 const startServer = async () => {
-  await redisService.connect();
-  await minioService.ensureBucketExists();
+  dotenv.config();
+  try {
+    await redisService.connect();
+  } catch (error) {
+    logger.error("Failed to connect to Redis during startup. App will run without Redis cache.", {
+      error,
+    });
+  }
+
+  try {
+    await minioService.ensureBucketExists();
+  } catch (error) {
+    logger.error(
+      "Failed to initialize MinIO during startup. App will run without functional object storage.",
+      { error }
+    );
+  }
   process.on("SIGTERM", () => {
     Promise.all([
       ApproveMutasiWorker.close(),

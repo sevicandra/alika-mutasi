@@ -288,7 +288,7 @@ export const ApproveMutasiWorker = new BaseQueueWorker<BiayaJob>("approve-mutasi
           actor_nip: null,
           actor_role: "System",
           action: "Hitung Biaya Mutasi",
-          description: `mutasi berhasil dihitung dan dokumen pendukung gagal dibuat, error: ${error}`,
+          description: `mutasi gagal dihitung dan dokumen pendukung gagal dibuat, error: ${error}`,
         });
         console.log("Job gagal maksimal, status diubah ke failed.");
       }

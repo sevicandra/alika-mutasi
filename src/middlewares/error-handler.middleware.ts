@@ -1,6 +1,8 @@
 import { ErrorRequestHandler, NextFunction, Request, Response } from "express";
+import { BaseError as SequelizeBaseError } from "sequelize";
 import logger from "@/utils/Logger.utils";
 import { BaseError } from "@/utils/errors/base-error";
+import { handleSequelizeError } from "@/utils/errors/sequelize-error-handler";
 import { UUID } from "@/utils/uuid.util";
 
 interface ErrorResponse {
@@ -39,33 +41,50 @@ export const errorHandler: ErrorRequestHandler = (
     requestId,
   };
 
+  // Convert Sequelize errors to BaseError
+  let operationalError = error;
+  if (!(error instanceof BaseError)) {
+    const isSequelizeError =
+      error instanceof SequelizeBaseError ||
+      (error &&
+        (error.name?.startsWith("Sequelize") ||
+          error.constructor?.name?.startsWith("Sequelize") ||
+          error.message?.includes("Sequelize") ||
+          error.name === "ConnectionError" ||
+          error.name === "ConnectionRefusedError"));
+
+    if (isSequelizeError) {
+      operationalError = handleSequelizeError(error);
+    }
+  }
+
   // Handle BaseError (operational errors)
-  if (error instanceof BaseError) {
+  if (operationalError instanceof BaseError) {
     logger.warn("Operational Error", {
       ...requestInfo,
-      errorCode: error.errorCode,
-      message: error.message,
-      statusCode: error.statusCode,
-      details: error.details,
+      errorCode: operationalError.errorCode,
+      message: operationalError.message,
+      statusCode: operationalError.statusCode,
+      details: operationalError.details,
     });
 
     const response: ErrorResponse = {
       success: false,
       error: {
-        code: error.errorCode,
-        message: error.message,
-        statusCode: error.statusCode,
-        details: error.details,
+        code: operationalError.errorCode,
+        message: operationalError.message,
+        statusCode: operationalError.statusCode,
+        details: operationalError.details,
         timestamp,
         requestId,
       },
     };
 
     if (process.env.NODE_ENV === "development") {
-      response.error.stack = error.stack;
+      response.error.stack = operationalError.stack;
     }
 
-    res.status(error.statusCode).json(response);
+    res.status(operationalError.statusCode).json(response);
     return;
   }
 
