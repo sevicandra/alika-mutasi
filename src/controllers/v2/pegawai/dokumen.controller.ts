@@ -1,6 +1,5 @@
 import { Blob } from "buffer";
 import { Request, Response } from "express";
-import QRCode from "qrcode";
 import { Op } from "sequelize";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { AlikaService } from "@/services/alika.service";
@@ -13,6 +12,7 @@ import {
   InvalidRequestError,
   NotFoundError,
 } from "@/utils/errors";
+import { generateQRCode } from "@/utils/qrcode.utils";
 import { UUID } from "@/utils/uuid.util";
 import { appConfig } from "@/config/app.config";
 import { fileResponse, successResponse } from "@/helpers/respose.helper";
@@ -207,12 +207,9 @@ export const DokumenControllerV2 = {
       if (!stream) throw new Error("File tidak ditemukan");
 
       const blob = new Blob([stream], { type: "application/pdf" });
-      const TteBlob = await QRCode.toDataURL(
-        `${appConfig.URL}/public/file/download/pembayaran/${data.id}`,
-        {
-          type: "image/png",
-          margin: 0,
-        }
+
+      const TteBlob = await generateQRCode(
+        `${appConfig.URL}/public/file/download/pembayaran/${data.id}`
       );
       const tte = await EsignService.processEsign({
         nik: nik,
