@@ -42,6 +42,15 @@ export const KantorControllerV2 = {
       where: {
         kode_satker: KodeSatker,
       },
+      include: [
+        {
+          association: "Kota",
+          attributes: [],
+        },
+      ],
+      attributes: {
+        include: [[col("Kota.kode_provinsi"), "kode_provinsi"]],
+      },
     });
     if (!data) {
       throw new NotFoundError("Data not found");
