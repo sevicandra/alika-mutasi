@@ -27,6 +27,24 @@ export const KantorControllerV2 = {
       limit,
       offset,
       order,
+      include: [
+        {
+          association: "Kota",
+          attributes: [],
+          include: [
+            {
+              association: "Provinsi",
+              attributes: [],
+            },
+          ],
+        },
+      ],
+      attributes: {
+        include: [
+          [col("Kota.kota"), "kota"],
+          [col("Kota.Provinsi.provinsi"), "provinsi"],
+        ],
+      },
     });
 
     successResponse(res, "Success get all ref kantor", data, pagination);
