@@ -111,7 +111,7 @@ export class KemenkeuService {
       }
 
       const response = await axios.get(
-        `${ServiceKemenkeuConfig.BASE_URI}/hris/keluarga/Riwayat/GetKeluargaByNip/${nip}`,
+        `${ServiceKemenkeuConfig.BASE_URI}/hris/keluarga/Riwayat/GetKeluargaByNip/${nip}?limit=0`,
         {
           headers: {
             Authorization: `Bearer ${await this.getAccessToken()}`,
@@ -218,7 +218,6 @@ export class KemenkeuService {
           timeout: API_TIMEOUT,
         }
       );
-      
 
       if (!response.data?.Data) {
         throw new ExternalServiceError("KemenkeuService", "Invalid Profil response format");
