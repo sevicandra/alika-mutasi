@@ -159,6 +159,62 @@ export class RedisService {
     return result;
   }
 
+  async getKeys(pattern: string = "*"): Promise<string[]> {
+    try {
+      if (!this.isConnected) {
+        throw new CacheError("Redis connection not available");
+      }
+      return await this.client.keys(pattern);
+    } catch (error) {
+      if (error instanceof CacheError) throw error;
+      logger.error("Redis getKeys operation failed", {
+        pattern,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new CacheError("Failed to fetch keys from Redis");
+    }
+  }
+
+  async getTtl(key: string): Promise<number> {
+    try {
+      if (!this.isConnected) {
+        throw new CacheError("Redis connection not available");
+      }
+      return await this.client.ttl(key);
+    } catch (error) {
+      if (error instanceof CacheError) throw error;
+      logger.error("Redis getTtl operation failed", {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new CacheError("Failed to fetch TTL from Redis");
+    }
+  }
+
+  async deletePattern(pattern: string = "*"): Promise<number> {
+    try {
+      if (!this.isConnected) {
+        throw new CacheError("Redis connection not available");
+      }
+      const keys = await this.client.keys(pattern);
+      if (keys.length > 0) {
+        const chunkSize = 1000;
+        for (let i = 0; i < keys.length; i += chunkSize) {
+          const chunk = keys.slice(i, i + chunkSize);
+          await this.client.del(chunk);
+        }
+      }
+      return keys.length;
+    } catch (error) {
+      if (error instanceof CacheError) throw error;
+      logger.error("Redis deletePattern operation failed", {
+        pattern,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new CacheError("Failed to delete keys from Redis");
+    }
+  }
+
   isHealthy(): boolean {
     return this.isConnected;
   }

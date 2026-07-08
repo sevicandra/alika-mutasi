@@ -29,7 +29,7 @@ export const validateQuery = (schema: z.ZodSchema) => {
   return (req: Request, _res: Response, next: NextFunction): void => {
     try {
       const validated = schema.parse(req.query);
-      req.query = validated as any;
+      Object.assign(req.query, validated);
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
