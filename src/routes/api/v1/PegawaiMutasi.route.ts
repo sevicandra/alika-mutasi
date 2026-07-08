@@ -12,12 +12,16 @@ const router = Router({ mergeParams: true });
 const createSchema = z.object({
   sk_id: z.string("SK ID is required").uuid("Invalid sk_id"),
   golongan: z.string("Golongan is required").max(2, "Golongan must be at most 2 characters"),
-  kantor_asal: z.string("Kantor asal is required").regex(/^\d{6}$/, "Kantor asal must be exactly 6 digits"),
-  kantor_tujuan: z.string("Kantor tujuan is required").regex(/^\d{6}$/, "Kantor tujuan must be exactly 6 digits"),
+  kantor_asal: z
+    .string("Kantor asal is required")
+    .regex(/^\d{6}$/, "Kantor asal must be exactly 6 digits"),
+  kantor_tujuan: z
+    .string("Kantor tujuan is required")
+    .regex(/^\d{6}$/, "Kantor tujuan must be exactly 6 digits"),
   nip: z
     .string("NIP is required")
     .regex(
-      /^(19[6-9]\d|20\d{2})(0[1-9]|1[0-2])(0[1-9]|[1-2]\d|3[0-1])(19[8-9]\d|20\d{2})(0[1-9]|1[0-2])([1-2])(\d{3})$/,
+      /^(19[6-9]\d|20\d{2})(0[1-9]|1[0-2])(0[1-9]|[1-2]\d|3[0-1])(19[8-9]\d|20\d{2})(0[1-9]|1[0-2]|2[1-9]|3[0-2])([1-2])(\d{3})$/,
       "Invalid NIP"
     ),
   nama: z.string("Nama is required").max(50, "Nama must be at most 50 characters"),

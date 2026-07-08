@@ -2,7 +2,7 @@ import { Router } from "express";
 import z from "zod";
 import { DokumenControllerV2 } from "@/controllers/v2/pegawai/dokumen.controller";
 import { uploadPdfMemory } from "@/middlewares/multer.middleware";
-import { validateBodyWithFile, validateBody } from "@/middlewares/validate-request.middleware";
+import { validateBody, validateBodyWithFile } from "@/middlewares/validate-request.middleware";
 
 const router = Router({ mergeParams: true });
 
@@ -11,7 +11,7 @@ const setPejabatSchema = z.object({
   nip: z
     .string("NIP is required")
     .regex(
-      /^(19[6-9]\d|20\d{2})(0[1-9]|1[0-2])(0[1-9]|[1-2]\d|3[0-1])(19[8-9]\d|20\d{2})(0[1-9]|1[0-2])([1-2])(\d{3})$/,
+      /^(19[6-9]\d|20\d{2})(0[1-9]|1[0-2])(0[1-9]|[1-2]\d|3[0-1])(19[8-9]\d|20\d{2})(0[1-9]|1[0-2]|2[1-9]|3[0-2])([1-2])(\d{3})$/,
       "Invalid NIP"
     ),
 });
@@ -21,8 +21,8 @@ const tteSchema = z.object({
 });
 
 const uploadSchema = z.object({
-  file: z
-    .object({
+  file: z.object(
+    {
       fieldname: z.string(),
       originalname: z.string(),
       encoding: z.string(),
@@ -31,9 +31,11 @@ const uploadSchema = z.object({
         message: `Ukuran file maksimal adalah 50MB.`,
       }),
       buffer: z.instanceof(Buffer),
-    },{
+    },
+    {
       message: "File is required",
-    })
+    }
+  ),
 });
 
 router.get("/", DokumenControllerV2.getAll);
