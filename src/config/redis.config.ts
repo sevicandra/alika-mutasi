@@ -25,10 +25,14 @@ const client = createClient({
   username: redisConfig.username,
   password: redisConfig.password,
   database: redisConfig.db,
-  socket: {
-    tls: redisConfig.tls,
-    connectTimeout: redisConfig.connectTimeout,
-  },
+  socket: redisConfig.tls
+    ? {
+        tls: true,
+        connectTimeout: redisConfig.connectTimeout,
+      }
+    : {
+        connectTimeout: redisConfig.connectTimeout,
+      },
 });
 
 client.on("connect", () => {

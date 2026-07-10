@@ -7,14 +7,15 @@ import morgan from "morgan";
 import cron from "node-cron";
 import { approveMutasi } from "@/controllers/otomasi.controller";
 import { correlationIdMiddleware } from "@/middlewares/correlation-id.middleware";
+import { errorHandler, notFoundHandler } from "@/middlewares/error-handler.middleware";
+import { minioService } from "@/services/minio-service";
 import { redisService } from "@/services/redis-service";
+import logger from "@/utils/Logger.utils";
 import { appConfig } from "@/config/app.config";
-import { errorHandler, notFoundHandler } from "./middlewares/error-handler.middleware";
-import { sequelize } from "./models";
-import "./register-alias";
-import router from "./routes";
-import { minioService } from "./services/minio-service";
-import logger from "./utils/Logger.utils";
+import { sequelize } from "@/models";
+import "@/register-alias";
+import router from "@/routes";
+import pkg from "../package.json";
 
 const startServer = async () => {
   try {
@@ -93,6 +94,8 @@ const startServer = async () => {
         health.status = "ERROR";
         logger.error("Failed to connect to minio", { error });
       }
+
+      health.version = pkg.version;
 
       res.status(health.status === "OK" ? 200 : 503).json(health);
     });

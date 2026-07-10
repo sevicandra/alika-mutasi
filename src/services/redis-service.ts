@@ -13,10 +13,15 @@ export class RedisService {
       username: redisConfig.username,
       password: redisConfig.password,
       database: redisConfig.db,
-      socket: {
-        rejectUnauthorized: !redisConfig.tls,
-        connectTimeout: redisConfig.connectTimeout,
-      },
+      socket: redisConfig.tls
+        ? {
+            tls: true,
+            rejectUnauthorized: false,
+            connectTimeout: redisConfig.connectTimeout,
+          }
+        : {
+            connectTimeout: redisConfig.connectTimeout,
+          },
     });
     this.setupEventHandlers();
   }
