@@ -56,9 +56,10 @@ export class PdfService {
               {
                 text: "",
                 alignment: "center",
-                fontSize: 11,
+                fontSize: 0,
                 bold: true,
                 border: [false, false, false, false],
+                height: 0,
               },
             ],
             [
