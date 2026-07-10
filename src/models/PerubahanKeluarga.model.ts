@@ -1,4 +1,5 @@
 import { BelongsTo, DataTypes, Model, Optional } from "sequelize";
+import { UUID } from "@/utils/uuid.util";
 import sequelize from "@/config/db.config";
 import PegawaiMutasi from "./PegawaiMutasi.model";
 
@@ -39,7 +40,7 @@ PerubahanKeluarga.init(
       type: DataTypes.UUID,
       allowNull: false,
       primaryKey: true,
-      defaultValue: DataTypes.UUIDV4,
+      defaultValue: () => UUID.v7(),
     },
     pegawai_id: {
       type: DataTypes.STRING,

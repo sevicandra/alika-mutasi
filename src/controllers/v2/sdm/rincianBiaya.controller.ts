@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { hitungBiayaJobService } from "@/services/hitungBiaya.service";
 import {
   AuthorizationError,
   InternalServerError,
@@ -214,22 +215,46 @@ export const RincianBiayaControllerV2 = {
       if (!t) {
         throw new InternalServerError("Transaction not found");
       }
-
       const { PegawaiId, SkId } = req.params;
 
       if (typeof PegawaiId != "string" || typeof SkId != "string") {
         throw new InvalidRequestError("Invalid request");
       }
-
-      const pegawai = await PegawaiMutasi.getPegawaiWithStatus(PegawaiId, SkId);
-      if (!pegawai) {
-        throw new NotFoundError("Pegawai not found");
-      }
-      if (pegawai.process_termin !== "IDLE" || pegawai.SuratKeputusan.status !== "DRAFT") {
-        throw new AuthorizationError("rincian biaya tidak dapat direset, data sudah diproses");
+      const data = await PegawaiMutasi.getPegawaiWithStatus(PegawaiId, SkId);
+      if (!data) {
+        throw new NotFoundError("Data not found");
       }
 
-      const data = await RincianBiaya.delete(
+      if (data.SuratKeputusan.status !== "PUBLISH") {
+        throw new AuthorizationError(
+          `Status SK "${data.SuratKeputusan.status}", tidak dapat di reset`
+        );
+      }
+
+      if (data.status !== "DRAFT") {
+        throw new AuthorizationError(`Status "${data.status}", tidak dapat di reset`);
+      }
+
+      if (data.process_termin !== "IDLE") {
+        throw new AuthorizationError(
+          `Proses termin "${data.process_termin}", tidak dapat di reset`
+        );
+      }
+
+      if (data.process_biaya === "IDLE" || data.process_biaya === "PROCESSING") {
+        throw new AuthorizationError(
+          `Status proses biaya: "${data.process_biaya}", tidak dapat di reset`
+        );
+      }
+
+      data.process_biaya = "IDLE";
+      await data.save({ transaction: t });
+
+      if (!data) {
+        throw new NotFoundError("Pegawai tidak ditemukan");
+      }
+
+      await RincianBiaya.delete(
         {
           where: {
             pegawai_id: PegawaiId,
@@ -238,10 +263,51 @@ export const RincianBiayaControllerV2 = {
         t
       );
 
-      pegawai.process_biaya = "IDLE";
-      await pegawai.save({ transaction: t });
+      successResponse(res, "Berhasil reset termin", data);
+    },
+    {
+      useTransaction: true,
+    }
+  ),
 
-      successResponse(res, "Berhasil reset rincian biaya", data);
+  hitungBiaya: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+
+      const { PegawaiId, SkId } = req.params;
+      if (typeof PegawaiId !== "string" || typeof SkId !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+
+      const data = await PegawaiMutasi.findOne({
+        where: {
+          id: PegawaiId,
+          sk_id: SkId,
+        },
+        transaction: t,
+      });
+
+      if (!data) {
+        throw new NotFoundError("Data not found");
+      }
+
+      if (data.status !== "DRAFT") {
+        throw new AuthorizationError("Status " + data.status + " tidak dapat di proses");
+      }
+
+      if (data.process_keluarga !== "DONE") {
+        throw new InvalidRequestError("Proses keluarga belum selesai");
+      }
+
+      if (data.process_biaya !== "IDLE") {
+        throw new InvalidRequestError("Proses sudah berjalan : " + data.process_biaya);
+      }
+
+      await hitungBiayaJobService.addJob(data.id);
+      successResponse(res, "Berhasil menghitung biaya pegawai mutasi", data);
     },
     {
       useTransaction: true,

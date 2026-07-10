@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { TerminControllerV2 } from "@/controllers/v2/sdm/termin.controller";
 import z from "zod";
+import { TerminControllerV2 } from "@/controllers/v2/sdm/termin.controller";
 import { validateBody } from "@/middlewares/validate-request.middleware";
 
 const router = Router({ mergeParams: true });
@@ -19,6 +19,7 @@ router.get("/", TerminControllerV2.getAll);
 router.get("/:TerminId", TerminControllerV2.getById);
 router.post("/", validateBody(createSchema), TerminControllerV2.create);
 router.post("/Reset", TerminControllerV2.reset);
+router.post("/process", TerminControllerV2.processTermin);
 router.patch("/:TerminId", validateBody(updateSchema), TerminControllerV2.update);
 router.delete("/:TerminId", TerminControllerV2.delete);
 router.get("/:TerminId/Dokumen", TerminControllerV2.getDokumen);

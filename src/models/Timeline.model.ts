@@ -1,4 +1,5 @@
 import { Association, DataTypes, Model, Optional } from "sequelize";
+import { UUID } from "@/utils/uuid.util";
 import sequelize from "@/config/db.config";
 import RefTimeline from "./RefTimeline.model";
 import SuratKeputusan from "./SuratKeputusan.model";
@@ -31,7 +32,7 @@ Timeline.init(
   {
     id: {
       type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      defaultValue: () => UUID.v7(),
       primaryKey: true,
     },
     sk_id: {

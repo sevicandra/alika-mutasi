@@ -1,4 +1,5 @@
 import { BelongsTo, DataTypes, Model, Optional } from "sequelize";
+import { UUID } from "@/utils/uuid.util";
 import sequelize from "@/config/db.config";
 import { PegawaiMutasi } from "./";
 
@@ -33,7 +34,7 @@ Rekening.init(
   {
     id: {
       type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      defaultValue: () => UUID.v7(),
       primaryKey: true,
     },
     pegawai_id: {

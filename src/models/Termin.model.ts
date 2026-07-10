@@ -1,4 +1,5 @@
 import { Association, BelongsTo, DataTypes, Model, Optional } from "sequelize";
+import { UUID } from "@/utils/uuid.util";
 import sequelize from "@/config/db.config";
 import DokumenTermin from "./DokumenTermin.model";
 import Payroll from "./Payroll.model";
@@ -69,7 +70,7 @@ Termin.init(
   {
     id: {
       type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      defaultValue: () => UUID.v7(),
       primaryKey: true,
     },
     ref_termin: {

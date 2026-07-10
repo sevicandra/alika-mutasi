@@ -2,8 +2,11 @@ import { parse } from "csv-parse";
 import { Request, Response } from "express";
 import { Op } from "sequelize";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
-import { hitungBiayaJobService } from "@/services/hitungBiaya.service";
+import { AlikaService } from "@/services/alika.service";
+import { Logger } from "@/services/log.service";
+import { minioService } from "@/services/minio-service";
 import {
+  AuthenticationError,
   AuthorizationError,
   InternalServerError,
   InvalidRequestError,
@@ -11,7 +14,14 @@ import {
 } from "@/utils/errors";
 import { successResponse } from "@/helpers/respose.helper";
 import { sortBuilder } from "@/helpers/sequelizer.helper";
-import { Keluarga, PegawaiMutasi, RincianBiaya, SuratKeputusan, Termin } from "@/repositories";
+import {
+  DokumenTermin,
+  Keluarga,
+  PegawaiMutasi,
+  RincianBiaya,
+  SuratKeputusan,
+  Termin,
+} from "@/repositories";
 
 export const PegawaiMutasiControllerV2 = {
   getAll: asyncHandler(async (req: Request, res: Response) => {
@@ -137,7 +147,6 @@ export const PegawaiMutasiControllerV2 = {
 
     successResponse(res, "Berhasil mengambil data pegawai mutasi", data);
   }),
-
   create: asyncHandler(async (req: Request, res: Response) => {
     const { SkId } = req.params;
     if (typeof SkId != "string") {
@@ -166,7 +175,6 @@ export const PegawaiMutasiControllerV2 = {
 
     successResponse(res, "Berhasil membuat data pegawai mutasi", data);
   }),
-
   import: asyncHandler(async (req: Request, res: Response) => {
     const file = req.file;
     const { SkId } = req.params;
@@ -209,7 +217,6 @@ export const PegawaiMutasiControllerV2 = {
     await PegawaiMutasi.createBulk(records);
     successResponse(res, "Berhasil membuat data pegawai mutasi", null, 201);
   }),
-
   update: asyncHandler(
     async (req: Request, res: Response) => {
       const t = req.transaction;
@@ -255,7 +262,6 @@ export const PegawaiMutasiControllerV2 = {
       useTransaction: true,
     }
   ),
-
   delete: asyncHandler(
     async (req: Request, res: Response) => {
       const t = req.transaction;
@@ -294,7 +300,6 @@ export const PegawaiMutasiControllerV2 = {
       useTransaction: true,
     }
   ),
-
   reset: asyncHandler(
     async (req: Request, res: Response) => {
       const t = req.transaction;
@@ -340,36 +345,141 @@ export const PegawaiMutasiControllerV2 = {
       useTransaction: true,
     }
   ),
+  publish: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
 
-  hitung: asyncHandler(async (req: Request, res: Response) => {
-    const { PegawaiId, SkId } = req.params;
-    if (typeof PegawaiId != "string" || typeof SkId != "string") {
-      throw new InvalidRequestError("Invalid request");
+      const nip = req.user?.nip;
+      if (!nip) {
+        throw new AuthenticationError("Pengguna tidak dapat di verifikasi");
+      }
+
+      const { PegawaiId, SkId } = req.params;
+      if (typeof SkId !== "string" || typeof PegawaiId !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+
+      const data = await PegawaiMutasi.publish(PegawaiId, t);
+
+      await Logger.GeneralAction({
+        pegawai_id: data.id,
+        actor_nip: nip,
+        actor_role: "SDM",
+        action: "Publish Surat Keputusan",
+        description: null,
+        transaction: t,
+      });
+      await AlikaService.sendPushNotification({
+        nip: data.nip,
+        title: "Surat Keputusan Mutasi",
+        message:
+          "Selamat kami ucapkan kepada Bapak/Ibu atas tugas baru yang diberikan, dalam rangka mempercepat proses pembayaran kami harapkan Bapak/Ibu dapat segera melakukan aproval data keluarga pada aplikasi Alika. Terima Kasih🙏",
+      });
+
+      successResponse(res, "Berhasil mempublish data surat keputusan", data);
+    },
+    {
+      useTransaction: true,
     }
+  ),
+  batal: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const nip = req.user?.nip;
+      if (!nip) {
+        throw new AuthenticationError("Pengguna tidak dapat di verifikasi");
+      }
 
-    const data = await PegawaiMutasi.findOne({
-      where: {
-        id: PegawaiId,
-        status: "DRAFT",
-        process_keluarga: "DONE",
-        process_termin: "IDLE",
-        SuratKeputusan: {
+      const { PegawaiId, SkId } = req.params;
+      if (typeof SkId !== "string" || typeof PegawaiId !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+
+      const data = await PegawaiMutasi.findById(SkId, {
+        include: [
+          {
+            association: "Termin",
+            include: [
+              {
+                association: "DokumenTermin",
+              },
+            ],
+          },
+          {
+            association: "SuratKeputusan",
+            attributes: ["status"],
+          },
+        ],
+      });
+
+      if (!data) {
+        throw new NotFoundError("data tidak ditemukan");
+      }
+
+      if (data.SuratKeputusan.status !== "PUBLISH") {
+        throw new AuthorizationError("Surat Keputusan tidak ada dalam status PUBLISH");
+      }
+
+      for (const termin of data.Termin) {
+        for (const dokumen of termin.DokumenTermin) {
+          if (dokumen.file) {
+            await minioService.deleteFile(dokumen.file);
+          }
+        }
+      }
+
+      await PegawaiMutasi.update(
+        {
           status: "DRAFT",
         },
-      },
-      include: [
+        { where: { sk_id: SkId }, transaction: t }
+      );
+
+      await Termin.update(
         {
-          association: "SuratKeputusan",
-          attributes: [],
+          status: "DRAFT",
         },
-      ],
-    });
+        { where: { pegawai_id: data.id }, transaction: t }
+      );
+      data.status = "DRAFT";
+      await data.save({ transaction: t });
+      await DokumenTermin.delete(
+        {
+          where: {
+            termin_id: data.Termin.map((t) => t.id),
+          },
+        },
+        t
+      );
 
-    if (!data) {
-      throw new NotFoundError("Data not found");
+      await Logger.GeneralAction({
+        pegawai_id: data.id,
+        actor_nip: nip,
+        actor_role: "SDM",
+        action: "Batal Surat Keputusan",
+        description: null,
+        transaction: t,
+      });
+
+      await AlikaService.sendPushNotification({
+        nip: data.nip,
+        title: "Surat Keputusan Mutasi",
+        message:
+          "Surat Keputusan Mutasi telah dibatalkan oleh Bagian SDM, karena ada kesalahan teknis",
+      });
+
+      successResponse(res, "Berhasil membatalkan surat keputusan", {
+        id: SkId,
+      });
+    },
+    {
+      useTransaction: true,
     }
-
-    await hitungBiayaJobService.addJob(data.id);
-    successResponse(res, "Berhasil menghitung biaya pegawai mutasi", data);
-  }),
+  ),
 };

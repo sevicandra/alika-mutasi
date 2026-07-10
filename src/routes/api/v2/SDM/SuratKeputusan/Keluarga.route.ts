@@ -50,6 +50,7 @@ const updateSchema = createSchema.partial();
 router.get("/", KeluargaControllerV2.getAll);
 router.get("/:KeluargaId", KeluargaControllerV2.getById);
 router.post("/", validateBody(createSchema), KeluargaControllerV2.create);
+router.post("/process", KeluargaControllerV2.processKeluarga);
 router.patch("/:KeluargaId", validateBody(updateSchema), KeluargaControllerV2.update);
 router.delete("/:KeluargaId", KeluargaControllerV2.delete);
 router.get("/:KeluargaId/File", KeluargaControllerV2.getFile);

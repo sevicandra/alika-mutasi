@@ -46,6 +46,5 @@ router.post(
 router.post("/:PegawaiId/ResetData", PegawaiMutasiControllerV2.reset);
 router.patch("/:PegawaiId", validateBody(updateSchema), PegawaiMutasiControllerV2.update);
 router.delete("/:PegawaiId", PegawaiMutasiControllerV2.delete);
-router.post("/:PegawaiId/Hitung", PegawaiMutasiControllerV2.hitung);
 
 export default router;

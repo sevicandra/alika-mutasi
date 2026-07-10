@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
+import { terminJobService } from "@/services/createTermin.service";
 import { minioService } from "@/services/minio-service";
 import {
   AuthorizationError,
@@ -288,56 +289,124 @@ export const TerminControllerV2 = {
       useTransaction: true,
     }
   ),
-  reset: asyncHandler(async (req: Request, res: Response) => {
-    const t = req.transaction;
-    if (!t) {
-      throw new InternalServerError("Transaction not found");
-    }
-    const { PegawaiId, SkId } = req.params;
+  reset: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+      const { PegawaiId, SkId } = req.params;
 
-    if (typeof PegawaiId != "string" || typeof SkId != "string") {
-      throw new InvalidRequestError("Invalid request");
-    }
+      if (typeof PegawaiId != "string" || typeof SkId != "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+      const data = await PegawaiMutasi.getPegawaiWithStatus(PegawaiId, SkId);
+      if (!data) {
+        throw new NotFoundError("Data not found");
+      }
 
-    const data = await PegawaiMutasi.updateOne(
-      {
+      if (data.SuratKeputusan.status !== "PUBLISH") {
+        throw new AuthorizationError(
+          `Status SK "${data.SuratKeputusan.status}", tidak dapat di reset`
+        );
+      }
+
+      if (data.status !== "DRAFT") {
+        throw new AuthorizationError(`Status "${data.status}", tidak dapat di reset`);
+      }
+      if (data.process_termin === "IDLE" || data.process_termin === "PROCESSING") {
+        throw new AuthorizationError(
+          `Status proses termin: "${data.process_termin}", tidak dapat di reset`
+        );
+      }
+
+      data.process_termin = "IDLE";
+      await data.save({ transaction: t });
+
+      if (!data) {
+        throw new NotFoundError("Pegawai tidak ditemukan");
+      }
+
+      await Termin.delete(
+        {
+          where: {
+            pegawai_id: PegawaiId,
+          },
+        },
+        t
+      );
+
+      successResponse(res, "Berhasil reset termin", data);
+    },
+    {
+      useTransaction: true,
+    }
+  ),
+  processTermin: asyncHandler(
+    async (req: Request, res: Response) => {
+      const t = req.transaction;
+      if (!t) {
+        throw new InternalServerError("Transaction not found");
+      }
+
+      const { PegawaiId, SkId } = req.params;
+      if (typeof PegawaiId !== "string" || typeof SkId !== "string") {
+        throw new InvalidRequestError("Invalid request");
+      }
+
+      const data = await PegawaiMutasi.findOne({
         where: {
           id: PegawaiId,
-          process_termin: "DONE",
+          sk_id: SkId,
         },
-        include: [
-          {
-            association: "SuratKeputusan",
-            attributes: ["id", "nomor", "tanggal"],
-            where: {
-              id: SkId,
-              status: "DRAFT",
-            },
-          },
-        ],
-      },
-      {
-        process_termin: "IDLE",
-      },
-      t
-    );
+        transaction: t,
+      });
 
-    if (!data) {
-      throw new NotFoundError("Pegawai tidak ditemukan atau SK bukan DRAFT");
+      if (!data) {
+        throw new NotFoundError("Data not found");
+      }
+
+      if (data.status !== "DRAFT") {
+        throw new AuthorizationError("Status " + data.status + " tidak dapat di proses");
+      }
+
+      if (data.process_keluarga !== "DONE") {
+        throw new InvalidRequestError("Proses keluarga belum selesai");
+      }
+
+      if (data.process_biaya !== "DONE") {
+        throw new InvalidRequestError("Proses biaya belum selesai");
+      }
+
+      if (data.process_termin !== "IDLE") {
+        throw new InvalidRequestError("Proses sudah berjalan : " + data.process_termin);
+      }
+
+      const { percentage, maximum, tahun_uang_muka, tahun_lunas, type } = req.body;
+
+      if (type === "UANG_MUKA") {
+        await terminJobService.addJob({
+          id: data.id,
+          percentage: percentage,
+          maximum: maximum,
+          tahun_uang_muka: tahun_uang_muka,
+          tahun_lunas: tahun_lunas,
+          type: type,
+        });
+      } else {
+        await terminJobService.addJob({
+          id: data.id,
+          tahun_uang_muka: tahun_lunas,
+          tahun_lunas: tahun_lunas,
+          type: type,
+        });
+      }
+      successResponse(res, "Berhasil memproses data termin", {
+        SkId,
+      });
+    },
+    {
+      useTransaction: true,
     }
-
-    await Termin.delete(
-      {
-        where: {
-          pegawai_id: PegawaiId,
-        },
-      },
-      t
-    );
-
-    successResponse(res, "Berhasil reset termin", data);
-  },{
-    useTransaction: true,
-  
-  }),
+  ),
 };

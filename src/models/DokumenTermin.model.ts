@@ -1,4 +1,5 @@
 import { BelongsTo, DataTypes, HasMany, HasOne, Model, Optional } from "sequelize";
+import { UUID } from "@/utils/uuid.util";
 import sequelize from "@/config/db.config";
 import Termin from "./Termin.model";
 import TteDokumen from "./TteDokumen.model";
@@ -47,7 +48,7 @@ DokumenTermin.init(
   {
     id: {
       type: DataTypes.UUIDV4,
-      defaultValue: DataTypes.UUIDV4,
+      defaultValue: () => UUID.v7(),
       primaryKey: true,
     },
     termin_id: {

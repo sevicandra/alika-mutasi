@@ -461,6 +461,12 @@ export const SuratKeputusanControllerV2 = {
       if (!t) {
         throw new InternalServerError("Transaction not found");
       }
+
+      const nip = req.user?.nip;
+      if (!nip) {
+        throw new AuthenticationError("Pengguna tidak dapat di verifikasi");
+      }
+
       const { SkId } = req.params;
       if (typeof SkId != "string") {
         throw new InvalidRequestError("Invalid request");
@@ -526,6 +532,15 @@ export const SuratKeputusanControllerV2 = {
         },
         t
       );
+
+      await Logger.BatchGeneralAction({
+        pegawai_ids: data.Pegawai.map((p) => p.id),
+        actor_nip: nip,
+        actor_role: "SDM",
+        action: "Publish Surat Keputusan",
+        description: null,
+        transaction: t,
+      });
 
       await AlikaService.sendBulkPushNotification({
         nip: data.Pegawai.map((p) => p.nip),

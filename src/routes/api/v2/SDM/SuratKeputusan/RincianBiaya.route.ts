@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { RincianBiayaControllerV2 } from "@/controllers/v2/sdm/rincianBiaya.controller";
 import z from "zod";
+import { RincianBiayaControllerV2 } from "@/controllers/v2/sdm/rincianBiaya.controller";
 import { validateBody } from "@/middlewares/validate-request.middleware";
 
 const router = Router({ mergeParams: true });
@@ -32,6 +32,7 @@ router.get("/", RincianBiayaControllerV2.getAll);
 router.get("/:RincianBiayaId", RincianBiayaControllerV2.getById);
 router.post("/", validateBody(createRincianBiayaSchema), RincianBiayaControllerV2.create);
 router.post("/Reset", RincianBiayaControllerV2.reset);
+router.post("/process", RincianBiayaControllerV2.hitungBiaya);
 router.patch(
   "/:RincianBiayaId",
   validateBody(updateRincianBiayaSchema),

@@ -1,7 +1,7 @@
 import { PDFDocument } from "pdf-lib";
 import { UUID } from "@/utils/uuid.util";
 import { appConfig } from "@/config/app.config";
-import { PegawaiMutasi, RefPejabat } from "@/models";
+import { PegawaiMutasi, RefPejabat, Termin } from "@/models";
 import { minioService } from "./minio-service";
 import { PdfService } from "./pdf.service";
 import { PdfCoordinateExtractorService } from "./pdfCoordinateExtractor.service";
@@ -38,6 +38,245 @@ export class GenerateFileService {
     }
     await redisService.setWithTimeout(redisKey, refPejabat, 300);
     return refPejabat;
+  }
+
+  static async RincianBiaya({
+    pegawai,
+    termin,
+    agenda,
+    doc,
+  }: {
+    pegawai: PegawaiMutasi;
+    termin: Termin;
+    agenda: {
+      nomor: string;
+      tanggal: string;
+    };
+    doc: {
+      jenis: string;
+      required: boolean;
+      upload: boolean;
+      penandatatangan: string[];
+    };
+  }) {
+    const ppk = await this.getPpk();
+    const bendahara = await this.getBendahara();
+    const pdf = await PdfService.RincianBiaya({
+      pegawai,
+      ppk,
+      bendahara,
+      termin,
+      agenda,
+    });
+    const pdfBuffer = Buffer.from(pdf, "base64");
+    const coordinates = await PdfCoordinateExtractorService.extractPlaceholderCoordinates(
+      pdfBuffer,
+      doc.penandatatangan.map((penandatangan) => ({
+        jabatan: penandatangan,
+        placeholder_text: `##PLACEHOLDER_${penandatangan}##`,
+      }))
+    );
+
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const pages = pdfDoc.getPages();
+    const pdfBytes: Uint8Array = await pdfDoc.save();
+    const bufferPdf = Buffer.from(pdfBytes);
+    const fileName = UUID.v4();
+    const filePath = `${pegawai.SuratKeputusan.nomor.replace(
+      /\//g,
+      "_"
+    )}/${pegawai.nip}/${fileName}.pdf`;
+    await minioService.uploadFile(bufferPdf, filePath, "application/pdf");
+
+    return {
+      termin_id: termin.id,
+      file: filePath,
+      jenis: doc.jenis,
+      required: true,
+      uploadable: false,
+      penandatangan: coordinates.map((c) => {
+        return {
+          nama:
+            c.jabatan === "PEGAWAI"
+              ? pegawai.nama
+              : c.jabatan === "PPK"
+                ? ppk.nama
+                : c.jabatan === "BENDAHARA"
+                  ? bendahara.nama
+                  : undefined,
+          nip:
+            c.jabatan === "PEGAWAI"
+              ? pegawai.nip
+              : c.jabatan === "PPK"
+                ? ppk.nip
+                : c.jabatan === "BENDAHARA"
+                  ? bendahara.nip
+                  : undefined,
+          jabatan: c.jabatan as "PEGAWAI" | "BENDAHARA" | "PPK",
+          koordinat: {
+            page: c.page,
+            x: c.x * pages[c.page - 1].getWidth() + 2,
+            y: pages[c.page - 1].getHeight() - c.y * pages[c.page - 1].getHeight() - 10,
+          },
+        };
+      }),
+    };
+  }
+
+  static async SPD1({
+    pegawai,
+    termin,
+    agenda,
+    doc,
+  }: {
+    pegawai: PegawaiMutasi;
+    termin: Termin;
+    agenda: {
+      nomor: string;
+      tanggal: string;
+    };
+    doc: {
+      jenis: string;
+      required: boolean;
+      upload: boolean;
+      penandatatangan: string[];
+    };
+  }) {
+    const ppk = await this.getPpk();
+    const bendahara = await this.getBendahara();
+    const pdf = await PdfService.Spd1({
+      pegawai,
+      ppk,
+      agenda,
+    });
+    const pdfBuffer = Buffer.from(pdf, "base64");
+    const coordinates = await PdfCoordinateExtractorService.extractPlaceholderCoordinates(
+      pdfBuffer,
+      doc.penandatatangan.map((penandatangan) => ({
+        jabatan: penandatangan,
+        placeholder_text: `##PLACEHOLDER_${penandatangan}##`,
+      }))
+    );
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const pages = pdfDoc.getPages();
+    const pdfBytes: Uint8Array = await pdfDoc.save();
+    const bufferPdf = Buffer.from(pdfBytes);
+    const fileName = UUID.v4();
+    const filePath = `${pegawai.SuratKeputusan.nomor.replace(
+      /\//g,
+      "_"
+    )}/${pegawai.nip}/${fileName}.pdf`;
+    await minioService.uploadFile(bufferPdf, filePath, "application/pdf");
+    return {
+      termin_id: termin.id,
+      file: filePath,
+      jenis: doc.jenis,
+      required: true,
+      uploadable: false,
+      penandatangan: coordinates.map((c) => {
+        return {
+          nama:
+            c.jabatan === "PEGAWAI"
+              ? pegawai.nama
+              : c.jabatan === "PPK"
+                ? ppk.nama
+                : c.jabatan === "BENDAHARA"
+                  ? bendahara.nama
+                  : undefined,
+          nip:
+            c.jabatan === "PEGAWAI"
+              ? pegawai.nip
+              : c.jabatan === "PPK"
+                ? ppk.nip
+                : c.jabatan === "BENDAHARA"
+                  ? bendahara.nip
+                  : undefined,
+          jabatan: c.jabatan as
+            "PEGAWAI" | "PEJABAT_KANTOR_ASAL" | "PEJABAT_KANTOR_TUJUAN" | "BENDAHARA" | "PPK",
+          koordinat: {
+            page: c.page,
+            x: c.x * pages[c.page - 1].getWidth() + 2,
+            y: pages[c.page - 1].getHeight() - c.y * pages[c.page - 1].getHeight() - 10,
+          },
+        };
+      }),
+    };
+  }
+
+  static async SPD2({
+    pegawai,
+    termin,
+    agenda,
+    doc,
+  }: {
+    pegawai: PegawaiMutasi;
+    termin: Termin;
+    agenda: {
+      nomor: string;
+      tanggal: string;
+    };
+    doc: {
+      jenis: string;
+      required: boolean;
+      upload: boolean;
+      penandatatangan: string[];
+    };
+  }) {
+    const ppk = await this.getPpk();
+    const bendahara = await this.getBendahara();
+    const pdf = await PdfService.Spd2({ pegawai, ppk, agenda });
+    const pdfBuffer = Buffer.from(pdf, "base64");
+    const coordinates = await PdfCoordinateExtractorService.extractPlaceholderCoordinates(
+      pdfBuffer,
+      doc.penandatatangan.map((penandatangan) => ({
+        jabatan: penandatangan,
+        placeholder_text: `##PLACEHOLDER_${penandatangan}##`,
+      }))
+    );
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const pages = pdfDoc.getPages();
+    const pdfBytes: Uint8Array = await pdfDoc.save();
+    const bufferPdf = Buffer.from(pdfBytes);
+    const fileName = UUID.v4();
+    const filePath = `${pegawai.SuratKeputusan.nomor.replace(
+      /\//g,
+      "_"
+    )}/${pegawai.nip}/${fileName}.pdf`;
+    await minioService.uploadFile(bufferPdf, filePath, "application/pdf");
+    return {
+      termin_id: termin.id,
+      file: filePath,
+      jenis: doc.jenis,
+      required: true,
+      uploadable: false,
+      penandatangan: coordinates.map((c) => {
+        return {
+          nama:
+            c.jabatan === "PEGAWAI"
+              ? pegawai.nama
+              : c.jabatan === "PPK"
+                ? ppk.nama
+                : c.jabatan === "BENDAHARA"
+                  ? bendahara.nama
+                  : undefined,
+          nip:
+            c.jabatan === "PEGAWAI"
+              ? pegawai.nip
+              : c.jabatan === "PPK"
+                ? ppk.nip
+                : c.jabatan === "BENDAHARA"
+                  ? bendahara.nip
+                  : undefined,
+          jabatan: c.jabatan as
+            "PEGAWAI" | "PEJABAT_KANTOR_ASAL" | "PEJABAT_KANTOR_TUJUAN" | "BENDAHARA" | "PPK",
+          koordinat: {
+            page: c.page,
+            x: c.x * pages[c.page - 1].getWidth() + 2,
+            y: pages[c.page - 1].getHeight() - c.y * pages[c.page - 1].getHeight() - 10,
+          },
+        };
+      }),
+    };
   }
 
   static async generateFile(
@@ -82,201 +321,38 @@ export class GenerateFileService {
             y: number;
           };
           jabatan:
-            | "PEGAWAI"
-            | "PEJABAT_KANTOR_ASAL"
-            | "PEJABAT_KANTOR_TUJUAN"
-            | "BENDAHARA"
-            | "PPK";
+            "PEGAWAI" | "PEJABAT_KANTOR_ASAL" | "PEJABAT_KANTOR_TUJUAN" | "BENDAHARA" | "PPK";
         }[];
       }[] = [];
 
       try {
-        const ppk = await this.getPpk();
-        const bendahara = await this.getBendahara();
         for (const termin of pegawai.Termin) {
           const req_doc = termin.Ref.required_doc;
           for (const doc of req_doc) {
             if (doc.jenis === "RINCIAN_BIAYA") {
-              const pdf = await PdfService.RincianBiaya({
+              const rincianBiaya = await this.RincianBiaya({
                 pegawai,
-                ppk,
-                bendahara,
                 termin,
                 agenda,
+                doc,
               });
-              const pdfBuffer = Buffer.from(pdf, "base64");
-              const coordinates = await PdfCoordinateExtractorService.extractPlaceholderCoordinates(
-                pdfBuffer,
-                doc.penandatatangan.map((penandatangan) => ({
-                  jabatan: penandatangan,
-                  placeholder_text: `##PLACEHOLDER_${penandatangan}##`,
-                }))
-              );
-
-              const pdfDoc = await PDFDocument.load(pdfBuffer);
-              const pages = pdfDoc.getPages();
-              const pdfBytes: Uint8Array = await pdfDoc.save();
-              const bufferPdf = Buffer.from(pdfBytes);
-              const fileName = UUID.v4();
-              const filePath = `${pegawai.SuratKeputusan.nomor.replace(
-                /\//g,
-                "_"
-              )}/${pegawai.nip}/${fileName}.pdf`;
-              await minioService.uploadFile(bufferPdf, filePath, "application/pdf");
-
-              files.push({
-                termin_id: termin.id,
-                file: filePath,
-                jenis: doc.jenis,
-                required: true,
-                uploadable: false,
-                penandatangan: coordinates.map((c) => {
-                  return {
-                    nama:
-                      c.jabatan === "PEGAWAI"
-                        ? pegawai.nama
-                        : c.jabatan === "PPK"
-                          ? ppk.nama
-                          : c.jabatan === "BENDAHARA"
-                            ? bendahara.nama
-                            : undefined,
-                    nip:
-                      c.jabatan === "PEGAWAI"
-                        ? pegawai.nip
-                        : c.jabatan === "PPK"
-                          ? ppk.nip
-                          : c.jabatan === "BENDAHARA"
-                            ? bendahara.nip
-                            : undefined,
-                    jabatan: c.jabatan as "PEGAWAI" | "BENDAHARA" | "PPK",
-                    koordinat: {
-                      page: c.page,
-                      x: c.x * pages[c.page - 1].getWidth() + 2,
-                      y: pages[c.page - 1].getHeight() - c.y * pages[c.page - 1].getHeight() - 10,
-                    },
-                  };
-                }),
-              });
+              files.push(rincianBiaya);
             } else if (doc.jenis === "SPD1") {
-              const pdf = await PdfService.Spd1({
+              const spd1 = await this.SPD1({
                 pegawai,
-                ppk,
+                termin,
                 agenda,
+                doc,
               });
-              const pdfBuffer = Buffer.from(pdf, "base64");
-              const coordinates = await PdfCoordinateExtractorService.extractPlaceholderCoordinates(
-                pdfBuffer,
-                doc.penandatatangan.map((penandatangan) => ({
-                  jabatan: penandatangan,
-                  placeholder_text: `##PLACEHOLDER_${penandatangan}##`,
-                }))
-              );
-              const pdfDoc = await PDFDocument.load(pdfBuffer);
-              const pages = pdfDoc.getPages();
-              const pdfBytes: Uint8Array = await pdfDoc.save();
-              const bufferPdf = Buffer.from(pdfBytes);
-              const fileName = UUID.v4();
-              const filePath = `${pegawai.SuratKeputusan.nomor.replace(
-                /\//g,
-                "_"
-              )}/${pegawai.nip}/${fileName}.pdf`;
-              await minioService.uploadFile(bufferPdf, filePath, "application/pdf");
-              files.push({
-                termin_id: termin.id,
-                file: filePath,
-                jenis: doc.jenis,
-                required: true,
-                uploadable: false,
-                penandatangan: coordinates.map((c) => {
-                  return {
-                    nama:
-                      c.jabatan === "PEGAWAI"
-                        ? pegawai.nama
-                        : c.jabatan === "PPK"
-                          ? ppk.nama
-                          : c.jabatan === "BENDAHARA"
-                            ? bendahara.nama
-                            : undefined,
-                    nip:
-                      c.jabatan === "PEGAWAI"
-                        ? pegawai.nip
-                        : c.jabatan === "PPK"
-                          ? ppk.nip
-                          : c.jabatan === "BENDAHARA"
-                            ? bendahara.nip
-                            : undefined,
-                    jabatan: c.jabatan as
-                      | "PEGAWAI"
-                      | "PEJABAT_KANTOR_ASAL"
-                      | "PEJABAT_KANTOR_TUJUAN"
-                      | "BENDAHARA"
-                      | "PPK",
-                    koordinat: {
-                      page: c.page,
-                      x: c.x * pages[c.page - 1].getWidth() + 2,
-                      y: pages[c.page - 1].getHeight() - c.y * pages[c.page - 1].getHeight() - 10,
-                    },
-                  };
-                }),
-              });
+              files.push(spd1);
             } else if (doc.jenis === "SPD2") {
-              const pdf = await PdfService.Spd2({ pegawai, ppk, agenda });
-              const pdfBuffer = Buffer.from(pdf, "base64");
-              const coordinates = await PdfCoordinateExtractorService.extractPlaceholderCoordinates(
-                pdfBuffer,
-                doc.penandatatangan.map((penandatangan) => ({
-                  jabatan: penandatangan,
-                  placeholder_text: `##PLACEHOLDER_${penandatangan}##`,
-                }))
-              );
-              const pdfDoc = await PDFDocument.load(pdfBuffer);
-              const pages = pdfDoc.getPages();
-              const pdfBytes: Uint8Array = await pdfDoc.save();
-              const bufferPdf = Buffer.from(pdfBytes);
-              const fileName = UUID.v4();
-              const filePath = `${pegawai.SuratKeputusan.nomor.replace(
-                /\//g,
-                "_"
-              )}/${pegawai.nip}/${fileName}.pdf`;
-              await minioService.uploadFile(bufferPdf, filePath, "application/pdf");
-              files.push({
-                termin_id: termin.id,
-                file: filePath,
-                jenis: doc.jenis,
-                required: true,
-                uploadable: false,
-                penandatangan: coordinates.map((c) => {
-                  return {
-                    nama:
-                      c.jabatan === "PEGAWAI"
-                        ? pegawai.nama
-                        : c.jabatan === "PPK"
-                          ? ppk.nama
-                          : c.jabatan === "BENDAHARA"
-                            ? bendahara.nama
-                            : undefined,
-                    nip:
-                      c.jabatan === "PEGAWAI"
-                        ? pegawai.nip
-                        : c.jabatan === "PPK"
-                          ? ppk.nip
-                          : c.jabatan === "BENDAHARA"
-                            ? bendahara.nip
-                            : undefined,
-                    jabatan: c.jabatan as
-                      | "PEGAWAI"
-                      | "PEJABAT_KANTOR_ASAL"
-                      | "PEJABAT_KANTOR_TUJUAN"
-                      | "BENDAHARA"
-                      | "PPK",
-                    koordinat: {
-                      page: c.page,
-                      x: c.x * pages[c.page - 1].getWidth() + 2,
-                      y: pages[c.page - 1].getHeight() - c.y * pages[c.page - 1].getHeight() - 10,
-                    },
-                  };
-                }),
+              const spd2 = await this.SPD2({
+                pegawai,
+                termin,
+                agenda,
+                doc,
               });
+              files.push(spd2);
             } else {
               files.push({
                 termin_id: termin.id,

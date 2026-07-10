@@ -1,4 +1,5 @@
 import { DataTypes, Model, Optional } from "sequelize";
+import { UUID } from "@/utils/uuid.util";
 import sequelize from "@/config/db.config";
 import DokumenTermin from "@/models/DokumenTermin.model";
 
@@ -31,11 +32,7 @@ class TteDokumen
   public nip!: string | null;
   public nama!: string | null;
   public jabatan!:
-    | "PEGAWAI"
-    | "PEJABAT_KANTOR_ASAL"
-    | "PEJABAT_KANTOR_TUJUAN"
-    | "BENDAHARA"
-    | "PPK";
+    "PEGAWAI" | "PEJABAT_KANTOR_ASAL" | "PEJABAT_KANTOR_TUJUAN" | "BENDAHARA" | "PPK";
   public koordinat_qr!: {
     page: number;
     x: number;
@@ -51,7 +48,7 @@ TteDokumen.init(
   {
     id: {
       type: DataTypes.UUIDV4,
-      defaultValue: DataTypes.UUIDV4,
+      defaultValue: () => UUID.v7(),
       primaryKey: true,
     },
     dokumen_id: {

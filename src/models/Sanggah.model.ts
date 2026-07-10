@@ -1,4 +1,5 @@
 import { BelongsTo, DataTypes, HasMany, Model, Optional } from "sequelize";
+import { UUID } from "@/utils/uuid.util";
 import sequelize from "@/config/db.config";
 import DataSanggah from "./DataSanggah.model";
 import PegawaiMutasi from "./PegawaiMutasi.model";
@@ -40,7 +41,7 @@ Sanggah.init(
   {
     id: {
       type: DataTypes.UUIDV4,
-      defaultValue: DataTypes.UUIDV4,
+      defaultValue: () => UUID.v7(),
       primaryKey: true,
     },
     ticket_number: {

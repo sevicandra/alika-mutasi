@@ -1,4 +1,5 @@
 import { Association, DataTypes, Model, Optional } from "sequelize";
+import { UUID } from "@/utils/uuid.util";
 import sequelize from "@/config/db.config";
 import PegawaiMutasi from "./PegawaiMutasi.model";
 import Timeline from "./Timeline.model";
@@ -66,7 +67,7 @@ SuratKeputusan.init(
   {
     id: {
       type: DataTypes.UUIDV4,
-      defaultValue: DataTypes.UUIDV4,
+      defaultValue: () => UUID.v7(),
       primaryKey: true,
     },
     nomor: {

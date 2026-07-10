@@ -1,4 +1,5 @@
 import { Op, Transaction, col } from "sequelize";
+import { AuthorizationError, NotFoundError } from "@/utils/errors";
 import { PegawaiMutasi } from "@/models";
 import { PembayaranLog, Termin } from ".";
 import { BaseRepository } from "./base-repository";
@@ -199,6 +200,50 @@ export class PegawaiMutasiRepository extends BaseRepository<PegawaiMutasi> {
         },
       ],
     });
+  }
+
+  async publish(id: string, t?: Transaction) {
+    const data = await this.findById(id, {
+      include: [
+        {
+          association: "MonitoringTagihan",
+          attributes: ["id", "sisa_tagihan"],
+        },
+        {
+          association: "SuratKeputusan",
+          attributes: ["status"],
+        },
+      ],
+      attributes: ["id", "nip", "process_keluarga", "process_biaya", "process_termin"],
+    });
+
+    if (!data) {
+      throw new NotFoundError("data tidak ditemukan");
+    }
+
+    if (data.SuratKeputusan.status !== "PUBLISH") {
+      throw new AuthorizationError("Surat Keputusan tidak ada dalam status PUBLISH");
+    }
+
+    if (data.status !== "DRAFT") {
+      throw new AuthorizationError("data sudah dalam proses");
+    }
+    if (
+      data.process_keluarga !== "DONE" ||
+      data.process_biaya !== "DONE" ||
+      data.process_termin !== "DONE"
+    ) {
+      throw new AuthorizationError("Proses keluarga, biaya, dan termin belum selesai");
+    }
+
+    if (data.MonitoringTagihan.sisa_tagihan > 0) {
+      throw new AuthorizationError("masih ada sisa tagihan yang belum dibuat rencana pembayaran");
+    }
+
+    data.status = "PENDING_APROVAL";
+    await data.save({ transaction: t });
+
+    return data;
   }
 }
 
