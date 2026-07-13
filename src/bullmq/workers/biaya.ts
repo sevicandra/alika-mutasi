@@ -148,7 +148,6 @@ export const BiayaWorker = new BaseQueueWorker<BiayaJob>("biaya", (job) => {
           index_kapal === -1
             ? rute_barang.rute.reduce((total, r) => total + r.jarak, 0)
             : rute_barang.rute.slice(0, index_kapal).reduce((total, r) => total + r.jarak, 0);
-        console.log({ jarak_darat_awal });
 
         const jarak_darat_jawa = rute_barang.rute
           .filter((r) => r.pulau === "JAWA")
