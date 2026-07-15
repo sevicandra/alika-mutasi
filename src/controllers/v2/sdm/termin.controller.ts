@@ -305,9 +305,9 @@ export const TerminControllerV2 = {
         throw new NotFoundError("Data not found");
       }
 
-      if (data.SuratKeputusan.status !== "PUBLISH") {
+      if (data.SuratKeputusan.status === "SELESAI") {
         throw new AuthorizationError(
-          `Status SK "${data.SuratKeputusan.status}", tidak dapat di reset`
+          `Status "${data.SuratKeputusan.status}", tidak dapat di reset`
         );
       }
 
@@ -354,16 +354,16 @@ export const TerminControllerV2 = {
         throw new InvalidRequestError("Invalid request");
       }
 
-      const data = await PegawaiMutasi.findOne({
-        where: {
-          id: PegawaiId,
-          sk_id: SkId,
-        },
-        transaction: t,
-      });
+      const data = await PegawaiMutasi.getPegawaiWithStatus(PegawaiId, SkId);
 
       if (!data) {
         throw new NotFoundError("Data not found");
+      }
+
+      if (data.SuratKeputusan.status === "SELESAI") {
+        throw new AuthorizationError(
+          `Status "${data.SuratKeputusan.status}", tidak dapat di proses`
+        );
       }
 
       if (data.status !== "DRAFT") {

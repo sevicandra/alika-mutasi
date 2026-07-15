@@ -362,7 +362,7 @@ export const PegawaiMutasiControllerV2 = {
         throw new InvalidRequestError("Invalid request");
       }
 
-      const data = await PegawaiMutasi.publish(PegawaiId, t);
+      const data = await PegawaiMutasi.publish(PegawaiId, SkId, t);
 
       await Logger.GeneralAction({
         pegawai_id: data.id,
@@ -401,45 +401,7 @@ export const PegawaiMutasiControllerV2 = {
         throw new InvalidRequestError("Invalid request");
       }
 
-      const data = await PegawaiMutasi.findById(SkId, {
-        include: [
-          {
-            association: "Termin",
-            include: [
-              {
-                association: "DokumenTermin",
-              },
-            ],
-          },
-          {
-            association: "SuratKeputusan",
-            attributes: ["status"],
-          },
-        ],
-      });
-
-      if (!data) {
-        throw new NotFoundError("data tidak ditemukan");
-      }
-
-      if (data.SuratKeputusan.status !== "PUBLISH") {
-        throw new AuthorizationError("Surat Keputusan tidak ada dalam status PUBLISH");
-      }
-
-      for (const termin of data.Termin) {
-        for (const dokumen of termin.DokumenTermin) {
-          if (dokumen.file) {
-            await minioService.deleteFile(dokumen.file);
-          }
-        }
-      }
-
-      await PegawaiMutasi.update(
-        {
-          status: "DRAFT",
-        },
-        { where: { sk_id: SkId }, transaction: t }
-      );
+      const data = await PegawaiMutasi.batal(PegawaiId, SkId, t);
 
       await Termin.update(
         {
@@ -447,8 +409,6 @@ export const PegawaiMutasiControllerV2 = {
         },
         { where: { pegawai_id: data.id }, transaction: t }
       );
-      data.status = "DRAFT";
-      await data.save({ transaction: t });
       await DokumenTermin.delete(
         {
           where: {
@@ -473,6 +433,14 @@ export const PegawaiMutasiControllerV2 = {
         message:
           "Surat Keputusan Mutasi telah dibatalkan oleh Bagian SDM, karena ada kesalahan teknis",
       });
+
+      for (const termin of data.Termin) {
+        for (const dokumen of termin.DokumenTermin) {
+          if (dokumen.file) {
+            await minioService.deleteFile(dokumen.file);
+          }
+        }
+      }
 
       successResponse(res, "Berhasil membatalkan surat keputusan", {
         id: SkId,

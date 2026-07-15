@@ -43,6 +43,8 @@ router.post(
   validateCsvMiddleware(createSchema),
   PegawaiMutasiControllerV2.import
 );
+router.post("/:PegawaiId/Batal", PegawaiMutasiControllerV2.batal);
+router.post("/:PegawaiId/Publish", PegawaiMutasiControllerV2.publish);
 router.post("/:PegawaiId/ResetData", PegawaiMutasiControllerV2.reset);
 router.patch("/:PegawaiId", validateBody(updateSchema), PegawaiMutasiControllerV2.update);
 router.delete("/:PegawaiId", PegawaiMutasiControllerV2.delete);

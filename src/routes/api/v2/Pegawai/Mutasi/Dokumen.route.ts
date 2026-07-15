@@ -47,6 +47,7 @@ router.post(
   validateBodyWithFile(uploadSchema),
   DokumenControllerV2.uploadFile
 );
+router.post("/:dokumenId/Reset", DokumenControllerV2.resetFile);
 router.delete("/:dokumenId/File", DokumenControllerV2.deleteFile);
 router.get("/:dokumenId/SPD2/Status", DokumenControllerV2.getStatusSPD2);
 router.post(

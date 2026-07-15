@@ -202,19 +202,22 @@ export class PegawaiMutasiRepository extends BaseRepository<PegawaiMutasi> {
     });
   }
 
-  async publish(id: string, t?: Transaction) {
+  async publish(id: string, skId: string, t?: Transaction) {
     const data = await this.findById(id, {
       include: [
         {
           association: "MonitoringTagihan",
-          attributes: ["id", "sisa_tagihan"],
+          attributes: ["sisa_tagihan"],
         },
         {
           association: "SuratKeputusan",
           attributes: ["status"],
+          where: {
+            id: skId,
+          },
         },
       ],
-      attributes: ["id", "nip", "process_keluarga", "process_biaya", "process_termin"],
+      attributes: ["id", "nip", "process_keluarga", "process_biaya", "process_termin", "status"],
     });
 
     if (!data) {
@@ -243,6 +246,39 @@ export class PegawaiMutasiRepository extends BaseRepository<PegawaiMutasi> {
     data.status = "PENDING_APROVAL";
     await data.save({ transaction: t });
 
+    return data;
+  }
+
+  async batal(id: string, skId: string, t?: Transaction) {
+    const data = await this.findById(id, {
+      include: [
+        {
+          association: "Termin",
+          include: [
+            {
+              association: "DokumenTermin",
+            },
+          ],
+        },
+        {
+          association: "SuratKeputusan",
+          attributes: ["status"],
+          where: {
+            id: skId,
+          },
+        },
+      ],
+    });
+
+    if (!data) {
+      throw new NotFoundError("data tidak ditemukan");
+    }
+
+    if (data.SuratKeputusan.status !== "PUBLISH") {
+      throw new AuthorizationError("Surat Keputusan tidak ada dalam status PUBLISH");
+    }
+    data.status = "DRAFT";
+    await data.save({ transaction: t });
     return data;
   }
 }
