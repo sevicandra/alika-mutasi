@@ -142,7 +142,6 @@ export const BiayaWorker = new BaseQueueWorker<BiayaJob>("biaya", (job) => {
 
         let packingDarat = false;
         let packingLaut = false;
-        const pulau_awal = rute_barang.rute[0].pulau;
         const index_kapal = rute_barang.rute.findIndex((r) => r.moda === "KAPAL");
         const jarak_darat_awal =
           index_kapal === -1
@@ -168,7 +167,7 @@ export const BiayaWorker = new BaseQueueWorker<BiayaJob>("biaya", (job) => {
           if (current.moda === "TRUK") {
             if (!packingDarat && !packingLaut) {
               const coefisien_packing_darat =
-                pulau_awal === "JAWA"
+                current.pulau === "JAWA"
                   ? jarak_darat_awal >= 100
                     ? 1
                     : 0.5
