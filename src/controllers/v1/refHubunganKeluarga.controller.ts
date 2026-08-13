@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 import { Op, col, where } from "sequelize";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
-import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
 import { successResponse } from "@/helpers/respose.helper";
 import { sortBuilder } from "@/helpers/sequelizer.helper";
-import { RefKantor } from "@/repositories";
+import { RefHubunganKeluarga } from "@/repositories";
 
-export const KantorControllerV1 = {
+export const RefHubunganKeluargaControllerV1 = {
   getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
@@ -16,24 +16,20 @@ export const KantorControllerV1 = {
     const whereClause = search
       ? {
           [Op.or]: [
-            where(col("kode_satker"), { [Op.like]: `%${search}%` }),
-            where(col("kantor"), { [Op.like]: `%${search}%` }),
-            where(col("Kota.kota"), { [Op.like]: `%${search}%` }),
-            where(col("Kota.kode"), { [Op.like]: `%${search}%` }),
-            where(col("Kota.Provinsi.provinsi"), { [Op.like]: `%${search}%` }),
-            where(col("Kota.Provinsi.kode"), { [Op.like]: `%${search}%` }),
+            where(col("kode"), { [Op.like]: `%${search}%` }),
+            where(col("nama"), { [Op.like]: `%${search}%` }),
           ],
         }
       : {};
 
-    const { items: data, pagination } = await RefKantor.findAllWithPagination({
+    const { items: data, pagination } = await RefHubunganKeluarga.findAllWithPagination({
       where: whereClause,
       limit,
       offset,
       order,
     });
 
-    successResponse(res, "Success get all ref kantor", data, pagination);
+    successResponse(res, "Success get all ref hubungan keluarga", data, pagination);
   }),
   getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -42,26 +38,25 @@ export const KantorControllerV1 = {
       throw new InvalidRequestError("Invalid request");
     }
 
-    const data = await RefKantor.findById(id);
+    const data = await RefHubunganKeluarga.findById(id);
     if (!data) {
       throw new NotFoundError("Data not found");
     }
 
-    successResponse(res, "Success get ref kantor", data);
+    successResponse(res, "Success get ref hubungan keluarga", data);
   }),
   create: asyncHandler(async (req: Request, res: Response) => {
-    const { kode_kota, kode_satker, kantor } = req.body;
-    const data = await RefKantor.create({
-      kode_kota,
-      kode_satker,
-      kantor,
+    const { kode, nama } = req.body;
+    const data = await RefHubunganKeluarga.create({
+      kode,
+      nama,
     });
-    successResponse(res, "Success create ref kantor", data);
+    successResponse(res, "Success create ref hubungan keluarga", data);
   }),
   update: asyncHandler(
     async (req: Request, res: Response) => {
       const { id } = req.params;
-      const { kode_kota, kode_satker, kantor } = req.body;
+      const { kode, nama } = req.body;
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
@@ -69,20 +64,19 @@ export const KantorControllerV1 = {
       if (!t) {
         throw new InternalServerError("Transaction not found");
       }
-      const data = await RefKantor.updateOne(
+      const data = await RefHubunganKeluarga.updateOne(
         {
           where: {
             id: id,
           },
         },
         {
-          kode_kota,
-          kode_satker,
-          kantor,
+          kode,
+          nama,
         },
         t
       );
-      successResponse(res, "Success update ref kantor", data);
+      successResponse(res, "Success update ref hubungan keluarga", data);
     },
     {
       useTransaction: true,
@@ -98,7 +92,7 @@ export const KantorControllerV1 = {
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
-      const data = await RefKantor.deleteOne(
+      const data = await RefHubunganKeluarga.deleteOne(
         {
           where: {
             id: id,
@@ -106,7 +100,7 @@ export const KantorControllerV1 = {
         },
         t
       );
-      successResponse(res, "Success delete ref kantor", data);
+      successResponse(res, "Success delete ref hubungan keluarga", data);
     },
     {
       useTransaction: true,

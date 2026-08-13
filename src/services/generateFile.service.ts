@@ -388,4 +388,97 @@ export class GenerateFileService {
       }
     });
   }
+
+  static generateFileKekurangan(
+    pegawai: PegawaiMutasi,
+    termin: Termin
+  ): Promise<
+    {
+      termin_id: string;
+      file?: string;
+      jenis: string;
+      required: boolean;
+      uploadable: boolean;
+      penandatangan: {
+        nama?: string;
+        nip?: string;
+        koordinat: {
+          page: number;
+          x: number;
+          y: number;
+        };
+        jabatan: "PEGAWAI" | "PEJABAT_KANTOR_ASAL" | "PEJABAT_KANTOR_TUJUAN" | "BENDAHARA" | "PPK";
+      }[];
+    }[]
+  > {
+    return new Promise(async (resolve, reject) => {
+      const uploadedFiles: string[] = [];
+      const files: {
+        termin_id: string;
+        file?: string;
+        jenis: string;
+        required: boolean;
+        uploadable: boolean;
+        penandatangan: {
+          nama?: string;
+          nip?: string;
+          koordinat: {
+            page: number;
+            x: number;
+            y: number;
+          };
+          jabatan:
+            "PEGAWAI" | "PEJABAT_KANTOR_ASAL" | "PEJABAT_KANTOR_TUJUAN" | "BENDAHARA" | "PPK";
+        }[];
+      }[] = [];
+
+      try {
+        const req_doc = termin.Ref.required_doc;
+        for (const doc of req_doc) {
+          if (doc.jenis === "RINCIAN_BIAYA") {
+            const rincianBiaya = await this.RincianBiaya({
+              pegawai,
+              termin,
+              agenda: {
+                nomor: pegawai.nomor_spd || "-",
+                tanggal: pegawai.tanggal_spd?.toString() || "-",
+              },
+              doc,
+            });
+            files.push(rincianBiaya);
+          } else {
+            files.push({
+              termin_id: termin.id,
+              jenis: doc.jenis,
+              required: doc.required,
+              uploadable: true,
+              penandatangan: [
+                {
+                  nama: pegawai.nama,
+                  nip: pegawai.nip,
+                  jabatan: "PEGAWAI",
+                  koordinat: {
+                    page: 1,
+                    x: 10,
+                    y: 10,
+                  },
+                },
+              ],
+            });
+          }
+        }
+
+        resolve(files);
+      } catch (error) {
+        for (const filePath of uploadedFiles) {
+          try {
+            await minioService.deleteFile(filePath);
+          } catch (deleteError) {
+            console.warn(`Gagal menghapus file rollback: ${filePath}`, deleteError);
+          }
+        }
+        reject(error);
+      }
+    });
+  }
 }

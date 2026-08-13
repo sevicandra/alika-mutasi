@@ -95,7 +95,7 @@ export const RincianBiayaControllerV2 = {
       if (!pegawai) {
         throw new NotFoundError("Pegawai not found");
       }
-      if (pegawai.process_termin !== "IDLE" || pegawai.SuratKeputusan.status !== "DRAFT") {
+      if (pegawai.process_termin !== "IDLE") {
         throw new AuthorizationError("rincian biaya tidak dapat ditambahkan, data sudah diproses");
       }
 
@@ -138,7 +138,7 @@ export const RincianBiayaControllerV2 = {
       if (!pegawai) {
         throw new NotFoundError("Pegawai not found");
       }
-      if (pegawai.process_termin !== "IDLE" || pegawai.SuratKeputusan.status !== "DRAFT") {
+      if (pegawai.process_termin !== "IDLE") {
         throw new AuthorizationError("rincian biaya tidak dapat ditambahkan, data sudah diproses");
       }
 
@@ -188,7 +188,7 @@ export const RincianBiayaControllerV2 = {
       if (!pegawai) {
         throw new NotFoundError("Pegawai not found");
       }
-      if (pegawai.process_termin !== "IDLE" || pegawai.SuratKeputusan.status !== "DRAFT") {
+      if (pegawai.process_termin !== "IDLE") {
         throw new AuthorizationError("rincian biaya tidak dapat dihapus, data sudah diproses");
       }
 

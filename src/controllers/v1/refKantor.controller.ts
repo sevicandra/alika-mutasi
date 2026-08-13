@@ -1,35 +1,39 @@
 import { Request, Response } from "express";
-import { Op } from "sequelize";
+import { Op, col, where } from "sequelize";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
-import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
 import { successResponse } from "@/helpers/respose.helper";
 import { sortBuilder } from "@/helpers/sequelizer.helper";
-import { RefKapal } from "@/repositories";
+import { RefKantor } from "@/repositories";
 
-export const KapalControllerV1 = {
+export const RefKantorControllerV1 = {
   getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
     const sort = req.query.sort as string;
     const order = sortBuilder(sort);
     const search = (req.query.search as string) || undefined;
-    const kota_asal = req.query.kota_asal || undefined;
-    const kota_tujuan = req.query.kota_tujuan || undefined;
-    const kapal = req.query.kapal || undefined;
-    const where: any = {};
-    if (search) where.rute = { [Op.like]: `%${search}%` };
-    if (kota_asal) where.kota_asal = kota_asal;
-    if (kota_tujuan) where.kota_tujuan = kota_tujuan;
-    if (kapal) where.kapal = kapal;
+    const whereClause = search
+      ? {
+          [Op.or]: [
+            where(col("kode_satker"), { [Op.like]: `%${search}%` }),
+            where(col("kantor"), { [Op.like]: `%${search}%` }),
+            where(col("Kota.kota"), { [Op.like]: `%${search}%` }),
+            where(col("Kota.kode"), { [Op.like]: `%${search}%` }),
+            where(col("Kota.Provinsi.provinsi"), { [Op.like]: `%${search}%` }),
+            where(col("Kota.Provinsi.kode"), { [Op.like]: `%${search}%` }),
+          ],
+        }
+      : {};
 
-    const { items: data, pagination } = await RefKapal.findAllWithPagination({
-      where,
+    const { items: data, pagination } = await RefKantor.findAllWithPagination({
+      where: whereClause,
       limit,
       offset,
       order,
     });
 
-    successResponse(res, "Success get all ref kapal", data, pagination);
+    successResponse(res, "Success get all ref kantor", data, pagination);
   }),
   getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -38,28 +42,26 @@ export const KapalControllerV1 = {
       throw new InvalidRequestError("Invalid request");
     }
 
-    const data = await RefKapal.findById(id);
+    const data = await RefKantor.findById(id);
     if (!data) {
       throw new NotFoundError("Data not found");
     }
 
-    successResponse(res, "Success get ref kapal", data);
+    successResponse(res, "Success get ref kantor", data);
   }),
   create: asyncHandler(async (req: Request, res: Response) => {
-    const { kapal, rute, kota_asal, kota_tujuan, tarif } = req.body;
-    const data = await RefKapal.create({
-      kapal,
-      rute,
-      kota_asal,
-      kota_tujuan,
-      tarif,
+    const { kode_kota, kode_satker, kantor } = req.body;
+    const data = await RefKantor.create({
+      kode_kota,
+      kode_satker,
+      kantor,
     });
-    successResponse(res, "Success create ref kapal", data);
+    successResponse(res, "Success create ref kantor", data);
   }),
   update: asyncHandler(
     async (req: Request, res: Response) => {
       const { id } = req.params;
-      const { kapal, rute, kota_asal, kota_tujuan, tarif } = req.body;
+      const { kode_kota, kode_satker, kantor } = req.body;
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
@@ -67,22 +69,20 @@ export const KapalControllerV1 = {
       if (!t) {
         throw new InternalServerError("Transaction not found");
       }
-      const data = await RefKapal.updateOne(
+      const data = await RefKantor.updateOne(
         {
           where: {
             id: id,
           },
         },
         {
-          kapal,
-          rute,
-          kota_asal,
-          kota_tujuan,
-          tarif,
+          kode_kota,
+          kode_satker,
+          kantor,
         },
         t
       );
-      successResponse(res, "Success update ref kapal", data);
+      successResponse(res, "Success update ref kantor", data);
     },
     {
       useTransaction: true,
@@ -98,7 +98,7 @@ export const KapalControllerV1 = {
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
-      const data = await RefKapal.deleteOne(
+      const data = await RefKantor.deleteOne(
         {
           where: {
             id: id,
@@ -106,7 +106,7 @@ export const KapalControllerV1 = {
         },
         t
       );
-      successResponse(res, "Success delete ref kapal", data);
+      successResponse(res, "Success delete ref kantor", data);
     },
     {
       useTransaction: true,

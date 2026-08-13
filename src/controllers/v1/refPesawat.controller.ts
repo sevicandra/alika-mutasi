@@ -1,24 +1,33 @@
 import { Request, Response } from "express";
+import { Op } from "sequelize";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
-import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
 import { successResponse } from "@/helpers/respose.helper";
 import { sortBuilder } from "@/helpers/sequelizer.helper";
-import { RefBarang } from "@/repositories";
+import { RefPesawat } from "@/repositories";
 
-export const BarangControllerV1 = {
+export const RefPesawatControllerV1 = {
   getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
     const sort = req.query.sort as string;
     const order = sortBuilder(sort);
+    const kota_asal = req.query.kota_asal || undefined;
+    const kota_tujuan = req.query.kota_tujuan || undefined;
+    const search = (req.query.search as string) || undefined;
+    const where: any = {};
+    if (search) where.rute = { [Op.like]: `%${search}%` };
+    if (kota_asal) where.kota_asal = kota_asal;
+    if (kota_tujuan) where.kota_tujuan = kota_tujuan;
 
-    const { items: data, pagination } = await RefBarang.findAllWithPagination({
+    const { items: data, pagination } = await RefPesawat.findAllWithPagination({
       limit,
       offset,
       order,
+      where,
     });
 
-    successResponse(res, "Success get all ref barang", data, pagination);
+    successResponse(res, "Success get all ref pesawat", data, pagination);
   }),
   getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -27,26 +36,29 @@ export const BarangControllerV1 = {
       throw new InvalidRequestError("Invalid request");
     }
 
-    const data = await RefBarang.findById(id);
+    const data = await RefPesawat.findById(id);
     if (!data) {
       throw new NotFoundError("Data not found");
     }
 
-    successResponse(res, "Success get ref barang", data);
+    successResponse(res, "Success get ref pesawat", data);
   }),
   create: asyncHandler(async (req: Request, res: Response) => {
-    const { golongan, status, volume } = req.body;
-    const data = await RefBarang.create({
-      golongan,
-      status,
-      volume,
+    const { rute, kota_asal, kota_tujuan, ekonomi, bisnis, jenis_tarif } = req.body;
+    const data = await RefPesawat.create({
+      rute,
+      kota_asal,
+      kota_tujuan,
+      ekonomi,
+      bisnis,
+      jenis_tarif,
     });
-    successResponse(res, "Success create ref barang", data);
+    successResponse(res, "Success create ref pesawat", data);
   }),
   update: asyncHandler(
     async (req: Request, res: Response) => {
       const { id } = req.params;
-      const { golongan, status, volume } = req.body;
+      const { rute, kota_asal, kota_tujuan, ekonomi, bisnis, jenis_tarif } = req.body;
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
@@ -54,20 +66,23 @@ export const BarangControllerV1 = {
       if (!t) {
         throw new InternalServerError("Transaction not found");
       }
-      const data = await RefBarang.updateOne(
+      const data = await RefPesawat.updateOne(
         {
           where: {
             id: id,
           },
         },
         {
-          golongan,
-          status,
-          volume,
+          rute,
+          kota_asal,
+          kota_tujuan,
+          ekonomi,
+          bisnis,
+          jenis_tarif,
         },
         t
       );
-      successResponse(res, "Success update ref barang", data);
+      successResponse(res, "Success update ref pesawat", data);
     },
     {
       useTransaction: true,
@@ -83,7 +98,7 @@ export const BarangControllerV1 = {
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
-      const data = await RefBarang.deleteOne(
+      const data = await RefPesawat.deleteOne(
         {
           where: {
             id: id,
@@ -91,7 +106,7 @@ export const BarangControllerV1 = {
         },
         t
       );
-      successResponse(res, "Success delete ref barang", data);
+      successResponse(res, "Success delete ref pesawat", data);
     },
     {
       useTransaction: true,

@@ -1,35 +1,28 @@
 import { Request, Response } from "express";
-import { Op, col, where } from "sequelize";
+import { Op } from "sequelize";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
 import { successResponse } from "@/helpers/respose.helper";
 import { sortBuilder } from "@/helpers/sequelizer.helper";
-import { RefHubunganKeluarga } from "@/repositories";
+import { RefKota } from "@/repositories";
 
-export const HubunganKeluargaControllerV1 = {
+export const RefKotaControllerV1 = {
   getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
     const sort = req.query.sort as string;
     const order = sortBuilder(sort);
     const search = (req.query.search as string) || undefined;
-    const whereClause = search
-      ? {
-          [Op.or]: [
-            where(col("kode"), { [Op.like]: `%${search}%` }),
-            where(col("nama"), { [Op.like]: `%${search}%` }),
-          ],
-        }
-      : {};
-
-    const { items: data, pagination } = await RefHubunganKeluarga.findAllWithPagination({
-      where: whereClause,
+    const where: any = {};
+    if (search) where.kota = { [Op.like]: `%${search}%` };
+    const { items: data, pagination } = await RefKota.findAllWithPagination({
+      where,
       limit,
       offset,
       order,
     });
 
-    successResponse(res, "Success get all ref hubungan keluarga", data, pagination);
+    successResponse(res, "Success get all ref kota", data, pagination);
   }),
   getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -38,25 +31,34 @@ export const HubunganKeluargaControllerV1 = {
       throw new InvalidRequestError("Invalid request");
     }
 
-    const data = await RefHubunganKeluarga.findById(id);
+    const data = await RefKota.findById(id);
     if (!data) {
       throw new NotFoundError("Data not found");
     }
 
-    successResponse(res, "Success get ref hubungan keluarga", data);
+    successResponse(res, "Success get ref kota", data);
+  }),
+  getByKode: asyncHandler(async (req: Request, res: Response) => {
+    const { kode } = req.params;
+    const data = await RefKota.findOne({ where: { kode } });
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
+    successResponse(res, "Success get ref kota", data);
   }),
   create: asyncHandler(async (req: Request, res: Response) => {
-    const { kode, nama } = req.body;
-    const data = await RefHubunganKeluarga.create({
+    const { kode_provinsi, kode, kota } = req.body;
+    const data = await RefKota.create({
+      kode_provinsi,
       kode,
-      nama,
+      kota,
     });
-    successResponse(res, "Success create ref hubungan keluarga", data);
+    successResponse(res, "Success create ref kota", data);
   }),
   update: asyncHandler(
     async (req: Request, res: Response) => {
       const { id } = req.params;
-      const { kode, nama } = req.body;
+      const { kode_provinsi, kode, kota } = req.body;
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
@@ -64,19 +66,20 @@ export const HubunganKeluargaControllerV1 = {
       if (!t) {
         throw new InternalServerError("Transaction not found");
       }
-      const data = await RefHubunganKeluarga.updateOne(
+      const data = await RefKota.updateOne(
         {
           where: {
             id: id,
           },
         },
         {
+          kode_provinsi,
           kode,
-          nama,
+          kota,
         },
         t
       );
-      successResponse(res, "Success update ref hubungan keluarga", data);
+      successResponse(res, "Success update ref kota", data);
     },
     {
       useTransaction: true,
@@ -92,7 +95,7 @@ export const HubunganKeluargaControllerV1 = {
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
-      const data = await RefHubunganKeluarga.deleteOne(
+      const data = await RefKota.deleteOne(
         {
           where: {
             id: id,
@@ -100,7 +103,7 @@ export const HubunganKeluargaControllerV1 = {
         },
         t
       );
-      successResponse(res, "Success delete ref hubungan keluarga", data);
+      successResponse(res, "Success delete ref kota", data);
     },
     {
       useTransaction: true,

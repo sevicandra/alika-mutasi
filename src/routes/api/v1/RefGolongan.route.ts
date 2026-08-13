@@ -1,6 +1,6 @@
 import { Router } from "express";
 import z from "zod";
-import { GolonganControllerV1 } from "@/controllers/v1/golongan.controller";
+import { RefGolonganControllerV1 } from "@/controllers/v1/refGolongan.controller";
 import { authorizeScopes } from "@/middlewares/authenticate.middleware";
 import { validateBody } from "@/middlewares/validate-request.middleware";
 
@@ -26,19 +26,23 @@ const updateSchema = z.object({
     .optional(),
 });
 
-router.get("/", authorizeScopes(["mutasi.golongan.read"]), GolonganControllerV1.getAll);
-router.get("/:id", authorizeScopes(["mutasi.golongan.read"]), GolonganControllerV1.getById);
+router.get("/", authorizeScopes(["mutasi.refGolongan.read"]), RefGolonganControllerV1.getAll);
+router.get("/:id", authorizeScopes(["mutasi.refGolongan.read"]), RefGolonganControllerV1.getById);
 router.post(
   "/",
   validateBody(createSchema),
-  authorizeScopes(["mutasi.golongan.write"]),
-  GolonganControllerV1.create
+  authorizeScopes(["mutasi.refGolongan.write"]),
+  RefGolonganControllerV1.create
 );
 router.patch(
   "/:id",
   validateBody(updateSchema),
-  authorizeScopes(["mutasi.golongan.update"]),
-  GolonganControllerV1.update
+  authorizeScopes(["mutasi.refGolongan.update"]),
+  RefGolonganControllerV1.update
 );
-router.delete("/:id", authorizeScopes(["mutasi.golongan.delete"]), GolonganControllerV1.delete);
+router.delete(
+  "/:id",
+  authorizeScopes(["mutasi.refGolongan.delete"]),
+  RefGolonganControllerV1.delete
+);
 export default router;

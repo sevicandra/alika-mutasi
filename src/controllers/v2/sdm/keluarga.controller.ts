@@ -98,7 +98,7 @@ export const KeluargaControllerV2 = {
       throw new NotFoundError("Pegawai not found");
     }
 
-    if (pegawai.process_biaya !== "IDLE" || pegawai.SuratKeputusan.status !== "DRAFT") {
+    if (pegawai.process_biaya !== "IDLE") {
       throw new AuthorizationError("keluarga tidak dapat ditambahkan, data sudah diproses");
     }
 
@@ -140,7 +140,7 @@ export const KeluargaControllerV2 = {
         throw new NotFoundError("Pegawai not found");
       }
 
-      if (pegawai.process_biaya !== "IDLE" || pegawai.SuratKeputusan.status !== "DRAFT") {
+      if (pegawai.process_biaya !== "IDLE") {
         throw new AuthorizationError("keluarga tidak dapat diubah, data sudah diproses");
       }
       const is_invant = Invant(new Date(tanggal_lahir), pegawai.SuratKeputusan.tanggal);
@@ -189,7 +189,7 @@ export const KeluargaControllerV2 = {
       if (!pegawai) {
         throw new NotFoundError("Pegawai not found");
       }
-      if (pegawai.process_biaya !== "IDLE" || pegawai.SuratKeputusan.status !== "DRAFT") {
+      if (pegawai.process_biaya !== "IDLE") {
         throw new AuthorizationError("keluarga tidak dapat diubah, data sudah diproses");
       }
       const data = await Keluarga.deleteOne(

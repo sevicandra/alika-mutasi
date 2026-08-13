@@ -3,22 +3,28 @@ import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
 import { successResponse } from "@/helpers/respose.helper";
 import { sortBuilder } from "@/helpers/sequelizer.helper";
-import { RefUangHarian } from "@/repositories";
+import { RefDarat } from "@/repositories";
 
-export const UangHarianControllerV1 = {
+export const RefDaratControllerV1 = {
   getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
+    const kota_asal = req.query.kota_asal || undefined;
+    const kota_tujuan = req.query.kota_tujuan || undefined;
     const sort = req.query.sort as string;
     const order = sortBuilder(sort);
+    const where: any = {};
+    if (kota_asal) where.kota_asal = kota_asal;
+    if (kota_tujuan) where.kota_tujuan = kota_tujuan;
 
-    const { items: data, pagination } = await RefUangHarian.findAllWithPagination({
+    const { items: data, pagination } = await RefDarat.findAllWithPagination({
       limit,
       offset,
       order,
+      where,
     });
 
-    successResponse(res, "Success get all ref uang harian", data, pagination);
+    successResponse(res, "Success get all ref darat", data, pagination);
   }),
   getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -27,25 +33,28 @@ export const UangHarianControllerV1 = {
       throw new InvalidRequestError("Invalid request");
     }
 
-    const data = await RefUangHarian.findById(id);
+    const data = await RefDarat.findById(id);
     if (!data) {
       throw new NotFoundError("Data not found");
     }
 
-    successResponse(res, "Success get ref uang harian", data);
+    successResponse(res, "Success get ref darat", data);
   }),
   create: asyncHandler(async (req: Request, res: Response) => {
-    const { kode_provinsi, tarif } = req.body;
-    const data = await RefUangHarian.create({
-      kode_provinsi,
-      tarif,
+    const { rute, kota_asal, kota_tujuan, jarak, pulau } = req.body;
+    const data = await RefDarat.create({
+      rute,
+      kota_asal,
+      kota_tujuan,
+      jarak,
+      pulau,
     });
-    successResponse(res, "Success create ref uang harian", data);
+    successResponse(res, "Success create ref darat", data);
   }),
   update: asyncHandler(
     async (req: Request, res: Response) => {
       const { id } = req.params;
-      const { kode_provinsi, tarif } = req.body;
+      const { rute, kota_asal, kota_tujuan, jarak, pulau } = req.body;
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
@@ -53,19 +62,22 @@ export const UangHarianControllerV1 = {
       if (!t) {
         throw new InternalServerError("Transaction not found");
       }
-      const data = await RefUangHarian.updateOne(
+      const data = await RefDarat.updateOne(
         {
           where: {
             id: id,
           },
         },
         {
-          kode_provinsi,
-          tarif,
+          rute,
+          kota_asal,
+          kota_tujuan,
+          jarak,
+          pulau,
         },
         t
       );
-      successResponse(res, "Success update ref uang harian", data);
+      successResponse(res, "Success update ref darat", data);
     },
     {
       useTransaction: true,
@@ -81,7 +93,7 @@ export const UangHarianControllerV1 = {
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
-      const data = await RefUangHarian.deleteOne(
+      const data = await RefDarat.deleteOne(
         {
           where: {
             id: id,
@@ -89,7 +101,7 @@ export const UangHarianControllerV1 = {
         },
         t
       );
-      successResponse(res, "Success delete ref uang harian", data);
+      successResponse(res, "Success delete ref darat", data);
     },
     {
       useTransaction: true,

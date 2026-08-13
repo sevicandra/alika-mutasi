@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { TerminController } from "@/controllers/v2/admin/referensi/termin.controller";
+import { TerminControllerV2 } from "@/controllers/v2/admin/referensi/termin.controller";
 
 const router = Router();
 
-router.get("/", TerminController.getAll);
-router.get("/:id", TerminController.getById);
+router.get("/", TerminControllerV2.getAll);
+router.get("/:id", TerminControllerV2.getById);
 export default router;

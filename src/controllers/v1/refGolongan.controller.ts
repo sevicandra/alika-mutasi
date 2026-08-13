@@ -1,28 +1,34 @@
 import { Request, Response } from "express";
-import { Op } from "sequelize";
+import { Op, col, where } from "sequelize";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
-import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
 import { successResponse } from "@/helpers/respose.helper";
 import { sortBuilder } from "@/helpers/sequelizer.helper";
-import { RefKota } from "@/repositories";
+import { RefGolongan } from "@/repositories";
 
-export const KotaControllerV1 = {
+export const RefGolonganControllerV1 = {
   getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
     const sort = req.query.sort as string;
     const order = sortBuilder(sort);
     const search = (req.query.search as string) || undefined;
-    const where: any = {};
-    if (search) where.kota = { [Op.like]: `%${search}%` };
-    const { items: data, pagination } = await RefKota.findAllWithPagination({
-      where,
+    const whereClause = search
+      ? {
+          [Op.or]: [
+            where(col("kode"), { [Op.like]: `%${search}%` }),
+            where(col("nama"), { [Op.like]: `%${search}%` }),
+          ],
+        }
+      : {};
+    const { items: data, pagination } = await RefGolongan.findAllWithPagination({
+      where: whereClause,
       limit,
       offset,
       order,
     });
 
-    successResponse(res, "Success get all ref kota", data, pagination);
+    successResponse(res, "Success get all ref golongan", data, pagination);
   }),
   getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -31,34 +37,25 @@ export const KotaControllerV1 = {
       throw new InvalidRequestError("Invalid request");
     }
 
-    const data = await RefKota.findById(id);
+    const data = await RefGolongan.findById(id);
     if (!data) {
       throw new NotFoundError("Data not found");
     }
 
-    successResponse(res, "Success get ref kota", data);
-  }),
-  getByKode: asyncHandler(async (req: Request, res: Response) => {
-    const { kode } = req.params;
-    const data = await RefKota.findOne({ where: { kode } });
-    if (!data) {
-      throw new NotFoundError("Data not found");
-    }
-    successResponse(res, "Success get ref kota", data);
+    successResponse(res, "Success get ref golongan", data);
   }),
   create: asyncHandler(async (req: Request, res: Response) => {
-    const { kode_provinsi, kode, kota } = req.body;
-    const data = await RefKota.create({
-      kode_provinsi,
+    const { kode, nama } = req.body;
+    const data = await RefGolongan.create({
       kode,
-      kota,
+      nama,
     });
-    successResponse(res, "Success create ref kota", data);
+    successResponse(res, "Success create ref golongan", data);
   }),
   update: asyncHandler(
     async (req: Request, res: Response) => {
       const { id } = req.params;
-      const { kode_provinsi, kode, kota } = req.body;
+      const { kode, nama } = req.body;
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
@@ -66,20 +63,19 @@ export const KotaControllerV1 = {
       if (!t) {
         throw new InternalServerError("Transaction not found");
       }
-      const data = await RefKota.updateOne(
+      const data = await RefGolongan.updateOne(
         {
           where: {
             id: id,
           },
         },
         {
-          kode_provinsi,
           kode,
-          kota,
+          nama,
         },
         t
       );
-      successResponse(res, "Success update ref kota", data);
+      successResponse(res, "Success update ref golongan", data);
     },
     {
       useTransaction: true,
@@ -95,7 +91,7 @@ export const KotaControllerV1 = {
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
-      const data = await RefKota.deleteOne(
+      const data = await RefGolongan.deleteOne(
         {
           where: {
             id: id,
@@ -103,7 +99,7 @@ export const KotaControllerV1 = {
         },
         t
       );
-      successResponse(res, "Success delete ref kota", data);
+      successResponse(res, "Success delete ref golongan", data);
     },
     {
       useTransaction: true,

@@ -1,18 +1,42 @@
 import { Router } from "express";
-import Golongan from "./Golongan.route";
-import Kantor from "./Kantor.route";
+import Keluarga from "./Keluarga.route";
 import PegawaiMutasi from "./PegawaiMutasi.route";
 import Pm2 from "./Pm2.route";
 import Queue from "./Queue.route";
+import RefBarang from "./RefBarang.route";
+import RefGolongan from "./RefGolongan.route";
+import RefHubunganKeluarga from "./RefHubunganKeluarga.route";
+import RefKantor from "./RefKantor.route";
+import RefKapal from "./RefKapal.route";
+import RefKota from "./RefKota.route";
+import RefPesawat from "./RefPesawat.route";
+import RefTarif from "./RefTarif.route";
+import RefTermin from "./RefTermin.route";
+import RefUangHarian from "./RefUangHarian.route";
+import RincianBiaya from "./RincianBiaya.route";
 import SuratKeputusan from "./SuratKeputusan.route";
+import RefDarat from "./refDarat.route";
+import RefProvinsi from "./refProvinsi.route";
 
 const router = Router();
 
-router.use("/Golongan", Golongan);
-router.use("/Kantor", Kantor);
+router.use("/Keluarga", Keluarga);
+router.use("/RefBarang", RefBarang);
+router.use("/RefDarat", RefDarat);
+router.use("/RefGolongan", RefGolongan);
+router.use("/RefHubunganKeluarga", RefHubunganKeluarga);
+router.use("/RefKantor", RefKantor);
+router.use("/RefKapal", RefKapal);
+router.use("/RefKota", RefKota);
+router.use("/RefPesawat", RefPesawat);
+router.use("/RefTarif", RefTarif);
+router.use("/RefTermin", RefTermin);
+router.use("/RefUangHarian", RefUangHarian);
+router.use("/RincianBiaya", RincianBiaya);
+router.use("/SuratKeputusan", SuratKeputusan);
 router.use("/PegawaiMutasi", PegawaiMutasi);
 router.use("/PM2", Pm2);
 router.use("/Queue", Queue);
-router.use("/SuratKeputusan", SuratKeputusan);
+router.use("/RefProvinsi", RefProvinsi);
 
 export default router;

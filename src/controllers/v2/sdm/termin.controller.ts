@@ -153,7 +153,6 @@ export const TerminControllerV2 = {
             attributes: ["id", "nomor", "tanggal"],
             where: {
               id: SkId,
-              status: "DRAFT",
             },
           },
           {

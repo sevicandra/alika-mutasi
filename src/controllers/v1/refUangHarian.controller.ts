@@ -1,29 +1,24 @@
 import { Request, Response } from "express";
-import { Op } from "sequelize";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
 import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
 import { successResponse } from "@/helpers/respose.helper";
 import { sortBuilder } from "@/helpers/sequelizer.helper";
-import { RefProvinsi } from "@/repositories";
+import { RefUangHarian } from "@/repositories";
 
-export const ProvinsiControllerV1 = {
+export const RefUangHarianControllerV1 = {
   getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
     const sort = req.query.sort as string;
     const order = sortBuilder(sort);
-    const search = (req.query.search as string) || undefined;
-    const where: any = {};
-    if (search) where.provinsi = { [Op.like]: `%${search}%` };
 
-    const { items: data, pagination } = await RefProvinsi.findAllWithPagination({
+    const { items: data, pagination } = await RefUangHarian.findAllWithPagination({
       limit,
       offset,
       order,
-      where,
     });
 
-    successResponse(res, "Success get all ref provinsi", data, pagination);
+    successResponse(res, "Success get all ref uang harian", data, pagination);
   }),
   getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -32,33 +27,25 @@ export const ProvinsiControllerV1 = {
       throw new InvalidRequestError("Invalid request");
     }
 
-    const data = await RefProvinsi.findById(id);
+    const data = await RefUangHarian.findById(id);
     if (!data) {
       throw new NotFoundError("Data not found");
     }
 
-    successResponse(res, "Success get ref provinsi", data);
-  }),
-  getByKode: asyncHandler(async (req: Request, res: Response) => {
-    const { kode } = req.params;
-    const data = await RefProvinsi.findOne({ where: { kode } });
-    if (!data) {
-      throw new NotFoundError("Data not found");
-    }
-    successResponse(res, "Success get ref provinsi", data);
+    successResponse(res, "Success get ref uang harian", data);
   }),
   create: asyncHandler(async (req: Request, res: Response) => {
-    const { kode, provinsi } = req.body;
-    const data = await RefProvinsi.create({
-      kode,
-      provinsi,
+    const { kode_provinsi, tarif } = req.body;
+    const data = await RefUangHarian.create({
+      kode_provinsi,
+      tarif,
     });
-    successResponse(res, "Success create ref provinsi", data);
+    successResponse(res, "Success create ref uang harian", data);
   }),
   update: asyncHandler(
     async (req: Request, res: Response) => {
       const { id } = req.params;
-      const { kode, provinsi } = req.body;
+      const { kode_provinsi, tarif } = req.body;
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
@@ -66,19 +53,19 @@ export const ProvinsiControllerV1 = {
       if (!t) {
         throw new InternalServerError("Transaction not found");
       }
-      const data = await RefProvinsi.updateOne(
+      const data = await RefUangHarian.updateOne(
         {
           where: {
             id: id,
           },
         },
         {
-          kode,
-          provinsi,
+          kode_provinsi,
+          tarif,
         },
         t
       );
-      successResponse(res, "Success update ref provinsi", data);
+      successResponse(res, "Success update ref uang harian", data);
     },
     {
       useTransaction: true,
@@ -94,7 +81,7 @@ export const ProvinsiControllerV1 = {
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
-      const data = await RefProvinsi.deleteOne(
+      const data = await RefUangHarian.deleteOne(
         {
           where: {
             id: id,
@@ -102,7 +89,7 @@ export const ProvinsiControllerV1 = {
         },
         t
       );
-      successResponse(res, "Success delete ref provinsi", data);
+      successResponse(res, "Success delete ref uang harian", data);
     },
     {
       useTransaction: true,

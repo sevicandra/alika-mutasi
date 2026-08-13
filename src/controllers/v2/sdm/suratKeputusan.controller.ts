@@ -559,7 +559,7 @@ export const SuratKeputusanControllerV2 = {
   ),
   selesai: asyncHandler(
     async (req: Request, res: Response) => {
-      const t = await sequelize.transaction();
+      const t = req.transaction;
       if (!t) {
         throw new InternalServerError("Transaction not found");
       }
@@ -583,6 +583,7 @@ export const SuratKeputusanControllerV2 = {
             ],
           },
         ],
+        transaction: t,
       });
 
       if (!data) {

@@ -1,30 +1,29 @@
 import { Request, Response } from "express";
+import { Op } from "sequelize";
 import { asyncHandler } from "@/middlewares/async-handler.middleware";
-import { InvalidRequestError, NotFoundError, InternalServerError } from "@/utils/errors";
+import { InternalServerError, InvalidRequestError, NotFoundError } from "@/utils/errors";
 import { successResponse } from "@/helpers/respose.helper";
 import { sortBuilder } from "@/helpers/sequelizer.helper";
-import { RefDarat } from "@/repositories";
+import { RefProvinsi } from "@/repositories";
 
-export const DaratControllerV1 = {
+export const RefProvinsiControllerV1 = {
   getAll: asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || undefined;
     const offset = parseInt(req.query.offset as string) || undefined;
-    const kota_asal = req.query.kota_asal || undefined;
-    const kota_tujuan = req.query.kota_tujuan || undefined;
     const sort = req.query.sort as string;
     const order = sortBuilder(sort);
+    const search = (req.query.search as string) || undefined;
     const where: any = {};
-    if (kota_asal) where.kota_asal = kota_asal;
-    if (kota_tujuan) where.kota_tujuan = kota_tujuan;
+    if (search) where.provinsi = { [Op.like]: `%${search}%` };
 
-    const { items: data, pagination } = await RefDarat.findAllWithPagination({
+    const { items: data, pagination } = await RefProvinsi.findAllWithPagination({
       limit,
       offset,
       order,
       where,
     });
 
-    successResponse(res, "Success get all ref darat", data, pagination);
+    successResponse(res, "Success get all ref provinsi", data, pagination);
   }),
   getById: asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -33,28 +32,33 @@ export const DaratControllerV1 = {
       throw new InvalidRequestError("Invalid request");
     }
 
-    const data = await RefDarat.findById(id);
+    const data = await RefProvinsi.findById(id);
     if (!data) {
       throw new NotFoundError("Data not found");
     }
 
-    successResponse(res, "Success get ref darat", data);
+    successResponse(res, "Success get ref provinsi", data);
+  }),
+  getByKode: asyncHandler(async (req: Request, res: Response) => {
+    const { kode } = req.params;
+    const data = await RefProvinsi.findOne({ where: { kode } });
+    if (!data) {
+      throw new NotFoundError("Data not found");
+    }
+    successResponse(res, "Success get ref provinsi", data);
   }),
   create: asyncHandler(async (req: Request, res: Response) => {
-    const { rute, kota_asal, kota_tujuan, jarak, pulau } = req.body;
-    const data = await RefDarat.create({
-      rute,
-      kota_asal,
-      kota_tujuan,
-      jarak,
-      pulau,
+    const { kode, provinsi } = req.body;
+    const data = await RefProvinsi.create({
+      kode,
+      provinsi,
     });
-    successResponse(res, "Success create ref darat", data);
+    successResponse(res, "Success create ref provinsi", data);
   }),
   update: asyncHandler(
     async (req: Request, res: Response) => {
       const { id } = req.params;
-      const { rute, kota_asal, kota_tujuan, jarak, pulau } = req.body;
+      const { kode, provinsi } = req.body;
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
@@ -62,22 +66,19 @@ export const DaratControllerV1 = {
       if (!t) {
         throw new InternalServerError("Transaction not found");
       }
-      const data = await RefDarat.updateOne(
+      const data = await RefProvinsi.updateOne(
         {
           where: {
             id: id,
           },
         },
         {
-          rute,
-          kota_asal,
-          kota_tujuan,
-          jarak,
-          pulau,
+          kode,
+          provinsi,
         },
         t
       );
-      successResponse(res, "Success update ref darat", data);
+      successResponse(res, "Success update ref provinsi", data);
     },
     {
       useTransaction: true,
@@ -93,7 +94,7 @@ export const DaratControllerV1 = {
       if (typeof id !== "string") {
         throw new InvalidRequestError("Invalid request");
       }
-      const data = await RefDarat.deleteOne(
+      const data = await RefProvinsi.deleteOne(
         {
           where: {
             id: id,
@@ -101,7 +102,7 @@ export const DaratControllerV1 = {
         },
         t
       );
-      successResponse(res, "Success delete ref darat", data);
+      successResponse(res, "Success delete ref provinsi", data);
     },
     {
       useTransaction: true,

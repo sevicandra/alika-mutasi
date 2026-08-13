@@ -1,6 +1,6 @@
 import { Router } from "express";
 import z from "zod";
-import { KantorControllerV1 } from "@/controllers/v1/kantor.controller";
+import { RefKantorControllerV1 } from "@/controllers/v1/refKantor.controller";
 import { authorizeScopes } from "@/middlewares/authenticate.middleware";
 import { validateBody } from "@/middlewares/validate-request.middleware";
 
@@ -24,19 +24,19 @@ const updateSchema = z.object({
   kantor: z.string().max(100, "Kantor must be at most 100 characters").optional(),
 });
 
-router.get("/", authorizeScopes(["mutasi.kantor.read"]), KantorControllerV1.getAll);
-router.get("/:id", authorizeScopes(["mutasi.kantor.read"]), KantorControllerV1.getById);
+router.get("/", authorizeScopes(["mutasi.kantor.read"]), RefKantorControllerV1.getAll);
+router.get("/:id", authorizeScopes(["mutasi.kantor.read"]), RefKantorControllerV1.getById);
 router.post(
   "/",
   validateBody(createSchema),
   authorizeScopes(["mutasi.kantor.write"]),
-  KantorControllerV1.create
+  RefKantorControllerV1.create
 );
 router.patch(
   "/:id",
   validateBody(updateSchema),
   authorizeScopes(["mutasi.kantor.update"]),
-  KantorControllerV1.update
+  RefKantorControllerV1.update
 );
-router.delete("/:id", authorizeScopes(["mutasi.kantor.delete"]), KantorControllerV1.delete);
+router.delete("/:id", authorizeScopes(["mutasi.kantor.delete"]), RefKantorControllerV1.delete);
 export default router;
