@@ -66,10 +66,6 @@ Keluarga.init(
         key: "id",
       },
       validate: {
-        isUUID: {
-          msg: "pegawai_id harus UUID",
-          args: 4,
-        },
         notNull: {
           msg: "pegawai_id tidak boleh kosong",
         },

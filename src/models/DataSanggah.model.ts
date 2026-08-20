@@ -48,22 +48,18 @@ class DataSanggah
 DataSanggah.init(
   {
     id: {
-      type: DataTypes.UUIDV4,
+      type: DataTypes.UUID,
       defaultValue: () => UUID.v7(),
       primaryKey: true,
     },
     sanggah_id: {
-      type: DataTypes.STRING,
+      type: DataTypes.UUID,
       allowNull: false,
       unique: {
         name: "sanggah_keluarga",
         msg: "keluarga_id sudah ada",
       },
       validate: {
-        isUUID: {
-          msg: "sanggah_id harus UUID",
-          args: 4,
-        },
         notEmpty: {
           msg: "sanggah_id tidak boleh kosong",
         },
@@ -89,17 +85,11 @@ DataSanggah.init(
       allowNull: false,
     },
     keluarga_id: {
-      type: DataTypes.STRING,
+      type: DataTypes.UUID,
       allowNull: true,
       references: {
         model: Keluarga,
         key: "id",
-      },
-      validate: {
-        isUUID: {
-          msg: "keluarga_id harus UUID",
-          args: 4,
-        },
       },
       unique: {
         name: "sanggah_keluarga",

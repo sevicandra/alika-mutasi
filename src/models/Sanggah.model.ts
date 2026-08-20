@@ -40,7 +40,7 @@ class Sanggah
 Sanggah.init(
   {
     id: {
-      type: DataTypes.UUIDV4,
+      type: DataTypes.UUID,
       defaultValue: () => UUID.v7(),
       primaryKey: true,
     },
@@ -50,7 +50,7 @@ Sanggah.init(
       unique: true,
     },
     pegawai_id: {
-      type: DataTypes.STRING,
+      type: DataTypes.UUID,
       allowNull: false,
     },
     status: {

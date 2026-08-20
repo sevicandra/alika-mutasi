@@ -51,13 +51,13 @@ class RincianBiaya
 RincianBiaya.init(
   {
     id: {
-      type: DataTypes.STRING,
+      type: DataTypes.UUID,
       allowNull: false,
       primaryKey: true,
       defaultValue: () => UUID.v7(),
     },
     pegawai_id: {
-      type: DataTypes.STRING,
+      type: DataTypes.UUID,
       allowNull: false,
       references: {
         model: PegawaiMutasi,

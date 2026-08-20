@@ -38,7 +38,7 @@ Rekening.init(
       primaryKey: true,
     },
     pegawai_id: {
-      type: DataTypes.STRING,
+      type: DataTypes.UUID,
       allowNull: false,
     },
     nomor_rekening: {

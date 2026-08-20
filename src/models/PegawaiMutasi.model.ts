@@ -146,7 +146,7 @@ PegawaiMutasi.init(
       primaryKey: true,
     },
     sk_id: {
-      type: DataTypes.STRING,
+      type: DataTypes.UUID,
       allowNull: false,
       unique: {
         name: "nip",

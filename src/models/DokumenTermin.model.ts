@@ -47,12 +47,12 @@ class DokumenTermin
 DokumenTermin.init(
   {
     id: {
-      type: DataTypes.UUIDV4,
+      type: DataTypes.UUID,
       defaultValue: () => UUID.v7(),
       primaryKey: true,
     },
     termin_id: {
-      type: DataTypes.STRING,
+      type: DataTypes.UUID,
       references: {
         model: Termin,
         key: "id",

@@ -66,7 +66,7 @@ class SuratKeputusan
 SuratKeputusan.init(
   {
     id: {
-      type: DataTypes.UUIDV4,
+      type: DataTypes.UUID,
       defaultValue: () => UUID.v7(),
       primaryKey: true,
     },

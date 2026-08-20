@@ -47,12 +47,12 @@ class TteDokumen
 TteDokumen.init(
   {
     id: {
-      type: DataTypes.UUIDV4,
+      type: DataTypes.UUID,
       defaultValue: () => UUID.v7(),
       primaryKey: true,
     },
     dokumen_id: {
-      type: DataTypes.STRING,
+      type: DataTypes.UUID,
       references: {
         model: DokumenTermin,
         key: "id",
